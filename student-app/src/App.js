@@ -1,0 +1,57 @@
+import React, { useState } from 'react';
+import Header from './components/Header';
+import Sidebar from './components/Sidebar';
+import Dashboard from './components/Dashboard';
+import MyRequest from './components/MyRequest';
+import RequestDetails from './components/RequestDetails';
+import NewRequest from './components/NewRequest';
+import Feedback from './components/Feedback';
+import BulletinBoard from './components/BulletinBoard';
+import './App.css';
+
+function App() {
+  const [activePage, setActivePage] = useState('dashboard');
+
+  const renderPage = () => {
+    switch(activePage) {
+      case 'dashboard':
+        return <Dashboard />;
+      case 'request':
+        return <MyRequest onViewDetails={() => setActivePage('request-details')} onNavigate={setActivePage} />;
+      case 'request-details':
+        return <RequestDetails onNavigate={setActivePage} />;
+      case 'new-request':
+        return <NewRequest onNavigate={setActivePage} />;
+      case 'bulletin':
+        return <BulletinBoard />;
+      case 'feedback':
+        return <Feedback />;
+      case 'feedback-discipline':
+        return <Feedback selectedOffice="discipline" />;
+      case 'feedback-library':
+        return <Feedback selectedOffice="library" />;
+      case 'feedback-registrar':
+        return <Feedback selectedOffice="registrar" />;
+      case 'feedback-finance':
+        return <Feedback selectedOffice="finance" />;
+      case 'faq':
+        return <div>FAQ's - Coming Soon</div>;
+      default:
+        return <Dashboard />;
+    }
+  };
+
+  return (
+    <div className="app">
+      <Header />
+      <div className="app-body">
+        <Sidebar activePage={activePage} onNavigate={setActivePage} />
+        <main className="main-content">
+          {renderPage()}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export default App;
