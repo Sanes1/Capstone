@@ -5,6 +5,10 @@ import '../styles/MyTickets.css';
 const MyTickets = ({ department, onNavigate }) => {
   const [timeFilter, setTimeFilter] = useState('week');
 
+  const handleTicketClick = () => {
+    onNavigate('ticket-details');
+  };
+
   const tickets = [
     { id: '#FIN-123-654-789', title: 'TUITION PAYMENT', student: 'RICKY LIAM', studentId: '05-2324-12345', assignedTo: 'Alex Smith', status: 'In Progress' },
     { id: '#FIN-123-654-789', title: 'GRAND TOTAL', student: 'JANE DOE', studentId: '05-2324-12345', assignedTo: 'Alex Smith', status: 'Rejected' },
@@ -13,16 +17,14 @@ const MyTickets = ({ department, onNavigate }) => {
     { id: '#FIN-123-654-789', title: 'ASSESSMENT FEE', student: 'JAYSONN MILLER', studentId: '05-2324-12345', assignedTo: 'Alex Smith', status: 'Resolved' },
   ];
 
-  const handleTicketClick = () => {
-    onNavigate('ticket-details');
-  };
-
   return (
     <div className="my-tickets-container">
       <div className="breadcrumb">
         <span className="breadcrumb-item">Tickets</span>
         <span className="breadcrumb-separator">/</span>
-        <span className="breadcrumb-item">Ticket Details</span>
+        <span className="breadcrumb-item clickable" onClick={handleTicketClick}>
+          Ticket Details
+        </span>
       </div>
 
       <div className="page-header">
@@ -107,9 +109,9 @@ const MyTickets = ({ department, onNavigate }) => {
           </thead>
           <tbody>
             {tickets.map((ticket, index) => (
-              <tr key={index} onClick={handleTicketClick}>
-                <td className="checkbox-cell" onClick={(e) => e.stopPropagation()}>
-                  <input type="checkbox" className="ticket-checkbox" />
+              <tr key={index} onClick={handleTicketClick} style={{ cursor: 'pointer' }}>
+                <td className="checkbox-cell">
+                  <input type="checkbox" className="ticket-checkbox" onClick={(e) => e.stopPropagation()} />
                 </td>
                 <td>
                   <div className="student-cell">

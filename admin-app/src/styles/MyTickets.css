@@ -15,11 +15,15 @@
 }
 
 .breadcrumb-item {
+  cursor: default;
+}
+
+.breadcrumb-item.clickable {
   cursor: pointer;
   transition: color 0.2s;
 }
 
-.breadcrumb-item:hover {
+.breadcrumb-item.clickable:hover {
   color: #2e7d32;
 }
 

@@ -4,6 +4,9 @@ import AdminSidebar from './components/AdminSidebar';
 import AdminDashboard from './components/AdminDashboard';
 import MyTickets from './components/MyTickets';
 import TicketDetails from './components/TicketDetails';
+import Analytics from './components/Analytics';
+import BulletinBoard from './components/BulletinBoard';
+import Feedback from './components/Feedback';
 import './App.css';
 
 function App() {
@@ -34,22 +37,10 @@ function App() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {activePage === 'dashboard' && <AdminDashboard department={selectedDepartment} />}
         {activePage === 'my-tickets' && <MyTickets department={selectedDepartment} onNavigate={handleNavigate} />}
-        {activePage === 'ticket-details' && <TicketDetails department={selectedDepartment} />}
-        {activePage === 'analytics' && (
-          <div style={{ padding: '40px', backgroundColor: '#f5f5f5', flex: 1 }}>
-            <h2>Analytics - Coming Soon</h2>
-          </div>
-        )}
-        {activePage === 'bulletin' && (
-          <div style={{ padding: '40px', backgroundColor: '#f5f5f5', flex: 1 }}>
-            <h2>Bulletin Board - Coming Soon</h2>
-          </div>
-        )}
-        {activePage === 'feedback' && (
-          <div style={{ padding: '40px', backgroundColor: '#f5f5f5', flex: 1 }}>
-            <h2>Feedback - Coming Soon</h2>
-          </div>
-        )}
+        {activePage === 'ticket-details' && <TicketDetails department={selectedDepartment} onNavigate={handleNavigate} />}
+        {activePage === 'analytics' && <Analytics department={selectedDepartment} />}
+        {activePage === 'bulletin' && <BulletinBoard department={selectedDepartment} />}
+        {activePage === 'feedback' && <Feedback department={selectedDepartment} />}
       </div>
     </div>
   );
