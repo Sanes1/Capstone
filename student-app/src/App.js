@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Login from './components/Login';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -10,7 +11,12 @@ import BulletinBoard from './components/BulletinBoard';
 import './App.css';
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [activePage, setActivePage] = useState('dashboard');
+
+  const handleLogin = () => {
+    setIsLoggedIn(true);
+  };
 
   const renderPage = () => {
     switch(activePage) {
@@ -40,6 +46,10 @@ function App() {
         return <Dashboard />;
     }
   };
+
+  if (!isLoggedIn) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   return (
     <div className="app">
