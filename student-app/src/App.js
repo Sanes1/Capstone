@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Login from './components/Login';
+import GuestLogin from './components/GuestLogin';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -12,10 +13,17 @@ import './App.css';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
   const [activePage, setActivePage] = useState('dashboard');
 
   const handleLogin = () => {
     setIsLoggedIn(true);
+    setIsGuest(false);
+  };
+
+  const handleGuestLogin = () => {
+    setIsGuest(true);
+    setIsLoggedIn(false);
   };
 
   const renderPage = () => {
@@ -47,8 +55,12 @@ function App() {
     }
   };
 
-  if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />;
+  if (!isLoggedIn && !isGuest) {
+    return <Login onLogin={handleLogin} onGuestLogin={handleGuestLogin} />;
+  }
+
+  if (isGuest) {
+    return <GuestLogin />;
   }
 
   return (

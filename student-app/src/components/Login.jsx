@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FaQrcode, FaUserCircle, FaShieldAlt } from 'react-icons/fa';
 import '../styles/Login.css';
 
-const Login = ({ onLogin }) => {
+const Login = ({ onLogin, onGuestLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberDevice, setRememberDevice] = useState(false);
@@ -22,7 +22,7 @@ const Login = ({ onLogin }) => {
   };
 
   const handleGuestLogin = () => {
-    onLogin();
+    onGuestLogin();
   };
 
   return (
