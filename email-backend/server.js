@@ -1,9 +1,25 @@
 const express = require('express');
 const cors = require('cors');
+const admin = require('firebase-admin');
 require('dotenv').config();
 
 const app = express();
 const PORT = 5000;
+
+// Initialize Firebase Admin SDK
+// You need to download the service account key from Firebase Console
+// Go to: Project Settings > Service Accounts > Generate New Private Key
+// Save it as 'serviceAccountKey.json' in this directory
+try {
+  const serviceAccount = require('./serviceAccountKey.json');
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+  console.log('✅ Firebase Admin initialized');
+} catch (error) {
+  console.warn('⚠️ Firebase Admin not initialized - delete user from Auth will not work');
+  console.warn('Download service account key from Firebase Console to enable this feature');
+}
 
 // Middleware
 app.use(cors());
@@ -197,6 +213,45 @@ app.post('/api/send-credentials', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to send email'
+    });
+  }
+});
+
+// Delete user from Firebase Authentication
+app.post('/api/delete-user', async (req, res) => {
+  try {
+    const { uid } = req.body;
+
+    if (!uid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing user UID'
+      });
+    }
+
+    // Check if Firebase Admin is initialized
+    if (!admin.apps.length) {
+      return res.status(500).json({
+        success: false,
+        error: 'Firebase Admin not initialized. Service account key required.'
+      });
+    }
+
+    // Delete user from Firebase Authentication
+    await admin.auth().deleteUser(uid);
+    
+    console.log('✅ User deleted from Firebase Auth:', uid);
+
+    res.json({
+      success: true,
+      message: 'User deleted from Firebase Authentication'
+    });
+
+  } catch (error) {
+    console.error('❌ Error deleting user:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to delete user'
     });
   }
 });

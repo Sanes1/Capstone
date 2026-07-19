@@ -233,11 +233,35 @@ const UserManagement = () => {
         await loadStudents();
         alert(`Account ${newStatus ? 'activated' : 'suspended'} successfully!`);
       } else if (confirmAction === 'delete') {
-        // Delete from Firestore
+        // First, delete from Firebase Authentication via backend
+        try {
+          const response = await fetch('http://localhost:5000/api/delete-user', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              uid: selectedStudent.uid
+            })
+          });
+
+          const data = await response.json();
+          
+          if (!data.success) {
+            throw new Error(data.error || 'Failed to delete from Firebase Auth');
+          }
+          
+          console.log('✅ Deleted from Firebase Auth');
+        } catch (authError) {
+          console.error('❌ Failed to delete from Firebase Auth:', authError);
+          // Continue to delete from Firestore anyway
+          alert('Warning: Could not delete from Firebase Authentication. The account will be removed from the database but may still exist in Authentication.');
+        }
+
+        // Then delete from Firestore
         await deleteDoc(doc(db, 'students', selectedStudent.firestoreId));
-        // Note: Firebase Auth user deletion requires admin SDK on backend
         await loadStudents();
-        alert('Account deleted successfully!');
+        alert('Account deleted successfully from both database and authentication!');
       }
       setShowConfirmModal(false);
       setSelectedStudent(null);
