@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { MdNotifications, MdUploadFile } from 'react-icons/md';
-import { db } from '../firebase';
+import { useState, useRef } from 'react';
+import { MdNotifications, MdUploadFile, MdClose } from 'react-icons/md';
+import { db, storage } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import '../styles/NewRequest.css';
 
 function NewRequest({ onNavigate }) {
@@ -10,6 +11,8 @@ function NewRequest({ onNavigate }) {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const fileInputRef = useRef(null);
 
   const offices = [
     {
@@ -41,6 +44,82 @@ function NewRequest({ onNavigate }) {
     const randomNum2 = Math.floor(100 + Math.random() * 900); // 3 digits
     const randomNum3 = Math.floor(100 + Math.random() * 900); // 3 digits
     return `${officePrefix}-${randomNum1}-${randomNum2}-${randomNum3}`;
+  };
+
+  const handleFileSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    
+    // Filter files by size (max 5MB)
+    const validFiles = [];
+    const invalidFiles = [];
+    
+    files.forEach(file => {
+      if (file.size <= 5 * 1024 * 1024) { // 5MB in bytes
+        validFiles.push(file);
+      } else {
+        invalidFiles.push(file.name);
+      }
+    });
+
+    if (invalidFiles.length > 0) {
+      setError(`These files exceed 5MB: ${invalidFiles.join(', ')}`);
+      setTimeout(() => setError(''), 5000);
+    }
+
+    if (validFiles.length > 0) {
+      setUploadedFiles(prev => [...prev, ...validFiles]);
+    }
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveFile = (index) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const uploadFilesToStorage = async (requestId) => {
+    const uploadedFileUrls = [];
+
+    for (let i = 0; i < uploadedFiles.length; i++) {
+      const file = uploadedFiles[i];
+      const timestamp = Date.now();
+      const fileName = `${timestamp}_${file.name}`;
+      const storageRef = ref(storage, `requests/${requestId}/${fileName}`);
+
+      try {
+        // Upload file
+        await uploadBytes(storageRef, file);
+        
+        // Get download URL
+        const downloadURL = await getDownloadURL(storageRef);
+        
+        uploadedFileUrls.push({
+          name: file.name,
+          url: downloadURL,
+          size: file.size,
+          type: file.type,
+          uploadedAt: new Date().toISOString()
+        });
+        
+        console.log(`✅ Uploaded file ${i + 1}/${uploadedFiles.length}:`, file.name);
+      } catch (uploadError) {
+        console.error(`❌ Error uploading file ${file.name}:`, uploadError);
+        throw new Error(`Failed to upload ${file.name}`);
+      }
+    }
+
+    return uploadedFileUrls;
   };
 
   const handleSubmit = async () => {
@@ -77,6 +156,13 @@ function NewRequest({ onNavigate }) {
       // Generate unique request ID
       const requestId = generateRequestId(selectedOfficeData.name);
 
+      // Upload files if any
+      let attachments = [];
+      if (uploadedFiles.length > 0) {
+        console.log(`📤 Uploading ${uploadedFiles.length} file(s)...`);
+        attachments = await uploadFilesToStorage(requestId);
+      }
+
       // Prepare request data
       const requestData = {
         requestId: requestId,
@@ -90,7 +176,7 @@ function NewRequest({ onNavigate }) {
         status: 'Pending',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        attachments: [], // For future file upload implementation
+        attachments: attachments,
         isGuest: false
       };
 
@@ -99,12 +185,13 @@ function NewRequest({ onNavigate }) {
       console.log('✅ Request created with ID:', docRef.id);
 
       // Show success message
-      alert('Request submitted successfully! Your request ID is: ' + requestId);
+      alert(`Request submitted successfully! Your request ID is: ${requestId}${attachments.length > 0 ? `\n${attachments.length} file(s) attached` : ''}`);
 
       // Reset form
       setSelectedOffice('');
       setSubject('');
       setDescription('');
+      setUploadedFiles([]);
 
       // Navigate back to request history
       if (onNavigate) {
@@ -189,12 +276,45 @@ function NewRequest({ onNavigate }) {
         </div>
 
         <div className="form-section">
-          <label>Attach File <span className="optional">(Optional)</span></label>
-          <div className="upload-area">
+          <label>Attach File <span className="optional">(Optional - Max 5MB per file)</span></label>
+          
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+            accept="image/*,.pdf,.doc,.docx,.txt"
+          />
+          
+          <div className="upload-area" onClick={() => fileInputRef.current?.click()}>
             <MdUploadFile className="upload-icon" />
             <p className="upload-text">Click to upload or drag and drop</p>
-            <p className="upload-limit">Attach documents (Max 5MB)</p>
+            <p className="upload-limit">Attach documents (Max 5MB per file)</p>
           </div>
+
+          {uploadedFiles.length > 0 && (
+            <div className="uploaded-files-list">
+              {uploadedFiles.map((file, index) => (
+                <div key={index} className="uploaded-file-item">
+                  <div className="file-info">
+                    <span className="file-name">{file.name}</span>
+                    <span className="file-size">{formatFileSize(file.size)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="remove-file-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveFile(index);
+                    }}
+                  >
+                    <MdClose />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="form-actions">
