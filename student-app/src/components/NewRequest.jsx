@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { MdNotifications, MdUploadFile } from 'react-icons/md';
+import { db } from '../firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import '../styles/NewRequest.css';
 
 function NewRequest({ onNavigate }) {
   const [selectedOffice, setSelectedOffice] = useState('');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const offices = [
     {
@@ -30,6 +34,91 @@ function NewRequest({ onNavigate }) {
     }
   ];
 
+  const generateRequestId = (officeName) => {
+    // Generate format: FIN-123-654-789
+    const officePrefix = officeName.substring(0, 3).toUpperCase();
+    const randomNum1 = Math.floor(100 + Math.random() * 900); // 3 digits
+    const randomNum2 = Math.floor(100 + Math.random() * 900); // 3 digits
+    const randomNum3 = Math.floor(100 + Math.random() * 900); // 3 digits
+    return `${officePrefix}-${randomNum1}-${randomNum2}-${randomNum3}`;
+  };
+
+  const handleSubmit = async () => {
+    setError('');
+
+    // Validation
+    if (!selectedOffice) {
+      setError('Please select an office');
+      return;
+    }
+
+    if (!subject.trim()) {
+      setError('Please enter a subject');
+      return;
+    }
+
+    if (!description.trim()) {
+      setError('Please provide a detailed description');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Get student data from localStorage
+      const studentData = localStorage.getItem('studentData');
+      if (!studentData) {
+        throw new Error('Student data not found. Please login again.');
+      }
+
+      const student = JSON.parse(studentData);
+      const selectedOfficeData = offices.find(o => o.id === selectedOffice);
+      
+      // Generate unique request ID
+      const requestId = generateRequestId(selectedOfficeData.name);
+
+      // Prepare request data
+      const requestData = {
+        requestId: requestId,
+        studentId: student.id,
+        studentName: student.name,
+        studentEmail: student.email,
+        office: selectedOfficeData.name,
+        officeId: selectedOffice,
+        subject: subject.trim(),
+        description: description.trim(),
+        status: 'Pending',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        attachments: [], // For future file upload implementation
+        isGuest: false
+      };
+
+      // Save to Firebase
+      const docRef = await addDoc(collection(db, 'requests'), requestData);
+      console.log('✅ Request created with ID:', docRef.id);
+
+      // Show success message
+      alert('Request submitted successfully! Your request ID is: ' + requestId);
+
+      // Reset form
+      setSelectedOffice('');
+      setSubject('');
+      setDescription('');
+
+      // Navigate back to request history
+      if (onNavigate) {
+        onNavigate('request');
+      }
+
+    } catch (error) {
+      console.error('❌ Error submitting request:', error);
+      setError('Failed to submit request: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="new-request-page">
       <div className="breadcrumb">
@@ -50,6 +139,12 @@ function NewRequest({ onNavigate }) {
       </div>
 
       <div className="request-form">
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
+
         <div className="form-section">
           <h3>Select Office</h3>
           <div className="office-grid">
@@ -103,8 +198,20 @@ function NewRequest({ onNavigate }) {
         </div>
 
         <div className="form-actions">
-          <button className="cancel-btn" onClick={() => onNavigate('request')}>Cancel</button>
-          <button className="submit-btn">Submit Request</button>
+          <button 
+            className="cancel-btn" 
+            onClick={() => onNavigate('request')}
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button 
+            className="submit-btn" 
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? 'Submitting...' : 'Submit Request'}
+          </button>
         </div>
       </div>
     </div>

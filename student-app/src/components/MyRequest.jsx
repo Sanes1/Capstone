@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MdSearch, MdNotifications, MdKeyboardArrowLeft, MdKeyboardArrowRight } from 'react-icons/md';
+import { db } from '../firebase';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import '../styles/MyRequest.css';
 
 function MyRequest({ onViewDetails, onNavigate }) {
@@ -9,10 +11,9 @@ function MyRequest({ onViewDetails, onNavigate }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [requests, setRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch requests from database
-    // This will be implemented when connecting to Firebase
     loadRequests();
   }, []);
 
@@ -22,12 +23,52 @@ function MyRequest({ onViewDetails, onNavigate }) {
   }, [searchQuery, statusFilter, officeFilter, requests]);
 
   const loadRequests = async () => {
-    // TODO: Replace with actual Firebase query
-    // const studentId = localStorage.getItem('studentId');
-    // const requestsRef = collection(db, 'requests');
-    // const q = query(requestsRef, where('studentId', '==', studentId));
-    // const snapshot = await getDocs(q);
-    setRequests([]);
+    try {
+      setLoading(true);
+      
+      // Get student data from localStorage
+      const studentData = localStorage.getItem('studentData');
+      if (!studentData) {
+        console.error('Student data not found');
+        setLoading(false);
+        return;
+      }
+
+      const student = JSON.parse(studentData);
+      
+      // Query requests for this student
+      const requestsRef = collection(db, 'requests');
+      const q = query(
+        requestsRef, 
+        where('studentId', '==', student.id),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const requestsData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          firestoreId: doc.id,
+          id: data.requestId,
+          office: data.office,
+          subject: data.subject,
+          date: data.createdAt?.toDate().toLocaleDateString('en-US', { 
+            month: 'long', 
+            day: 'numeric', 
+            year: 'numeric' 
+          }) || 'N/A',
+          status: data.status,
+          ...data
+        };
+      });
+      
+      setRequests(requestsData);
+      console.log('✅ Loaded', requestsData.length, 'requests');
+    } catch (error) {
+      console.error('❌ Error loading requests:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filterRequests = () => {
@@ -109,7 +150,11 @@ function MyRequest({ onViewDetails, onNavigate }) {
       </div>
 
       <div className="request-table">
-        {filteredRequests.length === 0 ? (
+        {loading ? (
+          <div className="loading-state">
+            <p>Loading requests...</p>
+          </div>
+        ) : filteredRequests.length === 0 ? (
           <div className="empty-state">
             <p>No requests found. {searchQuery || statusFilter !== 'All Status' || officeFilter !== 'All Offices' ? 'Try adjusting your filters.' : 'Create your first request to get started!'}</p>
           </div>
@@ -127,7 +172,7 @@ function MyRequest({ onViewDetails, onNavigate }) {
             </thead>
             <tbody>
               {filteredRequests.map((req, index) => (
-                <tr key={index} onClick={onViewDetails} style={{ cursor: 'pointer' }}>
+                <tr key={req.firestoreId || index} onClick={onViewDetails} style={{ cursor: 'pointer' }}>
                   <td>#{req.id}</td>
                   <td>{req.office}</td>
                   <td>{req.subject}</td>

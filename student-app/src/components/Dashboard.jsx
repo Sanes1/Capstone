@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { MdAdd, MdNotifications, MdConfirmationNumber } from 'react-icons/md';
 import { HiOutlineDocumentAdd, HiOutlineDocumentText, HiOutlineCheckCircle } from 'react-icons/hi';
+import { db } from '../firebase';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import '../styles/Dashboard.css';
 
 function Dashboard() {
@@ -12,6 +14,7 @@ function Dashboard() {
     inProgress: 0,
     resolved: 0
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Get student info from localStorage
@@ -19,12 +22,60 @@ function Dashboard() {
     if (studentData) {
       const student = JSON.parse(studentData);
       setStudentName(student.name || 'Student');
+      loadRequests(student.id);
     }
-
-    // TODO: Fetch requests from database
-    // This will be implemented when connecting to Firebase
-    // For now, showing empty state
   }, []);
+
+  const loadRequests = async (studentId) => {
+    try {
+      setLoading(true);
+      
+      // Query all requests for this student
+      const requestsRef = collection(db, 'requests');
+      const q = query(
+        requestsRef,
+        where('studentId', '==', studentId),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const allRequests = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          firestoreId: doc.id,
+          id: data.requestId,
+          office: data.office,
+          subject: data.subject,
+          date: data.createdAt?.toDate().toLocaleDateString('en-US', { 
+            month: 'long', 
+            day: 'numeric', 
+            year: 'numeric' 
+          }) || 'N/A',
+          status: data.status,
+          ...data
+        };
+      });
+
+      // Calculate stats
+      const newStats = {
+        total: allRequests.length,
+        pending: allRequests.filter(r => r.status === 'Pending').length,
+        inProgress: allRequests.filter(r => r.status === 'In Process').length,
+        resolved: allRequests.filter(r => r.status === 'Resolved').length
+      };
+
+      setStats(newStats);
+      
+      // Get recent 5 requests
+      setRequests(allRequests.slice(0, 5));
+      
+      console.log('✅ Dashboard loaded:', newStats.total, 'total requests');
+    } catch (error) {
+      console.error('❌ Error loading dashboard:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="dashboard">
@@ -76,7 +127,11 @@ function Dashboard() {
         </div>
         
         <div className="table-container">
-          {requests.length === 0 ? (
+          {loading ? (
+            <div className="empty-state">
+              <p>Loading requests...</p>
+            </div>
+          ) : requests.length === 0 ? (
             <div className="empty-state">
               <p>No requests yet. Create your first request to get started!</p>
             </div>
@@ -94,7 +149,7 @@ function Dashboard() {
               </thead>
               <tbody>
                 {requests.map((req, index) => (
-                  <tr key={index}>
+                  <tr key={req.firestoreId || index}>
                     <td>#{req.id}</td>
                     <td>{req.office}</td>
                     <td>{req.subject}</td>

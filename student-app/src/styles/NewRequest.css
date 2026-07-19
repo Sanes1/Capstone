@@ -93,6 +93,16 @@
   margin-bottom: 30px;
 }
 
+.error-message {
+  background-color: #fee;
+  border: 1px solid #fcc;
+  color: #c33;
+  padding: 12px 18px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
 .form-section {
   margin-bottom: 30px;
 }
@@ -273,8 +283,13 @@
   transition: all 0.2s;
 }
 
-.cancel-btn:hover {
+.cancel-btn:hover:not(:disabled) {
   background: #f5f5f5;
+}
+
+.cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .submit-btn {
@@ -289,6 +304,11 @@
   transition: background 0.2s;
 }
 
-.submit-btn:hover {
+.submit-btn:hover:not(:disabled) {
   background-color: #7aa876;
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
