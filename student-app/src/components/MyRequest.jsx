@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MdSearch, MdNotifications, MdKeyboardArrowLeft, MdKeyboardArrowRight } from 'react-icons/md';
 import '../styles/MyRequest.css';
 
@@ -7,14 +7,58 @@ function MyRequest({ onViewDetails, onNavigate }) {
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [officeFilter, setOfficeFilter] = useState('All Offices');
   const [currentPage, setCurrentPage] = useState(1);
+  const [requests, setRequests] = useState([]);
+  const [filteredRequests, setFilteredRequests] = useState([]);
 
-  const requests = [
-    { id: 'FIN-123-654-789', office: 'Finance', subject: 'Tuition Payment', date: 'February 16, 2026', status: 'In Process' },
-    { id: 'LIB-123-654-789', office: 'Library', subject: 'Book Distribution', date: 'February 16, 2026', status: 'Resolved' },
-    { id: 'REG-123-654-789', office: 'Registrar', subject: 'Good Morale', date: 'February 16, 2026', status: 'Pending' },
-    { id: 'GUI-123-654-789', office: 'Guidance', subject: 'Counseling', date: 'February 16, 2026', status: 'Resolved' },
-    { id: 'FIN-123-654-789', office: 'Finance', subject: 'Grand Total', date: 'February 16, 2026', status: 'Resolved' }
-  ];
+  useEffect(() => {
+    // TODO: Fetch requests from database
+    // This will be implemented when connecting to Firebase
+    loadRequests();
+  }, []);
+
+  useEffect(() => {
+    // Filter requests based on search and filters
+    filterRequests();
+  }, [searchQuery, statusFilter, officeFilter, requests]);
+
+  const loadRequests = async () => {
+    // TODO: Replace with actual Firebase query
+    // const studentId = localStorage.getItem('studentId');
+    // const requestsRef = collection(db, 'requests');
+    // const q = query(requestsRef, where('studentId', '==', studentId));
+    // const snapshot = await getDocs(q);
+    setRequests([]);
+  };
+
+  const filterRequests = () => {
+    let filtered = [...requests];
+
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter(req => 
+        req.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        req.subject.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== 'All Status') {
+      filtered = filtered.filter(req => req.status === statusFilter);
+    }
+
+    // Office filter
+    if (officeFilter !== 'All Offices') {
+      filtered = filtered.filter(req => req.office === officeFilter);
+    }
+
+    setFilteredRequests(filtered);
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('All Status');
+    setOfficeFilter('All Offices');
+  };
 
   return (
     <div className="my-request">
@@ -61,38 +105,44 @@ function MyRequest({ onViewDetails, onNavigate }) {
           <option>Guidance</option>
         </select>
 
-        <button className="reset-btn">Reset Filters</button>
+        <button className="reset-btn" onClick={handleResetFilters}>Reset Filters</button>
       </div>
 
       <div className="request-table">
-        <table>
-          <thead>
-            <tr>
-              <th>REQUEST ID</th>
-              <th>OFFICE</th>
-              <th>SUBJECT</th>
-              <th>DATE SUBMITTED</th>
-              <th>STATUS</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {requests.map((req, index) => (
-              <tr key={index} onClick={onViewDetails} style={{ cursor: 'pointer' }}>
-                <td>#{req.id}</td>
-                <td>{req.office}</td>
-                <td>{req.subject}</td>
-                <td>{req.date}</td>
-                <td>
-                  <span className={`status ${req.status.toLowerCase().replace(' ', '-')}`}>
-                    {req.status}
-                  </span>
-                </td>
-                <td>›</td>
+        {filteredRequests.length === 0 ? (
+          <div className="empty-state">
+            <p>No requests found. {searchQuery || statusFilter !== 'All Status' || officeFilter !== 'All Offices' ? 'Try adjusting your filters.' : 'Create your first request to get started!'}</p>
+          </div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>REQUEST ID</th>
+                <th>OFFICE</th>
+                <th>SUBJECT</th>
+                <th>DATE SUBMITTED</th>
+                <th>STATUS</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredRequests.map((req, index) => (
+                <tr key={index} onClick={onViewDetails} style={{ cursor: 'pointer' }}>
+                  <td>#{req.id}</td>
+                  <td>{req.office}</td>
+                  <td>{req.subject}</td>
+                  <td>{req.date}</td>
+                  <td>
+                    <span className={`status ${req.status.toLowerCase().replace(' ', '-')}`}>
+                      {req.status}
+                    </span>
+                  </td>
+                  <td>›</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="pagination">
@@ -100,9 +150,6 @@ function MyRequest({ onViewDetails, onNavigate }) {
           <MdKeyboardArrowLeft />
         </button>
         <button className={`page-num ${currentPage === 1 ? 'active' : ''}`} onClick={() => setCurrentPage(1)}>1</button>
-        <button className={`page-num ${currentPage === 2 ? 'active' : ''}`} onClick={() => setCurrentPage(2)}>2</button>
-        <button className={`page-num ${currentPage === 3 ? 'active' : ''}`} onClick={() => setCurrentPage(3)}>3</button>
-        <button className={`page-num ${currentPage === 4 ? 'active' : ''}`} onClick={() => setCurrentPage(4)}>4</button>
         <button className="page-btn">
           <MdKeyboardArrowRight />
         </button>

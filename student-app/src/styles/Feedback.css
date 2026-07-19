@@ -399,3 +399,38 @@
 .submit-feedback-btn:hover {
   background-color: #7aa876;
 }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+  font-size: 16px;
+}
+
+.rate-office-btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #105E06;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: background-color 0.2s;
+}
+
+.rate-office-btn:hover {
+  background-color: #0d4d05;
+}
+
+.office-rating-card {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.office-rating-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}

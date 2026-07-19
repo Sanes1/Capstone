@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { MdNotifications, MdStar, MdStarBorder } from 'react-icons/md';
 import '../styles/Feedback.css';
 
@@ -8,18 +8,57 @@ function Feedback({ selectedOffice: initialOffice }) {
   const [helpfulness, setHelpfulness] = useState(0);
   const [comments, setComments] = useState('');
   const [followUp, setFollowUp] = useState(false);
+  const [offices, setOffices] = useState([]);
 
   // Update selectedOffice when prop changes
   useEffect(() => {
     setSelectedOffice(initialOffice || null);
   }, [initialOffice]);
 
-  const offices = [
-    { id: 'finance', name: 'Finance', rating: 4.8, responseTime: 90, helpfulness: 88 },
-    { id: 'registrar', name: 'Registrar', rating: 4.8, responseTime: 92, helpfulness: 88 },
-    { id: 'library', name: 'Library', rating: 4.0, responseTime: 78, helpfulness: 80 },
-    { id: 'discipline', name: 'Discipline', rating: 4.5, responseTime: 90, helpfulness: 88 }
-  ];
+  useEffect(() => {
+    // TODO: Fetch office ratings from database
+    // This will be implemented when connecting to Firebase
+    loadOfficeRatings();
+  }, []);
+
+  const loadOfficeRatings = async () => {
+    // TODO: Replace with actual Firebase query
+    // const officesRef = collection(db, 'offices');
+    // const snapshot = await getDocs(officesRef);
+    // Calculate average ratings from feedback collection
+    setOffices([
+      { id: 'finance', name: 'Finance', rating: 0, responseTime: 0, helpfulness: 0 },
+      { id: 'registrar', name: 'Registrar', rating: 0, responseTime: 0, helpfulness: 0 },
+      { id: 'library', name: 'Library', rating: 0, responseTime: 0, helpfulness: 0 },
+      { id: 'discipline', name: 'Discipline', rating: 0, responseTime: 0, helpfulness: 0 }
+    ]);
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!responseTime || !helpfulness) {
+      alert('Please rate both Response Time and Helpfulness');
+      return;
+    }
+
+    // TODO: Save feedback to database
+    // const feedbackData = {
+    //   officeId: selectedOffice,
+    //   studentId: localStorage.getItem('studentId'),
+    //   responseTime,
+    //   helpfulness,
+    //   comments,
+    //   followUp,
+    //   createdAt: serverTimestamp()
+    // };
+    // await addDoc(collection(db, 'feedback'), feedbackData);
+
+    alert('Thank you for your feedback!');
+    setSelectedOffice(null);
+    setResponseTime(0);
+    setHelpfulness(0);
+    setComments('');
+    setFollowUp(false);
+  };
 
   const renderStars = (rating) => {
     const stars = [];
@@ -63,35 +102,42 @@ function Feedback({ selectedOffice: initialOffice }) {
           </div>
         </div>
 
-        <div className="office-grid">
-          {offices.map((office) => (
-            <div key={office.id} className="office-rating-card">
-              <h3>{office.name}</h3>
-              <div className="rating-display">
-                <span className="rating-number">{office.rating}/5</span>
-                <div className="stars">
-                  {renderStars(office.rating)}
-                </div>
-              </div>
-              <div className="metrics">
-                <div className="metric-row">
-                  <span className="metric-label">Response Time</span>
-                  <div className="metric-bar">
-                    <div className="metric-fill" style={{ width: `${office.responseTime}%` }}></div>
+        {offices.length === 0 ? (
+          <div className="empty-state">
+            <p>Loading office information...</p>
+          </div>
+        ) : (
+          <div className="office-grid">
+            {offices.map((office) => (
+              <div key={office.id} className="office-rating-card" onClick={() => setSelectedOffice(office.id)}>
+                <h3>{office.name}</h3>
+                <div className="rating-display">
+                  <span className="rating-number">{office.rating > 0 ? office.rating.toFixed(1) : 'N/A'}/5</span>
+                  <div className="stars">
+                    {renderStars(office.rating)}
                   </div>
-                  <span className="metric-value">{office.responseTime}%</span>
                 </div>
-                <div className="metric-row">
-                  <span className="metric-label">Helpfulness</span>
-                  <div className="metric-bar">
-                    <div className="metric-fill" style={{ width: `${office.helpfulness}%` }}></div>
+                <div className="metrics">
+                  <div className="metric-row">
+                    <span className="metric-label">Response Time</span>
+                    <div className="metric-bar">
+                      <div className="metric-fill" style={{ width: `${office.responseTime}%` }}></div>
+                    </div>
+                    <span className="metric-value">{office.responseTime}%</span>
                   </div>
-                  <span className="metric-value">{office.helpfulness}%</span>
+                  <div className="metric-row">
+                    <span className="metric-label">Helpfulness</span>
+                    <div className="metric-bar">
+                      <div className="metric-fill" style={{ width: `${office.helpfulness}%` }}></div>
+                    </div>
+                    <span className="metric-value">{office.helpfulness}%</span>
+                  </div>
                 </div>
+                <button className="rate-office-btn">Rate this office</button>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -115,32 +161,7 @@ function Feedback({ selectedOffice: initialOffice }) {
       <div className="feedback-form">
         <div className="satisfaction-section">
           <div className="satisfaction-header">
-            <h3><MdStar style={{ color: '#8CB986', marginRight: '8px' }} />Overall Satisfaction</h3>
-            <div className="rating-summary">
-              <div className="big-rating">{currentOffice?.rating || '4.8'}</div>
-              <div className="rating-stars">
-                {renderStars(currentOffice?.rating || 4.8)}
-              </div>
-              <div className="rating-label">Average Rating</div>
-            </div>
-          </div>
-          
-          <div className="rating-bars">
-            {[
-              { stars: 5, percentage: 85 },
-              { stars: 4, percentage: 12 },
-              { stars: 3, percentage: 3 },
-              { stars: 2, percentage: 0 },
-              { stars: 1, percentage: 0 }
-            ].map((item) => (
-              <div key={item.stars} className="rating-bar-row">
-                <span className="star-label">{item.stars}</span>
-                <div className="bar">
-                  <div className="bar-fill" style={{ width: `${item.percentage}%` }}></div>
-                </div>
-                <span className="percentage">{item.percentage}%</span>
-              </div>
-            ))}
+            <h3><MdStar style={{ color: '#8CB986', marginRight: '8px' }} />Rate {currentOffice?.name || 'Office'}</h3>
           </div>
         </div>
 
@@ -178,7 +199,7 @@ function Feedback({ selectedOffice: initialOffice }) {
 
         <div className="form-actions">
           <button className="cancel-btn" onClick={() => setSelectedOffice(null)}>Cancel</button>
-          <button className="submit-feedback-btn">Submit Feedback</button>
+          <button className="submit-feedback-btn" onClick={handleSubmitFeedback}>Submit Feedback</button>
         </div>
       </div>
     </div>
