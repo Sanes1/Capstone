@@ -36,7 +36,7 @@ function MyRequest({ onViewDetails, onNavigate }) {
 
       const student = JSON.parse(studentData);
       
-      // Query requests for this student (without orderBy to avoid index requirement)
+      // Query requests for this student
       const requestsRef = collection(db, 'requests');
       const q = query(
         requestsRef, 
@@ -57,12 +57,13 @@ function MyRequest({ onViewDetails, onNavigate }) {
             year: 'numeric' 
           }) || 'N/A',
           status: data.status,
-          createdAtTimestamp: data.createdAt?.toMillis() || 0,
+          createdAtTimestamp: data.createdAt?.toDate().getTime() || 0,
           ...data
         };
-      })
-      // Sort by createdAt in JavaScript instead of Firestore
-      .sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
+      });
+      
+      // Sort by date manually (newest first)
+      requestsData.sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
       
       setRequests(requestsData);
       console.log('✅ Loaded', requestsData.length, 'requests');

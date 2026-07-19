@@ -1,8 +1,7 @@
 import { useState, useRef } from 'react';
 import { MdNotifications, MdUploadFile, MdClose } from 'react-icons/md';
-import { db, storage } from '../firebase';
+import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import '../styles/NewRequest.css';
 
 function NewRequest({ onNavigate }) {
@@ -88,34 +87,33 @@ function NewRequest({ onNavigate }) {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
-  const uploadFilesToStorage = async (requestId) => {
+  const uploadFilesToStorage = async () => {
     const uploadedFileUrls = [];
 
     for (let i = 0; i < uploadedFiles.length; i++) {
       const file = uploadedFiles[i];
-      const timestamp = Date.now();
-      const fileName = `${timestamp}_${file.name}`;
-      const storageRef = ref(storage, `requests/${requestId}/${fileName}`);
 
       try {
-        // Upload file
-        await uploadBytes(storageRef, file);
-        
-        // Get download URL
-        const downloadURL = await getDownloadURL(storageRef);
-        
+        // Convert file to base64
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
         uploadedFileUrls.push({
           name: file.name,
-          url: downloadURL,
+          data: base64, // Store base64 data directly
           size: file.size,
           type: file.type,
           uploadedAt: new Date().toISOString()
         });
         
-        console.log(`✅ Uploaded file ${i + 1}/${uploadedFiles.length}:`, file.name);
+        console.log(`✅ Converted file ${i + 1}/${uploadedFiles.length}:`, file.name);
       } catch (uploadError) {
-        console.error(`❌ Error uploading file ${file.name}:`, uploadError);
-        throw new Error(`Failed to upload ${file.name}`);
+        console.error(`❌ Error converting file ${file.name}:`, uploadError);
+        throw new Error(`Failed to process ${file.name}`);
       }
     }
 
@@ -156,11 +154,11 @@ function NewRequest({ onNavigate }) {
       // Generate unique request ID
       const requestId = generateRequestId(selectedOfficeData.name);
 
-      // Upload files if any
+      // Convert files to base64 if any
       let attachments = [];
       if (uploadedFiles.length > 0) {
-        console.log(`📤 Uploading ${uploadedFiles.length} file(s)...`);
-        attachments = await uploadFilesToStorage(requestId);
+        console.log(`📤 Processing ${uploadedFiles.length} file(s)...`);
+        attachments = await uploadFilesToStorage();
       }
 
       // Prepare request data

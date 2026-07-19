@@ -32,7 +32,6 @@ function Dashboard() {
       
       // Query all requests for this student
       const requestsRef = collection(db, 'requests');
-      // Temporarily without orderBy to avoid index requirement
       const q = query(
         requestsRef,
         where('studentId', '==', studentId)
@@ -52,12 +51,13 @@ function Dashboard() {
             year: 'numeric' 
           }) || 'N/A',
           status: data.status,
-          createdAtTimestamp: data.createdAt?.toMillis() || 0,
+          createdAtTimestamp: data.createdAt?.toDate().getTime() || 0,
           ...data
         };
-      })
-      // Sort by createdAt in JavaScript instead of Firestore
-      .sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
+      });
+
+      // Sort by date manually (newest first)
+      allRequests.sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
 
       // Calculate stats
       const newStats = {
