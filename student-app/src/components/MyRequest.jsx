@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MdSearch, MdNotifications, MdKeyboardArrowLeft, MdKeyboardArrowRight } from 'react-icons/md';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import '../styles/MyRequest.css';
 
 function MyRequest({ onViewDetails, onNavigate }) {
@@ -36,12 +36,11 @@ function MyRequest({ onViewDetails, onNavigate }) {
 
       const student = JSON.parse(studentData);
       
-      // Query requests for this student
+      // Query requests for this student (without orderBy to avoid index requirement)
       const requestsRef = collection(db, 'requests');
       const q = query(
         requestsRef, 
-        where('studentId', '==', student.id),
-        orderBy('createdAt', 'desc')
+        where('studentId', '==', student.id)
       );
       
       const querySnapshot = await getDocs(q);
@@ -58,9 +57,12 @@ function MyRequest({ onViewDetails, onNavigate }) {
             year: 'numeric' 
           }) || 'N/A',
           status: data.status,
+          createdAtTimestamp: data.createdAt?.toMillis() || 0,
           ...data
         };
-      });
+      })
+      // Sort by createdAt in JavaScript instead of Firestore
+      .sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
       
       setRequests(requestsData);
       console.log('✅ Loaded', requestsData.length, 'requests');
