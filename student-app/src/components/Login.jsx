@@ -1,19 +1,95 @@
 import React, { useState } from 'react';
 import { FaQrcode, FaUserCircle, FaShieldAlt } from 'react-icons/fa';
+import { auth, db } from '../firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import '../styles/Login.css';
 
 const Login = ({ onLogin, onGuestLogin }) => {
-  const [username, setUsername] = useState('');
+  const [studentId, setStudentId] = useState('');
   const [password, setPassword] = useState('');
   const [rememberDevice, setRememberDevice] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleStudentIdChange = (e) => {
+    const value = e.target.value;
+    // Only allow digits and max 4 characters
+    if (/^\d{0,4}$/.test(value)) {
+      setStudentId(value);
+      setError('');
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // For now, just proceed to dashboard (authentication will be added later with Firebase)
-    if (username && password) {
+    setError('');
+    setLoading(true);
+
+    try {
+      // Validate student ID is exactly 4 digits
+      if (!studentId || studentId.length !== 4) {
+        setError('Student ID must be exactly 4 digits');
+        setLoading(false);
+        return;
+      }
+
+      if (!password) {
+        setError('Please enter your password');
+        setLoading(false);
+        return;
+      }
+
+      // Find student by Student ID in Firestore
+      const studentsRef = collection(db, 'students');
+      const q = query(studentsRef, where('id', '==', studentId));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        setError('Invalid Student ID or password');
+        setLoading(false);
+        return;
+      }
+
+      // Get student data
+      const studentDoc = querySnapshot.docs[0];
+      const studentData = studentDoc.data();
+
+      // Check if account is active
+      if (!studentData.isActive) {
+        setError('Your account has been suspended. Please contact administration.');
+        setLoading(false);
+        return;
+      }
+
+      // Sign in with Firebase Authentication using email and password
+      await signInWithEmailAndPassword(auth, studentData.email, password);
+
+      // Save student data to localStorage
+      localStorage.setItem('studentData', JSON.stringify({
+        id: studentData.id,
+        name: studentData.name,
+        email: studentData.email,
+        uid: studentData.uid
+      }));
+
+      // Login successful
       onLogin();
-    } else {
-      alert('Please enter username and password');
+      setLoading(false);
+
+    } catch (error) {
+      console.error('Login error:', error);
+      
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        setError('Invalid Student ID or password');
+      } else if (error.code === 'auth/too-many-requests') {
+        setError('Too many failed attempts. Please try again later.');
+      } else if (error.code === 'auth/invalid-credential') {
+        setError('Invalid Student ID or password');
+      } else {
+        setError('Login failed. Please try again.');
+      }
+      setLoading(false);
     }
   };
 
@@ -40,14 +116,22 @@ const Login = ({ onLogin, onGuestLogin }) => {
             <p className="login-subtitle">Please enter your credentials to access your account.</p>
 
             <form onSubmit={handleSubmit} className="login-form-student">
+              {error && (
+                <div className="error-message-student">
+                  {error}
+                </div>
+              )}
+
               <div className="form-group-student">
-                <label className="form-label-student">Username/ Student ID</label>
+                <label className="form-label-student">Student ID</label>
                 <input
                   type="text"
                   className="form-input-student"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter your username or student ID"
+                  value={studentId}
+                  onChange={handleStudentIdChange}
+                  placeholder="Enter your 4-digit student ID"
+                  maxLength="4"
+                  pattern="\d{4}"
                 />
               </div>
 
@@ -78,8 +162,8 @@ const Login = ({ onLogin, onGuestLogin }) => {
                 </label>
               </div>
 
-              <button type="submit" className="sign-in-btn-student">
-                Sign In
+              <button type="submit" className="sign-in-btn-student" disabled={loading}>
+                {loading ? 'Signing In...' : 'Sign In'}
               </button>
 
               <div className="divider-student">

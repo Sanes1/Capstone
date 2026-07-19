@@ -67,6 +67,18 @@
   flex-direction: column;
 }
 
+.error-message-student {
+  padding: 12px;
+  background-color: #ffebee;
+  border: 1px solid #ef5350;
+  border-radius: 6px;
+  color: #c62828;
+  font-size: 13px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
 .form-group-student {
   margin-bottom: 20px;
 }

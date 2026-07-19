@@ -12,18 +12,33 @@ import BulletinBoard from './components/BulletinBoard';
 import './App.css';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isGuest, setIsGuest] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('studentLoggedIn') === 'true';
+  });
+  const [isGuest, setIsGuest] = useState(() => {
+    return localStorage.getItem('studentIsGuest') === 'true';
+  });
   const [activePage, setActivePage] = useState('dashboard');
 
   const handleLogin = () => {
     setIsLoggedIn(true);
     setIsGuest(false);
+    localStorage.setItem('studentLoggedIn', 'true');
+    localStorage.setItem('studentIsGuest', 'false');
   };
 
   const handleGuestLogin = () => {
     setIsGuest(true);
     setIsLoggedIn(false);
+    localStorage.setItem('studentIsGuest', 'true');
+    localStorage.setItem('studentLoggedIn', 'false');
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setIsGuest(false);
+    localStorage.removeItem('studentLoggedIn');
+    localStorage.removeItem('studentIsGuest');
   };
 
   const renderPage = () => {

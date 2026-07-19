@@ -10,13 +10,26 @@ import Feedback from './components/Feedback';
 import './App.css';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('adminLoggedIn') === 'true';
+  });
+  const [selectedDepartment, setSelectedDepartment] = useState(() => {
+    return localStorage.getItem('adminDepartment') || '';
+  });
   const [activePage, setActivePage] = useState('dashboard');
 
   const handleLogin = (department) => {
     setSelectedDepartment(department);
     setIsLoggedIn(true);
+    localStorage.setItem('adminLoggedIn', 'true');
+    localStorage.setItem('adminDepartment', department);
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setSelectedDepartment('');
+    localStorage.removeItem('adminLoggedIn');
+    localStorage.removeItem('adminDepartment');
   };
 
   const handleNavigate = (page) => {

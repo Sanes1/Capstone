@@ -8,11 +8,19 @@ import UserManagement from './components/UserManagement';
 import './App.css';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('superadminLoggedIn') === 'true';
+  });
   const [activePage, setActivePage] = useState('dashboard');
 
   const handleLogin = () => {
     setIsLoggedIn(true);
+    localStorage.setItem('superadminLoggedIn', 'true');
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    localStorage.removeItem('superadminLoggedIn');
   };
 
   const handleNavigate = (page) => {
