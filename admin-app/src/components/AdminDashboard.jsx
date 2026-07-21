@@ -1,18 +1,140 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FaBell, FaInbox, FaTicketAlt, FaClipboard, FaCheckCircle, FaUserCircle } from 'react-icons/fa';
+import { db } from '../firebase';
+import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import '../styles/AdminDashboard.css';
 
 const AdminDashboard = ({ department }) => {
   const [activeTab, setActiveTab] = useState('all');
   const [timeFilter, setTimeFilter] = useState('month');
+  const [tickets, setTickets] = useState([]);
+  const [filteredTickets, setFilteredTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [stats, setStats] = useState({
+    total: 0,
+    unassigned: 0,
+    claimed: 0,
+    resolved: 0
+  });
+  const [staffData, setStaffData] = useState(null);
 
-  const tickets = [
-    { id: '#FIN-123-654-789', title: 'TUITION PAYMENT', student: 'RICKY LIAM', studentId: '05-2324-12345', status: 'inprogress', assignedTo: 'Alex Smith' },
-    { id: '#FIN-123-654-789', title: 'GRAND TOTAL', student: 'JANE DOE', studentId: '05-2324-12345', status: 'new', assignedTo: null },
-    { id: '#FIN-123-654-789', title: 'DOWN PAYMENT', student: 'ANNA MARIE', studentId: '05-2324-12345', status: 'new', assignedTo: null },
-    { id: '#FIN-123-654-789', title: 'TUITION FEE', student: 'JOHN MARK', studentId: '05-2324-12345', status: 'inprogress', assignedTo: 'Anne Liam' },
-    { id: '#FIN-123-654-789', title: 'ASSESSMENT FEE', student: 'JAYSONN MILLER', studentId: '05-2324-12345', status: 'resolved', assignedTo: 'Rico Micheal' },
-  ];
+  useEffect(() => {
+    // Get staff data from localStorage
+    const storedStaffData = localStorage.getItem('staffData');
+    if (storedStaffData) {
+      setStaffData(JSON.parse(storedStaffData));
+    }
+    loadTickets();
+  }, [department]);
+
+  useEffect(() => {
+    filterTickets();
+  }, [activeTab, tickets, searchQuery]);
+
+  const loadTickets = async () => {
+    try {
+      setLoading(true);
+      
+      // Query tickets for this office
+      const requestsRef = collection(db, 'requests');
+      const q = query(
+        requestsRef,
+        where('office', '==', department)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      const ticketsData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          firestoreId: doc.id,
+          id: data.requestId,
+          title: data.subject,
+          student: data.studentName,
+          studentId: data.studentId,
+          status: data.status,
+          assignedTo: data.assignedTo || null,
+          assignedToStaff: data.assignedToStaff || null,
+          createdAtTimestamp: data.createdAt?.toDate().getTime() || 0,
+          ...data
+        };
+      });
+      
+      // Sort by date (newest first)
+      ticketsData.sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
+      
+      setTickets(ticketsData);
+      
+      // Calculate stats
+      const newStats = {
+        total: ticketsData.length,
+        unassigned: ticketsData.filter(t => !t.assignedTo).length,
+        claimed: ticketsData.filter(t => t.status === 'In Process').length,
+        resolved: ticketsData.filter(t => t.status === 'Resolved').length
+      };
+      setStats(newStats);
+      
+      console.log('✅ Loaded', ticketsData.length, 'tickets for', department);
+    } catch (error) {
+      console.error('❌ Error loading tickets:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterTickets = () => {
+    let filtered = [...tickets];
+    
+    // Filter by tab
+    if (activeTab === 'new') {
+      filtered = filtered.filter(t => t.status === 'Pending' || !t.assignedTo);
+    } else if (activeTab === 'progress') {
+      filtered = filtered.filter(t => t.status === 'In Process');
+    } else if (activeTab === 'resolved') {
+      filtered = filtered.filter(t => t.status === 'Resolved');
+    }
+    
+    // Filter by search
+    if (searchQuery) {
+      filtered = filtered.filter(t => 
+        t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.student.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.assignedTo && t.assignedTo.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    }
+    
+    setFilteredTickets(filtered);
+  };
+
+  const handleClaimTicket = async (ticket) => {
+    if (!staffData) {
+      alert('Staff data not found. Please login again.');
+      return;
+    }
+
+    try {
+      // Update ticket in Firestore
+      const ticketRef = doc(db, 'requests', ticket.firestoreId);
+      await updateDoc(ticketRef, {
+        assignedTo: staffData.name,
+        assignedToStaff: staffData.name,
+        status: 'In Process',
+        claimedAt: new Date(),
+        claimedBy: staffData.name
+      });
+
+      console.log('✅ Ticket claimed by', staffData.name);
+      
+      // Reload tickets
+      await loadTickets();
+      
+      alert(`Ticket ${ticket.id} has been assigned to you!`);
+    } catch (error) {
+      console.error('❌ Error claiming ticket:', error);
+      alert('Failed to claim ticket: ' + error.message);
+    }
+  };
 
   return (
     <div className="admin-dashboard-container">
@@ -45,7 +167,7 @@ const AdminDashboard = ({ department }) => {
             </div>
             <span className="stat-label">TOTAL</span>
           </div>
-          <div className="stat-value">15</div>
+          <div className="stat-value">{stats.total}</div>
           <div className="stat-subtext">All Tickets</div>
         </div>
 
@@ -56,7 +178,7 @@ const AdminDashboard = ({ department }) => {
             </div>
             <span className="stat-label">UNASSIGNED</span>
           </div>
-          <div className="stat-value">2</div>
+          <div className="stat-value">{stats.unassigned}</div>
           <div className="stat-subtext">Pending Tickets</div>
         </div>
 
@@ -67,7 +189,7 @@ const AdminDashboard = ({ department }) => {
             </div>
             <span className="stat-label">CLAIMED</span>
           </div>
-          <div className="stat-value">1</div>
+          <div className="stat-value">{stats.claimed}</div>
           <div className="stat-subtext">In Progress</div>
         </div>
 
@@ -78,7 +200,7 @@ const AdminDashboard = ({ department }) => {
             </div>
             <span className="stat-label">COMPLETE</span>
           </div>
-          <div className="stat-value">10</div>
+          <div className="stat-value">{stats.resolved}</div>
           <div className="stat-subtext">Resolved</div>
         </div>
       </div>
@@ -103,72 +225,84 @@ const AdminDashboard = ({ department }) => {
           <input 
             type="text" 
             className="search-input" 
-            placeholder="Search by Ticket Info or Staff Name..." 
+            placeholder="Search by Ticket Info or Staff Name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
 
-        <table className="tickets-table">
-          <thead>
-            <tr>
-              <th>TICKET INFO</th>
-              <th>STUDENT DETAILS</th>
-              <th>STATUS</th>
-              <th>ASSIGNED TO</th>
-              <th>ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tickets.map((ticket, index) => (
-              <tr key={index}>
-                <td>
-                  <div className="ticket-info-cell">
-                    {ticket.title}
-                    <span className="ticket-id">{ticket.id}</span>
-                  </div>
-                </td>
-                <td>
-                  <div className="student-info">
-                    {ticket.student}
-                    <span className="student-id">ID: {ticket.studentId}</span>
-                  </div>
-                </td>
-                <td>
-                  <span className={`status-badge status-${ticket.status}`}>
-                    {ticket.status === 'new' && 'New Ticket'}
-                    {ticket.status === 'inprogress' && 'In Progress'}
-                    {ticket.status === 'resolved' && 'Resolved'}
-                  </span>
-                </td>
-                <td>
-                  {ticket.assignedTo ? (
-                    <div className="assigned-to">
-                      <FaUserCircle className="assigned-icon" />
-                      <span>{ticket.assignedTo}</span>
-                    </div>
-                  ) : (
-                    <span className="unassigned-text">Unassigned</span>
-                  )}
-                </td>
-                <td>
-                  {ticket.assignedTo ? (
-                    <button className="action-btn">View Ticket</button>
-                  ) : (
-                    <button className="action-btn claim">Claim Ticket</button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {loading ? (
+          <div className="loading-state">Loading tickets...</div>
+        ) : filteredTickets.length === 0 ? (
+          <div className="empty-state">No tickets found.</div>
+        ) : (
+          <>
+            <table className="tickets-table">
+              <thead>
+                <tr>
+                  <th>TICKET INFO</th>
+                  <th>STUDENT DETAILS</th>
+                  <th>STATUS</th>
+                  <th>ASSIGNED TO</th>
+                  <th>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTickets.map((ticket, index) => (
+                  <tr key={ticket.firestoreId || index}>
+                    <td>
+                      <div className="ticket-info-cell">
+                        {ticket.title}
+                        <span className="ticket-id">#{ticket.id}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="student-info">
+                        {ticket.student}
+                        <span className="student-id">ID: {ticket.studentId}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`status-badge status-${ticket.status.toLowerCase().replace(' ', '')}`}>
+                        {ticket.status === 'Pending' && 'New Ticket'}
+                        {ticket.status === 'In Process' && 'In Progress'}
+                        {ticket.status === 'Resolved' && 'Resolved'}
+                      </span>
+                    </td>
+                    <td>
+                      {ticket.assignedTo ? (
+                        <div className="assigned-to">
+                          <FaUserCircle className="assigned-icon" />
+                          <span>{ticket.assignedTo}</span>
+                        </div>
+                      ) : (
+                        <span className="unassigned-text">Unassigned</span>
+                      )}
+                    </td>
+                    <td>
+                      {ticket.assignedTo ? (
+                        <button className="action-btn">View Ticket</button>
+                      ) : (
+                        <button 
+                          className="action-btn claim"
+                          onClick={() => handleClaimTicket(ticket)}
+                        >
+                          Claim Ticket
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-        <div className="pagination">
-          <button className="page-btn">&lt;</button>
-          <button className="page-btn active">1</button>
-          <button className="page-btn">2</button>
-          <button className="page-btn">3</button>
-          <button className="page-btn">4</button>
-          <button className="page-btn">&gt;</button>
-        </div>
+            <div className="pagination">
+              <button className="page-btn">&lt;</button>
+              <button className="page-btn active">1</button>
+              <button className="page-btn">&gt;</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

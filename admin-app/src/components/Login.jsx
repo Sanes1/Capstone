@@ -6,24 +6,43 @@ const Login = ({ onLogin }) => {
   const [selectedDepartment, setSelectedDepartment] = useState('finance');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [staffName, setStaffName] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState('');
 
   const departments = [
     { id: 'finance', name: 'Finance', icon: FaDollarSign },
     { id: 'library', name: 'Library', icon: FaBook },
-    { id: 'guidance', name: 'Guidance Office', icon: FaUsers },
+    { id: 'guidance', name: 'Guidance', icon: FaUsers },
     { id: 'registrar', name: 'Registrar', icon: FaClipboardList }
   ];
 
   const handleSignIn = (e) => {
     e.preventDefault();
-    // Static login - pass the selected department
+    
+    // Validation
+    if (!staffName.trim()) {
+      setError('Please enter your full name');
+      return;
+    }
+    
+    // Static login - pass the selected department and staff name
     const deptNames = {
       'finance': 'Finance',
       'library': 'Library',
-      'guidance': 'Guidance Office',
+      'guidance': 'Guidance',
       'registrar': 'Registrar'
     };
+    
+    // Store staff info in localStorage
+    const staffData = {
+      name: staffName.trim(),
+      office: deptNames[selectedDepartment],
+      officeId: selectedDepartment,
+      username: username
+    };
+    
+    localStorage.setItem('staffData', JSON.stringify(staffData));
     onLogin(deptNames[selectedDepartment]);
   };
 
@@ -51,6 +70,20 @@ const Login = ({ onLogin }) => {
           </div>
           
           <form onSubmit={handleSignIn}>
+            {error && (
+              <div className="error-message" style={{
+                backgroundColor: '#fee',
+                border: '1px solid #fcc',
+                color: '#c33',
+                padding: '12px 18px',
+                borderRadius: '8px',
+                marginBottom: '20px',
+                fontSize: '14px'
+              }}>
+                {error}
+              </div>
+            )}
+            
             <div className="department-section">
               <label className="section-label">Administrative Department</label>
               <div className="department-grid">
@@ -69,6 +102,18 @@ const Login = ({ onLogin }) => {
                   );
                 })}
               </div>
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Full Name</label>
+              <input
+                type="text"
+                className="form-input"
+                value={staffName}
+                onChange={(e) => setStaffName(e.target.value)}
+                placeholder="Enter your full name"
+                required
+              />
             </div>
             
             <div className="form-group">

@@ -302,3 +302,17 @@
   color: white;
   border-color: #66bb6a;
 }
+
+.loading-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+  font-size: 16px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+  font-size: 16px;
+}
