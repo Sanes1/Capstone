@@ -835,3 +835,31 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+
+.user-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.user-tab {
+  padding: 12px 24px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #666;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.user-tab:hover {
+  color: #2e7d32;
+}
+
+.user-tab.active {
+  color: #2e7d32;
+  border-bottom-color: #2e7d32;
+}

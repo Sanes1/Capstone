@@ -24,24 +24,65 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import '../styles/UserManagement.css';
 
 const UserManagement = () => {
+  const [activeTab, setActiveTab] = useState('students'); // 'students' or 'staff'
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [studentId, setStudentId] = useState('');
   const [studentName, setStudentName] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
+  
+  // Staff form fields
+  const [staffName, setStaffName] = useState('');
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffOffice, setStaffOffice] = useState('finance');
+  const [staffUsername, setStaffUsername] = useState('');
+  
   const [generatedPassword, setGeneratedPassword] = useState('');
   const [error, setError] = useState('');
   const [students, setStudents] = useState([]);
+  const [staffMembers, setStaffMembers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdStudent, setCreatedStudent] = useState(null);
+  const [createdStaff, setCreatedStaff] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedStaff, setSelectedStaff] = useState(null);
 
-  // Load students from Firestore on component mount
+  const offices = [
+    { id: 'finance', name: 'Finance' },
+    { id: 'library', name: 'Library' },
+    { id: 'guidance', name: 'Guidance' },
+    { id: 'registrar', name: 'Registrar' }
+  ];
+
+  // Load students and staff from Firestore on component mount
   useEffect(() => {
     loadStudents();
+    loadStaff();
   }, []);
+
+  const loadStaff = async () => {
+    try {
+      const staffQuery = query(
+        collection(db, 'staff'),
+        orderBy('createdAt', 'desc')
+      );
+      const querySnapshot = await getDocs(staffQuery);
+      const staffData = querySnapshot.docs.map(doc => ({
+        firestoreId: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate().toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric' 
+        }) || 'N/A'
+      }));
+      setStaffMembers(staffData);
+    } catch (error) {
+      console.error('Error loading staff:', error);
+    }
+  };
 
   const loadStudents = async () => {
     try {
@@ -197,15 +238,135 @@ const UserManagement = () => {
   const handleCloseSuccessModal = () => {
     setShowSuccessModal(false);
     setCreatedStudent(null);
+    setCreatedStaff(null);
   };
 
   const handleNewStudent = () => {
+    setActiveTab('students');
     setShowCreateForm(true);
     setStudentId('');
     setStudentName('');
     setStudentEmail('');
     setGeneratedPassword('');
     setError('');
+  };
+
+  const handleNewStaff = () => {
+    setActiveTab('staff');
+    setShowCreateForm(true);
+    setStaffName('');
+    setStaffEmail('');
+    setStaffOffice('finance');
+    setStaffUsername('');
+    setGeneratedPassword('');
+    setError('');
+  };
+
+  const handleCreateStaff = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      if (!staffName.trim()) {
+        setError('Please enter staff name');
+        setLoading(false);
+        return;
+      }
+
+      if (!staffEmail.trim()) {
+        setError('Please enter staff email');
+        setLoading(false);
+        return;
+      }
+
+      if (!staffUsername.trim()) {
+        setError('Please enter username');
+        setLoading(false);
+        return;
+      }
+
+      // Generate random password
+      const password = generatePassword();
+      setGeneratedPassword(password);
+
+      // Create Firebase Authentication account
+      const userCredential = await createUserWithEmailAndPassword(auth, staffEmail, password);
+      const user = userCredential.user;
+
+      const selectedOffice = offices.find(o => o.id === staffOffice);
+
+      // Save staff data to Firestore
+      await addDoc(collection(db, 'staff'), {
+        uid: user.uid,
+        name: staffName.trim(),
+        email: staffEmail.trim(),
+        username: staffUsername.trim(),
+        office: selectedOffice.name,
+        officeId: staffOffice,
+        role: 'staff',
+        createdAt: serverTimestamp(),
+        isActive: true
+      });
+
+      // Send credentials via email using local backend
+      try {
+        const response = await fetch('http://localhost:5000/api/send-staff-credentials', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: staffEmail.trim(),
+            staffName: staffName.trim(),
+            username: staffUsername.trim(),
+            password: password,
+            office: selectedOffice.name
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          console.log('✅ Email sent successfully to:', staffEmail);
+        } else {
+          throw new Error(data.error || 'Failed to send email');
+        }
+      } catch (emailError) {
+        console.error('❌ Failed to send email:', emailError);
+        alert('Account created but email failed to send. Please manually share credentials with staff:\nUsername: ' + staffUsername + '\nPassword: ' + password);
+      }
+
+      // Reload staff list
+      await loadStaff();
+
+      // Show success message
+      setCreatedStaff({
+        name: staffName.trim(),
+        email: staffEmail.trim(),
+        username: staffUsername.trim(),
+        office: selectedOffice.name
+      });
+      setShowSuccessModal(true);
+      setShowCreateForm(false);
+      setStaffName('');
+      setStaffEmail('');
+      setStaffUsername('');
+      setLoading(false);
+
+    } catch (error) {
+      console.error('Error creating staff:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        setError('Email address is already in use');
+      } else if (error.code === 'auth/invalid-email') {
+        setError('Invalid email address');
+      } else if (error.code === 'auth/weak-password') {
+        setError('Password is too weak');
+      } else {
+        setError('Failed to create staff account: ' + error.message);
+      }
+      setLoading(false);
+    }
   };
 
   const handleSuspendStudent = (student) => {
@@ -221,16 +382,24 @@ const UserManagement = () => {
   };
 
   const confirmSuspendOrDelete = async () => {
-    if (!selectedStudent) return;
+    const target = selectedStudent || selectedStaff;
+    const isStudent = !!selectedStudent;
+    const collectionName = isStudent ? 'students' : 'staff';
+    
+    if (!target) return;
 
     try {
       if (confirmAction === 'suspend') {
         // Toggle suspension status
-        const newStatus = !selectedStudent.isActive;
-        await updateDoc(doc(db, 'students', selectedStudent.firestoreId), {
+        const newStatus = !target.isActive;
+        await updateDoc(doc(db, collectionName, target.firestoreId), {
           isActive: newStatus
         });
-        await loadStudents();
+        if (isStudent) {
+          await loadStudents();
+        } else {
+          await loadStaff();
+        }
         alert(`Account ${newStatus ? 'activated' : 'suspended'} successfully!`);
       } else if (confirmAction === 'delete') {
         // First, delete from Firebase Authentication via backend
@@ -241,7 +410,7 @@ const UserManagement = () => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              uid: selectedStudent.uid
+              uid: target.uid
             })
           });
 
@@ -254,17 +423,21 @@ const UserManagement = () => {
           console.log('✅ Deleted from Firebase Auth');
         } catch (authError) {
           console.error('❌ Failed to delete from Firebase Auth:', authError);
-          // Continue to delete from Firestore anyway
           alert('Warning: Could not delete from Firebase Authentication. The account will be removed from the database but may still exist in Authentication.');
         }
 
         // Then delete from Firestore
-        await deleteDoc(doc(db, 'students', selectedStudent.firestoreId));
-        await loadStudents();
+        await deleteDoc(doc(db, collectionName, target.firestoreId));
+        if (isStudent) {
+          await loadStudents();
+        } else {
+          await loadStaff();
+        }
         alert('Account deleted successfully from both database and authentication!');
       }
       setShowConfirmModal(false);
       setSelectedStudent(null);
+      setSelectedStaff(null);
       setConfirmAction(null);
     } catch (error) {
       console.error('Error:', error);
@@ -275,6 +448,7 @@ const UserManagement = () => {
   const cancelConfirm = () => {
     setShowConfirmModal(false);
     setSelectedStudent(null);
+    setSelectedStaff(null);
     setConfirmAction(null);
   };
 
@@ -290,9 +464,9 @@ const UserManagement = () => {
       <div className="user-management-header">
         <h1 className="user-management-title">User Management</h1>
         <div className="header-actions">
-          <button className="create-student-btn" onClick={handleNewStudent}>
+          <button className="create-student-btn" onClick={activeTab === 'students' ? handleNewStudent : handleNewStaff}>
             <FaUserPlus />
-            Create Student Account
+            {activeTab === 'students' ? 'Create Student Account' : 'Create Staff Account'}
           </button>
           <div className="form-notification">
             <FaBell className="notification-icon" />
@@ -300,26 +474,52 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {showConfirmModal && selectedStudent && (
+      {/* Tabs */}
+      <div className="user-tabs">
+        <button 
+          className={`user-tab ${activeTab === 'students' ? 'active' : ''}`}
+          onClick={() => setActiveTab('students')}
+        >
+          Students
+        </button>
+        <button 
+          className={`user-tab ${activeTab === 'staff' ? 'active' : ''}`}
+          onClick={() => setActiveTab('staff')}
+        >
+          Staff Members
+        </button>
+      </div>
+
+      {showConfirmModal && (selectedStudent || selectedStaff) && (
         <div className="create-student-modal">
           <div className="modal-content confirm-modal">
             <FaBan className="confirm-icon" />
             <h2 className="confirm-title">
               {confirmAction === 'suspend' 
-                ? (selectedStudent.isActive ? 'Suspend Account?' : 'Activate Account?')
+                ? ((selectedStudent?.isActive || selectedStaff?.isActive) ? 'Suspend Account?' : 'Activate Account?')
                 : 'Delete Account?'}
             </h2>
             <p className="confirm-message">
               {confirmAction === 'suspend' 
-                ? (selectedStudent.isActive 
-                    ? `Are you sure you want to suspend ${selectedStudent.name}'s account? They will not be able to log in until reactivated.`
-                    : `Are you sure you want to activate ${selectedStudent.name}'s account? They will be able to log in again.`)
-                : `Are you sure you want to permanently delete ${selectedStudent.name}'s account? This action cannot be undone.`}
+                ? ((selectedStudent?.isActive || selectedStaff?.isActive)
+                    ? `Are you sure you want to suspend ${(selectedStudent || selectedStaff).name}'s account? They will not be able to log in until reactivated.`
+                    : `Are you sure you want to activate ${(selectedStudent || selectedStaff).name}'s account? They will be able to log in again.`)
+                : `Are you sure you want to permanently delete ${(selectedStudent || selectedStaff).name}'s account? This action cannot be undone.`}
             </p>
             <div className="student-info-box">
-              <p><strong>Student ID:</strong> {selectedStudent.id}</p>
-              <p><strong>Name:</strong> {selectedStudent.name}</p>
-              <p><strong>Email:</strong> {selectedStudent.email}</p>
+              {selectedStudent ? (
+                <>
+                  <p><strong>Student ID:</strong> {selectedStudent.id}</p>
+                  <p><strong>Name:</strong> {selectedStudent.name}</p>
+                  <p><strong>Email:</strong> {selectedStudent.email}</p>
+                </>
+              ) : (
+                <>
+                  <p><strong>Name:</strong> {selectedStaff.name}</p>
+                  <p><strong>Email:</strong> {selectedStaff.email}</p>
+                  <p><strong>Office:</strong> {selectedStaff.office}</p>
+                </>
+              )}
             </div>
             <div className="modal-actions">
               <button className="cancel-btn-super" onClick={cancelConfirm}>
@@ -330,7 +530,7 @@ const UserManagement = () => {
                 onClick={confirmSuspendOrDelete}
               >
                 {confirmAction === 'suspend' 
-                  ? (selectedStudent.isActive ? 'Suspend' : 'Activate')
+                  ? ((selectedStudent?.isActive || selectedStaff?.isActive) ? 'Suspend' : 'Activate')
                   : 'Delete'}
               </button>
             </div>
@@ -338,7 +538,7 @@ const UserManagement = () => {
         </div>
       )}
 
-      {showSuccessModal && createdStudent && (
+      {showSuccessModal && (createdStudent || createdStaff) && (
         <div className="create-student-modal">
           <div className="modal-content success-modal">
             <div className="success-header">
@@ -347,29 +547,55 @@ const UserManagement = () => {
             </div>
             
             <p className="success-message">
-              The student account has been created and login credentials have been sent to the student's email address.
+              The {createdStudent ? 'student' : 'staff'} account has been created and login credentials have been sent to the email address.
             </p>
 
             <div className="credentials-box">
-              <div className="credential-row">
-                <label className="credential-label">Student ID:</label>
-                <span className="credential-value">{createdStudent.id}</span>
-              </div>
-              
-              <div className="credential-row">
-                <label className="credential-label">Full Name:</label>
-                <span className="credential-value">{createdStudent.name}</span>
-              </div>
-              
-              <div className="credential-row">
-                <label className="credential-label">Email Sent To:</label>
-                <span className="credential-value">{createdStudent.email}</span>
-              </div>
+              {createdStudent ? (
+                <>
+                  <div className="credential-row">
+                    <label className="credential-label">Student ID:</label>
+                    <span className="credential-value">{createdStudent.id}</span>
+                  </div>
+                  
+                  <div className="credential-row">
+                    <label className="credential-label">Full Name:</label>
+                    <span className="credential-value">{createdStudent.name}</span>
+                  </div>
+                  
+                  <div className="credential-row">
+                    <label className="credential-label">Email Sent To:</label>
+                    <span className="credential-value">{createdStudent.email}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="credential-row">
+                    <label className="credential-label">Full Name:</label>
+                    <span className="credential-value">{createdStaff.name}</span>
+                  </div>
+                  
+                  <div className="credential-row">
+                    <label className="credential-label">Username:</label>
+                    <span className="credential-value">{createdStaff.username}</span>
+                  </div>
+                  
+                  <div className="credential-row">
+                    <label className="credential-label">Office:</label>
+                    <span className="credential-value">{createdStaff.office}</span>
+                  </div>
+                  
+                  <div className="credential-row">
+                    <label className="credential-label">Email Sent To:</label>
+                    <span className="credential-value">{createdStaff.email}</span>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="success-warning">
               <FaEnvelope className="warning-icon" />
-              <p>The student should receive an email with their login credentials shortly. Please ask them to check their inbox (and spam folder).</p>
+              <p>The {createdStudent ? 'student' : 'staff member'} should receive an email with their login credentials shortly. Please ask them to check their inbox (and spam folder).</p>
             </div>
 
             <div className="modal-actions">
@@ -381,7 +607,7 @@ const UserManagement = () => {
         </div>
       )}
 
-      {showCreateForm && (
+      {showCreateForm && activeTab === 'students' && (
         <div className="create-student-modal">
           <div className="modal-content">
             <h2 className="modal-title">Create New Student Account</h2>
@@ -455,22 +681,112 @@ const UserManagement = () => {
         </div>
       )}
 
-      <div className="students-list-section">
-        <h2 className="section-title-super">Student Accounts</h2>
-        {students.length === 0 ? (
-          <p className="no-students-message">No student accounts yet. Click "Create Student Account" to add one.</p>
-        ) : (
-          <div className="students-table">
-            <div className="table-header">
-              <div className="table-cell">Student ID</div>
-              <div className="table-cell">Name</div>
-              <div className="table-cell">Email</div>
-              <div className="table-cell">Created</div>
-              <div className="table-cell">Actions</div>
-            </div>
-            {students.map((student) => (
-              <div key={student.firestoreId || student.id} className="table-row">
-                <div className="table-cell">{student.id}</div>
+      {showCreateForm && activeTab === 'staff' && (
+        <div className="create-student-modal">
+          <div className="modal-content">
+            <h2 className="modal-title">Create New Staff Account</h2>
+            <p className="modal-subtitle">Enter staff information to generate account credentials</p>
+
+            {error && (
+              <div className="error-message-super">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateStaff} className="create-student-form">
+              <div className="form-group-super">
+                <label className="form-label-super">Full Name</label>
+                <input
+                  type="text"
+                  className="form-input-super"
+                  value={staffName}
+                  onChange={(e) => setStaffName(e.target.value)}
+                  placeholder="Enter staff's full name"
+                  required
+                />
+              </div>
+
+              <div className="form-group-super">
+                <label className="form-label-super">Email Address</label>
+                <input
+                  type="email"
+                  className="form-input-super"
+                  value={staffEmail}
+                  onChange={(e) => setStaffEmail(e.target.value)}
+                  placeholder="staff@asj.edu"
+                  required
+                />
+              </div>
+
+              <div className="form-group-super">
+                <label className="form-label-super">Username</label>
+                <input
+                  type="text"
+                  className="form-input-super"
+                  value={staffUsername}
+                  onChange={(e) => setStaffUsername(e.target.value)}
+                  placeholder="Enter username for login"
+                  required
+                />
+              </div>
+
+              <div className="form-group-super">
+                <label className="form-label-super">Assign to Office</label>
+                <select
+                  className="form-input-super"
+                  value={staffOffice}
+                  onChange={(e) => setStaffOffice(e.target.value)}
+                  required
+                >
+                  {offices.map((office) => (
+                    <option key={office.id} value={office.id}>
+                      {office.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="password-info-box">
+                <FaKey className="password-info-icon" />
+                <p>A random password will be generated automatically for this account</p>
+              </div>
+
+              <div className="modal-actions">
+                <button 
+                  type="button" 
+                  className="cancel-btn-super" 
+                  onClick={() => setShowCreateForm(false)}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="create-btn-super" disabled={loading}>
+                  <FaPlus />
+                  {loading ? 'Creating...' : 'Create Account'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'students' ? (
+        <div className="students-list-section">
+          <h2 className="section-title-super">Student Accounts</h2>
+          {students.length === 0 ? (
+            <p className="no-students-message">No student accounts yet. Click "Create Student Account" to add one.</p>
+          ) : (
+            <div className="students-table">
+              <div className="table-header">
+                <div className="table-cell">Student ID</div>
+                <div className="table-cell">Name</div>
+                <div className="table-cell">Email</div>
+                <div className="table-cell">Created</div>
+                <div className="table-cell">Actions</div>
+              </div>
+              {students.map((student) => (
+                <div key={student.firestoreId || student.id} className="table-row">
+                  <div className="table-cell">{student.id}</div>
                 <div className="table-cell">
                   {student.name}
                   {!student.isActive && <span className="suspended-badge">Suspended</span>}
@@ -498,6 +814,61 @@ const UserManagement = () => {
           </div>
         )}
       </div>
+      ) : (
+        <div className="students-list-section">
+          <h2 className="section-title-super">Staff Accounts</h2>
+          {staffMembers.length === 0 ? (
+            <p className="no-students-message">No staff accounts yet. Click "Create Staff Account" to add one.</p>
+          ) : (
+            <div className="students-table">
+              <div className="table-header">
+                <div className="table-cell">Name</div>
+                <div className="table-cell">Email</div>
+                <div className="table-cell">Username</div>
+                <div className="table-cell">Office</div>
+                <div className="table-cell">Created</div>
+                <div className="table-cell">Actions</div>
+              </div>
+              {staffMembers.map((staff) => (
+                <div key={staff.firestoreId} className="table-row">
+                  <div className="table-cell">
+                    {staff.name}
+                    {!staff.isActive && <span className="suspended-badge">Suspended</span>}
+                  </div>
+                  <div className="table-cell">{staff.email}</div>
+                  <div className="table-cell">{staff.username}</div>
+                  <div className="table-cell">{staff.office}</div>
+                  <div className="table-cell">{staff.createdAt}</div>
+                  <div className="table-cell">
+                    <button 
+                      className="table-action-btn reset"
+                      onClick={() => {
+                        setSelectedStaff(staff);
+                        setConfirmAction('suspend');
+                        setShowConfirmModal(true);
+                      }}
+                    >
+                      <FaBan />
+                      {staff.isActive ? 'Suspend' : 'Activate'}
+                    </button>
+                    <button 
+                      className="table-action-btn delete"
+                      onClick={() => {
+                        setSelectedStaff(staff);
+                        setConfirmAction('delete');
+                        setShowConfirmModal(true);
+                      }}
+                    >
+                      <FaKey />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="user-management-content">
         <div className="user-profile-card">
