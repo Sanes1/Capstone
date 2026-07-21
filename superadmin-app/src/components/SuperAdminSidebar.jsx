@@ -1,8 +1,15 @@
 import React from 'react';
-import { FaThLarge, FaEdit, FaChartLine, FaUsers, FaUserCircle } from 'react-icons/fa';
+import { FaThLarge, FaEdit, FaChartLine, FaUsers, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 import '../styles/SuperAdminSidebar.css';
 
 const SuperAdminSidebar = ({ activePage, onNavigate }) => {
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      // For superadmin, just clear any stored data and reload
+      localStorage.clear();
+      window.location.reload();
+    }
+  };
   return (
     <aside className="superadmin-sidebar">
       <div className="sidebar-logo">
@@ -48,6 +55,11 @@ const SuperAdminSidebar = ({ activePage, onNavigate }) => {
           <FaUserCircle className="user-icon" />
           <span className="user-label">SUPER ADMIN</span>
         </div>
+        
+        <button className="logout-button" onClick={handleLogout}>
+          <FaSignOutAlt className="logout-icon" />
+          <span>Logout</span>
+        </button>
       </div>
     </aside>
   );

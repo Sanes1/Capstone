@@ -1,8 +1,22 @@
 import React from 'react';
-import { FaThLarge, FaTicketAlt, FaChartLine, FaClipboard, FaComment, FaUserCircle } from 'react-icons/fa';
+import { FaThLarge, FaTicketAlt, FaChartLine, FaClipboard, FaComment, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase';
 import '../styles/AdminSidebar.css';
 
 const AdminSidebar = ({ activePage, onNavigate, department }) => {
+  const handleLogout = async () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      try {
+        await signOut(auth);
+        localStorage.removeItem('staffData');
+        window.location.reload();
+      } catch (error) {
+        console.error('Logout error:', error);
+        alert('Failed to logout. Please try again.');
+      }
+    }
+  };
   return (
     <aside className="admin-sidebar">
       <div className="sidebar-logo">
@@ -59,6 +73,11 @@ const AdminSidebar = ({ activePage, onNavigate, department }) => {
             <p className="user-department">{department} DEPARTMENT</p>
           </div>
         </div>
+        
+        <button className="logout-button" onClick={handleLogout}>
+          <FaSignOutAlt className="logout-icon" />
+          <span>Logout</span>
+        </button>
       </div>
     </aside>
   );

@@ -11,25 +11,34 @@ import './App.css';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return localStorage.getItem('adminLoggedIn') === 'true';
+    // Check if staffData exists (from Firebase authentication)
+    const staffData = localStorage.getItem('staffData');
+    return staffData !== null;
   });
   const [selectedDepartment, setSelectedDepartment] = useState(() => {
-    return localStorage.getItem('adminDepartment') || '';
+    const staffData = localStorage.getItem('staffData');
+    if (staffData) {
+      try {
+        const parsed = JSON.parse(staffData);
+        return parsed.office || '';
+      } catch (e) {
+        return '';
+      }
+    }
+    return '';
   });
   const [activePage, setActivePage] = useState('dashboard');
 
   const handleLogin = (department) => {
     setSelectedDepartment(department);
     setIsLoggedIn(true);
-    localStorage.setItem('adminLoggedIn', 'true');
-    localStorage.setItem('adminDepartment', department);
+    // Don't set these anymore - staffData is set by Login component
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setSelectedDepartment('');
-    localStorage.removeItem('adminLoggedIn');
-    localStorage.removeItem('adminDepartment');
+    localStorage.removeItem('staffData');
   };
 
   const handleNavigate = (page) => {

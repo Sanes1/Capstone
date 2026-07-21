@@ -1,8 +1,22 @@
 import React, { useState } from 'react';
-import { MdDashboard, MdDescription, MdViewList, MdThumbUp, MdHelp, MdExpandMore, MdExpandLess } from 'react-icons/md';
+import { MdDashboard, MdDescription, MdViewList, MdThumbUp, MdHelp, MdExpandMore, MdExpandLess, MdExitToApp } from 'react-icons/md';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase';
 import '../styles/Sidebar.css';
 
 function Sidebar({ activePage, onNavigate }) {
+  const handleLogout = async () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      try {
+        await signOut(auth);
+        localStorage.removeItem('studentData');
+        window.location.reload();
+      } catch (error) {
+        console.error('Logout error:', error);
+        alert('Failed to logout. Please try again.');
+      }
+    }
+  };
   const [feedbackOpen, setFeedbackOpen] = useState(
     activePage.startsWith('feedback')
   );
@@ -93,6 +107,10 @@ function Sidebar({ activePage, onNavigate }) {
         <h4>Location:</h4>
         <p>8WHV+322, S.B. Cabahug, Mandaue, 6014 Cebu</p>
       </div>
+
+      <button className="logout-button" onClick={handleLogout}>
+        <MdExitToApp /> Logout
+      </button>
     </aside>
   );
 }

@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { FaDollarSign, FaBook, FaUsers, FaClipboardList, FaShieldAlt } from 'react-icons/fa';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import '../styles/Login.css';
 
 const Login = ({ onLogin }) => {
   const [selectedDepartment, setSelectedDepartment] = useState('finance');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [staffName, setStaffName] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const departments = [
     { id: 'finance', name: 'Finance', icon: FaDollarSign },
@@ -17,33 +20,83 @@ const Login = ({ onLogin }) => {
     { id: 'registrar', name: 'Registrar', icon: FaClipboardList }
   ];
 
-  const handleSignIn = (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
     
     // Validation
-    if (!staffName.trim()) {
-      setError('Please enter your full name');
+    if (!username.trim()) {
+      setError('Please enter your username');
+      setLoading(false);
+      return;
+    }
+
+    if (!password.trim()) {
+      setError('Please enter your password');
+      setLoading(false);
       return;
     }
     
-    // Static login - pass the selected department and staff name
-    const deptNames = {
-      'finance': 'Finance',
-      'library': 'Library',
-      'guidance': 'Guidance',
-      'registrar': 'Registrar'
-    };
-    
-    // Store staff info in localStorage
-    const staffData = {
-      name: staffName.trim(),
-      office: deptNames[selectedDepartment],
-      officeId: selectedDepartment,
-      username: username
-    };
-    
-    localStorage.setItem('staffData', JSON.stringify(staffData));
-    onLogin(deptNames[selectedDepartment]);
+    try {
+      // First, find the staff member by username and office
+      const staffQuery = query(
+        collection(db, 'staff'),
+        where('username', '==', username.trim()),
+        where('officeId', '==', selectedDepartment)
+      );
+      
+      const querySnapshot = await getDocs(staffQuery);
+      
+      if (querySnapshot.empty) {
+        setError('Invalid username or office. Please check your credentials.');
+        setLoading(false);
+        return;
+      }
+
+      const staffDoc = querySnapshot.docs[0];
+      const staffData = staffDoc.data();
+
+      // Check if staff is active
+      if (!staffData.isActive) {
+        setError('Your account has been suspended. Please contact the administrator.');
+        setLoading(false);
+        return;
+      }
+
+      // Authenticate with Firebase using email and password
+      await signInWithEmailAndPassword(auth, staffData.email, password);
+
+      // Store staff info in localStorage
+      const staffInfo = {
+        name: staffData.name,
+        email: staffData.email,
+        username: staffData.username,
+        office: staffData.office,
+        officeId: staffData.officeId,
+        uid: staffData.uid
+      };
+      
+      localStorage.setItem('staffData', JSON.stringify(staffInfo));
+      
+      console.log('✅ Staff logged in:', staffData.name);
+      onLogin(staffData.office);
+      
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setError('Invalid password. Please try again.');
+      } else if (error.code === 'auth/user-not-found') {
+        setError('Staff account not found.');
+      } else if (error.code === 'auth/too-many-requests') {
+        setError('Too many failed attempts. Please try again later.');
+      } else {
+        setError('Login failed. Please check your credentials and try again.');
+      }
+      
+      setLoading(false);
+    }
   };
 
   return (
@@ -95,6 +148,7 @@ const Login = ({ onLogin }) => {
                       type="button"
                       className={`department-button ${selectedDepartment === dept.id ? 'selected' : ''}`}
                       onClick={() => setSelectedDepartment(dept.id)}
+                      disabled={loading}
                     >
                       <Icon className="department-icon" />
                       <span>{dept.name}</span>
@@ -105,18 +159,6 @@ const Login = ({ onLogin }) => {
             </div>
             
             <div className="form-group">
-              <label className="form-label">Full Name</label>
-              <input
-                type="text"
-                className="form-input"
-                value={staffName}
-                onChange={(e) => setStaffName(e.target.value)}
-                placeholder="Enter your full name"
-                required
-              />
-            </div>
-            
-            <div className="form-group">
               <label className="form-label">Username</label>
               <input
                 type="text"
@@ -124,6 +166,8 @@ const Login = ({ onLogin }) => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter your username"
+                required
+                disabled={loading}
               />
             </div>
             
@@ -138,6 +182,8 @@ const Login = ({ onLogin }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your password"
+                required
+                disabled={loading}
               />
             </div>
             
@@ -148,14 +194,15 @@ const Login = ({ onLogin }) => {
                 className="remember-checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
+                disabled={loading}
               />
               <label htmlFor="remember" className="remember-label">
                 Remember this session for 8 hours
               </label>
             </div>
             
-            <button type="submit" className="sign-in-button">
-              Sign In
+            <button type="submit" className="sign-in-button" disabled={loading}>
+              {loading ? 'Signing In...' : 'Sign In'}
             </button>
             
             <div className="support-section">

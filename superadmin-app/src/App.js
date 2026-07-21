@@ -9,18 +9,17 @@ import './App.css';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return localStorage.getItem('superadminLoggedIn') === 'true';
+    return localStorage.getItem('superadminAuth') === 'true';
   });
   const [activePage, setActivePage] = useState('dashboard');
 
   const handleLogin = () => {
     setIsLoggedIn(true);
-    localStorage.setItem('superadminLoggedIn', 'true');
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
-    localStorage.removeItem('superadminLoggedIn');
+    localStorage.removeItem('superadminAuth');
   };
 
   const handleNavigate = (page) => {
