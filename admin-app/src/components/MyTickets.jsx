@@ -115,14 +115,6 @@ const MyTickets = ({ department, onNavigate }) => {
     onNavigate('ticket-details');
   };
 
-  const tickets = [
-    { id: '#FIN-123-654-789', title: 'TUITION PAYMENT', student: 'RICKY LIAM', studentId: '05-2324-12345', assignedTo: 'Alex Smith', status: 'In Progress' },
-    { id: '#FIN-123-654-789', title: 'GRAND TOTAL', student: 'JANE DOE', studentId: '05-2324-12345', assignedTo: 'Alex Smith', status: 'Rejected' },
-    { id: '#FIN-123-654-789', title: 'DOWN PAYMENT', student: 'ANNA MARIE', studentId: '05-2324-12345', assignedTo: 'Alex Smith', status: 'Resolved' },
-    { id: '#FIN-123-654-789', title: 'TUITION FEE', student: 'JOHN MARK', studentId: '05-2324-12345', assignedTo: 'Alex Smith', status: 'Resolved' },
-    { id: '#FIN-123-654-789', title: 'ASSESSMENT FEE', student: 'JAYSONN MILLER', studentId: '05-2324-12345', assignedTo: 'Alex Smith', status: 'Resolved' },
-  ];
-
   return (
     <div className="my-tickets-container">
       <div className="breadcrumb">
