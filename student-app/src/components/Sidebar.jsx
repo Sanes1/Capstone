@@ -9,8 +9,12 @@ function Sidebar({ activePage, onNavigate }) {
     if (window.confirm('Are you sure you want to logout?')) {
       try {
         await signOut(auth);
+        // Clear all student-related localStorage
         localStorage.removeItem('studentData');
-        window.location.reload();
+        localStorage.removeItem('studentLoggedIn');
+        localStorage.removeItem('studentIsGuest');
+        // Reload to trigger login screen
+        window.location.href = '/';
       } catch (error) {
         console.error('Logout error:', error);
         alert('Failed to logout. Please try again.');

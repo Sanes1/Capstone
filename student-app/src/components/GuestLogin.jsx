@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FaFileUpload, FaUserCircle } from 'react-icons/fa';
+import { MdExitToApp } from 'react-icons/md';
 import '../styles/GuestLogin.css';
 
 const GuestLogin = ({ onLogin }) => {
@@ -10,6 +11,14 @@ const GuestLogin = ({ onLogin }) => {
   const [description, setDescription] = useState('');
   const [attachmentFile, setAttachmentFile] = useState(null);
   const [authFile, setAuthFile] = useState(null);
+
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      localStorage.removeItem('studentLoggedIn');
+      localStorage.removeItem('studentIsGuest');
+      window.location.href = '/';
+    }
+  };
 
   const offices = [
     {
@@ -57,9 +66,14 @@ const GuestLogin = ({ onLogin }) => {
           <img src="/logo.png" alt="Academia De San Jose" className="guest-logo" onError={(e) => e.target.style.display = 'none'} />
           <h1 className="guest-school-name">Academia De San Jose</h1>
         </div>
-        <div className="guest-account-badge">
-          <span>Guest Account</span>
-          <FaUserCircle className="guest-icon" />
+        <div className="guest-header-right">
+          <div className="guest-account-badge">
+            <span>Guest Account</span>
+            <FaUserCircle className="guest-icon" />
+          </div>
+          <button className="guest-logout-btn" onClick={handleLogout}>
+            <MdExitToApp /> Logout
+          </button>
         </div>
       </div>
 
