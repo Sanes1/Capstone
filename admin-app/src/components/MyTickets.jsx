@@ -111,8 +111,8 @@ const MyTickets = ({ department, onNavigate }) => {
     setStatusFilter('All Status');
   };
 
-  const handleTicketClick = () => {
-    onNavigate('ticket-details');
+  const handleTicketClick = (ticket) => {
+    onNavigate('ticket-details', ticket);
   };
 
   return (
@@ -226,7 +226,7 @@ const MyTickets = ({ department, onNavigate }) => {
               </thead>
               <tbody>
                 {filteredTickets.map((ticket, index) => (
-                  <tr key={ticket.firestoreId || index} onClick={handleTicketClick} style={{ cursor: 'pointer' }}>
+                  <tr key={ticket.firestoreId || index} onClick={() => handleTicketClick(ticket)} style={{ cursor: 'pointer' }}>
                     <td className="checkbox-cell">
                       <input type="checkbox" className="ticket-checkbox" onClick={(e) => e.stopPropagation()} />
                     </td>

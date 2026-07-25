@@ -191,7 +191,8 @@
   line-height: 1.5;
 }
 
-.form-section input[type="text"] {
+.form-section input[type="text"],
+.form-section select {
   width: 100%;
   padding: 12px 16px;
   border: 1px solid #e0e0e0;
@@ -201,12 +202,24 @@
   transition: border-color 0.2s;
 }
 
-.form-section input[type="text"]:focus {
+.form-section input[type="text"]:focus,
+.form-section select:focus {
   border-color: #8CB986;
 }
 
 .form-section input[type="text"]::placeholder {
   color: #bbb;
+}
+
+.form-section select:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  color: #999;
+}
+
+.form-section select {
+  background-color: white;
+  cursor: pointer;
 }
 
 .form-section textarea {

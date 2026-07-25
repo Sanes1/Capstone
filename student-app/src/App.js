@@ -19,6 +19,7 @@ function App() {
     return localStorage.getItem('studentIsGuest') === 'true';
   });
   const [activePage, setActivePage] = useState('dashboard');
+  const [selectedRequest, setSelectedRequest] = useState(null); // Store selected request
 
   const handleLogin = () => {
     setIsLoggedIn(true);
@@ -40,15 +41,20 @@ function App() {
     localStorage.removeItem('studentLoggedIn');
     localStorage.removeItem('studentIsGuest');
   };
+  
+  const handleViewRequestDetails = (request) => {
+    setSelectedRequest(request);
+    setActivePage('request-details');
+  };
 
   const renderPage = () => {
     switch(activePage) {
       case 'dashboard':
         return <Dashboard />;
       case 'request':
-        return <MyRequest onViewDetails={() => setActivePage('request-details')} onNavigate={setActivePage} />;
+        return <MyRequest onViewDetails={handleViewRequestDetails} onNavigate={setActivePage} />;
       case 'request-details':
-        return <RequestDetails onNavigate={setActivePage} />;
+        return <RequestDetails requestData={selectedRequest} onNavigate={setActivePage} />;
       case 'new-request':
         return <NewRequest onNavigate={setActivePage} />;
       case 'bulletin':

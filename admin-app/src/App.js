@@ -28,6 +28,7 @@ function App() {
     return '';
   });
   const [activePage, setActivePage] = useState('dashboard');
+  const [selectedTicket, setSelectedTicket] = useState(null);
 
   const handleLogin = (department) => {
     setSelectedDepartment(department);
@@ -41,8 +42,11 @@ function App() {
     localStorage.removeItem('staffData');
   };
 
-  const handleNavigate = (page) => {
+  const handleNavigate = (page, ticket = null) => {
     setActivePage(page);
+    if (ticket) {
+      setSelectedTicket(ticket);
+    }
   };
 
   if (!isLoggedIn) {
@@ -59,7 +63,7 @@ function App() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {activePage === 'dashboard' && <AdminDashboard department={selectedDepartment} />}
         {activePage === 'my-tickets' && <MyTickets department={selectedDepartment} onNavigate={handleNavigate} />}
-        {activePage === 'ticket-details' && <TicketDetails department={selectedDepartment} onNavigate={handleNavigate} />}
+        {activePage === 'ticket-details' && <TicketDetails ticketData={selectedTicket} department={selectedDepartment} onNavigate={handleNavigate} />}
         {activePage === 'analytics' && <Analytics department={selectedDepartment} />}
         {activePage === 'bulletin' && <BulletinBoard department={selectedDepartment} />}
         {activePage === 'feedback' && <Feedback department={selectedDepartment} />}

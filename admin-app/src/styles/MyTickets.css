@@ -265,6 +265,14 @@
   color: #155724;
 }
 
+.status-text.cancelled {
+  color: #721c24;
+}
+
+.status-text.pending {
+  color: #6c2eb9;
+}
+
 .arrow-icon {
   color: #ccc;
   font-size: 16px;

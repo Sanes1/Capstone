@@ -267,10 +267,13 @@ const AdminDashboard = ({ department }) => {
                         {ticket.status === 'Pending' && 'New Ticket'}
                         {ticket.status === 'In Process' && 'In Progress'}
                         {ticket.status === 'Resolved' && 'Resolved'}
+                        {ticket.status === 'Cancelled' && 'Cancelled'}
                       </span>
                     </td>
                     <td>
-                      {ticket.assignedTo ? (
+                      {ticket.status === 'Cancelled' ? (
+                        <span className="cancelled-text">Cancelled by Student</span>
+                      ) : ticket.assignedTo ? (
                         <div className="assigned-to">
                           <FaUserCircle className="assigned-icon" />
                           <span>{ticket.assignedTo}</span>
@@ -280,7 +283,11 @@ const AdminDashboard = ({ department }) => {
                       )}
                     </td>
                     <td>
-                      {ticket.assignedTo ? (
+                      {ticket.status === 'Cancelled' ? (
+                        <button className="action-btn disabled" disabled>
+                          Cancelled
+                        </button>
+                      ) : ticket.assignedTo ? (
                         <button className="action-btn">View Ticket</button>
                       ) : (
                         <button 

@@ -21,23 +21,39 @@ function Dashboard() {
     const studentData = localStorage.getItem('studentData');
     if (studentData) {
       const student = JSON.parse(studentData);
-      setStudentName(student.name || 'Student');
-      loadRequests(student.id);
+      const fullName = student.firstName && student.lastName 
+        ? `${student.firstName} ${student.lastName}`
+        : student.name || 'Student';
+      setStudentName(fullName);
+      
+      // Use studentId, fallback to id or uid
+      const identifier = student.studentId || student.id || student.uid;
+      loadRequests(identifier, student.uid);
     }
   }, []);
 
-  const loadRequests = async (studentId) => {
+  const loadRequests = async (studentId, studentUid) => {
     try {
       setLoading(true);
       
       // Query all requests for this student
       const requestsRef = collection(db, 'requests');
-      const q = query(
+      let q = query(
         requestsRef,
         where('studentId', '==', studentId)
       );
       
-      const querySnapshot = await getDocs(q);
+      let querySnapshot = await getDocs(q);
+      
+      // If no results, try with studentUid
+      if (querySnapshot.empty && studentUid) {
+        q = query(
+          requestsRef,
+          where('studentUid', '==', studentUid)
+        );
+        querySnapshot = await getDocs(q);
+      }
+      
       const allRequests = querySnapshot.docs.map(doc => {
         const data = doc.data();
         return {

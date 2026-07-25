@@ -40,10 +40,23 @@ const Login = ({ onLogin, onGuestLogin }) => {
         return;
       }
 
-      // Find student by Student ID in Firestore
+      // Find student by Student ID in Firestore (check both 'id' and 'studentId' fields)
       const studentsRef = collection(db, 'students');
-      const q = query(studentsRef, where('id', '==', studentId));
-      const querySnapshot = await getDocs(q);
+      let q = query(studentsRef, where('id', '==', studentId));
+      let querySnapshot = await getDocs(q);
+
+      // If not found by 'id', try 'studentId' field
+      if (querySnapshot.empty) {
+        q = query(studentsRef, where('studentId', '==', studentId));
+        querySnapshot = await getDocs(q);
+      }
+
+      // If still not found, try with full format XX-XXXX-XXXXXX
+      if (querySnapshot.empty) {
+        const fullIdPattern = studentId.padStart(4, '0');
+        q = query(studentsRef, where('studentId', '==', `05-2324-${fullIdPattern}`));
+        querySnapshot = await getDocs(q);
+      }
 
       if (querySnapshot.empty) {
         setError('Invalid Student ID or password');
@@ -54,9 +67,13 @@ const Login = ({ onLogin, onGuestLogin }) => {
       // Get student data
       const studentDoc = querySnapshot.docs[0];
       const studentData = studentDoc.data();
+      const firestoreDocId = studentDoc.id; // Save the Firestore document ID
+      
+      console.log('📋 Raw student data from Firestore:', studentData);
+      console.log('📌 Firestore document ID:', firestoreDocId);
 
       // Check if account is active
-      if (!studentData.isActive) {
+      if (studentData.isActive === false) {
         setError('Your account has been suspended. Please contact administration.');
         setLoading(false);
         return;
@@ -65,13 +82,29 @@ const Login = ({ onLogin, onGuestLogin }) => {
       // Sign in with Firebase Authentication using email and password
       await signInWithEmailAndPassword(auth, studentData.email, password);
 
-      // Save student data to localStorage
-      localStorage.setItem('studentData', JSON.stringify({
-        id: studentData.id,
-        name: studentData.name,
+      // Prepare student data for localStorage - handle both new and legacy formats
+      const formattedStudentData = {
+        firestoreDocId: firestoreDocId, // Store the actual Firestore document ID
+        uid: studentData.uid || auth.currentUser.uid,
+        studentId: studentData.studentId || studentData.id || studentId,
+        id: studentData.id || studentId, // Keep legacy 'id' field for compatibility
+        firstName: studentData.firstName || studentData.name?.split(' ')[0] || '',
+        lastName: studentData.lastName || studentData.name?.split(' ').slice(1).join(' ') || '',
+        middleName: studentData.middleName || '',
+        suffix: studentData.suffix || '',
         email: studentData.email,
-        uid: studentData.uid
-      }));
+        name: studentData.name || `${studentData.firstName || ''} ${studentData.lastName || ''}`.trim(),
+        gradeLevel: studentData.gradeLevel || '',
+        section: studentData.section || '',
+        phoneNumber: studentData.phoneNumber || '',
+        profilePicture: studentData.profilePicture || '',
+        twoFactorEnabled: studentData.twoFactorEnabled || false
+      };
+      
+      console.log('✅ Formatted student data for localStorage:', formattedStudentData);
+      
+      // Save student data to localStorage with all fields
+      localStorage.setItem('studentData', JSON.stringify(formattedStudentData));
 
       // Login successful
       onLogin();

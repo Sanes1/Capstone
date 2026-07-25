@@ -17,22 +17,58 @@ function NewRequest({ onNavigate }) {
     {
       id: 'finance',
       name: 'Finance',
-      description: 'Manages tuition payments, student balances, billing concerns, and other school-related financial transactions.'
+      description: 'Manages tuition payments, student balances, billing concerns, and other school-related financial transactions.',
+      subjects: [
+        'Tuition Payment Inquiry',
+        'Balance Verification',
+        'Payment Plan Request',
+        'Receipt Request',
+        'Refund Request',
+        'Scholarship Inquiry',
+        'Other Financial Concern'
+      ]
     },
     {
       id: 'library',
       name: 'Library',
-      description: 'Manages book borrowing/returning, library accounts, and student concerns related to library services and resources.'
+      description: 'Manages book borrowing/returning, library accounts, and student concerns related to library services and resources.',
+      subjects: [
+        'Book Borrowing Issue',
+        'Book Return Concern',
+        'Lost Book Report',
+        'Library Card Issue',
+        'Overdue Fine Inquiry',
+        'Research Assistance',
+        'Other Library Concern'
+      ]
     },
     {
       id: 'registrar',
       name: 'Registrar',
-      description: 'Handles student records such as enrollment, grades, certificates, transcripts, and other official academic documents.'
+      description: 'Handles student records such as enrollment, grades, certificates, transcripts, and other official academic documents.',
+      subjects: [
+        'Transcript Request',
+        'Certificate Request',
+        'Grade Inquiry',
+        'Enrollment Verification',
+        'Record Correction',
+        'Document Authentication',
+        'Other Registrar Concern'
+      ]
     },
     {
       id: 'guidance',
       name: 'Guidance',
-      description: 'Handles student behavior concerns, violations, and disciplinary cases to maintain order and safety in school.'
+      description: 'Handles student behavior concerns, violations, and disciplinary cases to maintain order and safety in school.',
+      subjects: [
+        'Counseling Appointment',
+        'Disciplinary Case Inquiry',
+        'Behavior Report',
+        'Mental Health Support',
+        'Academic Guidance',
+        'Career Counseling',
+        'Other Guidance Concern'
+      ]
     }
   ];
 
@@ -164,8 +200,9 @@ function NewRequest({ onNavigate }) {
       // Prepare request data
       const requestData = {
         requestId: requestId,
-        studentId: student.id,
-        studentName: student.name,
+        studentId: student.studentId || student.id,
+        studentUid: student.uid,
+        studentName: student.name || `${student.firstName} ${student.lastName}`.trim(),
         studentEmail: student.email,
         office: selectedOfficeData.name,
         officeId: selectedOffice,
@@ -237,7 +274,10 @@ function NewRequest({ onNavigate }) {
               <div
                 key={office.id}
                 className={`office-card ${selectedOffice === office.id ? 'selected' : ''}`}
-                onClick={() => setSelectedOffice(office.id)}
+                onClick={() => {
+                  setSelectedOffice(office.id);
+                  setSubject(''); // Reset subject when office changes
+                }}
               >
                 <div className="radio-button">
                   {selectedOffice === office.id && <div className="radio-inner"></div>}
@@ -253,13 +293,21 @@ function NewRequest({ onNavigate }) {
 
         <div className="form-section">
           <label htmlFor="subject">Subject</label>
-          <input
+          <select
             id="subject"
-            type="text"
-            placeholder="Briefly describe your issues"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-          />
+            disabled={!selectedOffice}
+          >
+            <option value="">
+              {selectedOffice ? 'Select a subject' : 'Please select an office first'}
+            </option>
+            {selectedOffice && offices.find(o => o.id === selectedOffice)?.subjects.map((subj, index) => (
+              <option key={index} value={subj}>
+                {subj}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="form-section">
