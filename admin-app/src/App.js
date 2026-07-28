@@ -7,6 +7,7 @@ import TicketDetails from './components/TicketDetails';
 import Analytics from './components/Analytics';
 import BulletinBoard from './components/BulletinBoard';
 import Feedback from './components/Feedback';
+import ProfileSettings from './components/ProfileSettings';
 import './App.css';
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
   });
   const [activePage, setActivePage] = useState('dashboard');
   const [selectedTicket, setSelectedTicket] = useState(null);
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
 
   const handleLogin = (department) => {
     setSelectedDepartment(department);
@@ -59,6 +61,7 @@ function App() {
         activePage={activePage} 
         onNavigate={handleNavigate}
         department={selectedDepartment.toUpperCase()}
+        onOpenProfile={() => setShowProfileSettings(true)}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {activePage === 'dashboard' && <AdminDashboard department={selectedDepartment} />}
@@ -68,6 +71,10 @@ function App() {
         {activePage === 'bulletin' && <BulletinBoard department={selectedDepartment} />}
         {activePage === 'feedback' && <Feedback department={selectedDepartment} />}
       </div>
+      
+      {showProfileSettings && (
+        <ProfileSettings onClose={() => setShowProfileSettings(false)} />
+      )}
     </div>
   );
 }

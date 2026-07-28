@@ -863,3 +863,18 @@
   color: #2e7d32;
   border-bottom-color: #2e7d32;
 }
+
+/* Form rows for side-by-side fields */
+.form-row-super {
+  display: flex;
+  gap: 15px;
+  width: 100%;
+}
+
+.form-row-super .form-group-super {
+  flex: 1;
+}
+
+.form-row-super .form-group-super.small-input {
+  flex: 0 0 120px;
+}

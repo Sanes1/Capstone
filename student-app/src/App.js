@@ -9,6 +9,7 @@ import RequestDetails from './components/RequestDetails';
 import NewRequest from './components/NewRequest';
 import Feedback from './components/Feedback';
 import BulletinBoard from './components/BulletinBoard';
+import FAQs from './components/FAQs';
 import './App.css';
 
 function App() {
@@ -70,7 +71,7 @@ function App() {
       case 'feedback-finance':
         return <Feedback selectedOffice="finance" />;
       case 'faq':
-        return <div>FAQ's - Coming Soon</div>;
+        return <FAQs />;
       default:
         return <Dashboard />;
     }

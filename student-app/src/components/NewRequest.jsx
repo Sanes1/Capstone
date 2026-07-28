@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react';
-import { MdNotifications, MdUploadFile, MdClose } from 'react-icons/md';
+import { useState, useRef, useEffect } from 'react';
+import { MdNotifications, MdUploadFile, MdClose, MdCheckCircle, MdWarning, MdError } from 'react-icons/md';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { validateContent } from '../utils/contentModeration';
 import '../styles/NewRequest.css';
 
 function NewRequest({ onNavigate }) {
@@ -12,6 +13,10 @@ function NewRequest({ onNavigate }) {
   const [error, setError] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const fileInputRef = useRef(null);
+  
+  // Validation states
+  const [validationResult, setValidationResult] = useState(null);
+  const [isValidating, setIsValidating] = useState(false);
 
   const offices = [
     {
@@ -123,6 +128,36 @@ function NewRequest({ onNavigate }) {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
+  // Debounced AI validation effect
+  useEffect(() => {
+    if (!description.trim() || !subject) {
+      setValidationResult(null);
+      return;
+    }
+
+    setIsValidating(true);
+    
+    // Debounce validation by 1200ms to avoid excessive AI calls
+    const timeoutId = setTimeout(async () => {
+      try {
+        const result = await validateContent(subject, description);
+        setValidationResult(result);
+      } catch (error) {
+        console.error('Validation error:', error);
+        setValidationResult({
+          isValid: true,
+          errors: [],
+          warnings: ['Validation temporarily unavailable. Your request will be reviewed.'],
+          language: 'unknown'
+        });
+      } finally {
+        setIsValidating(false);
+      }
+    }, 1200);
+
+    return () => clearTimeout(timeoutId);
+  }, [description, subject]);
+
   const uploadFilesToStorage = async () => {
     const uploadedFileUrls = [];
 
@@ -172,6 +207,12 @@ function NewRequest({ onNavigate }) {
 
     if (!description.trim()) {
       setError('Please provide a detailed description');
+      return;
+    }
+
+    // Content validation check
+    if (validationResult && !validationResult.isValid) {
+      setError('Please fix the validation errors before submitting');
       return;
     }
 
@@ -311,14 +352,55 @@ function NewRequest({ onNavigate }) {
         </div>
 
         <div className="form-section">
-          <label htmlFor="description">Detailed Description</label>
+          <label htmlFor="description">
+            Detailed Description
+            {isValidating && <span className="validation-status validating"> (Checking...)</span>}
+            {validationResult && validationResult.isValid && validationResult.errors.length === 0 && (
+              <span className="validation-status valid">
+                <MdCheckCircle /> Valid
+              </span>
+            )}
+          </label>
           <textarea
             id="description"
             placeholder="Please provide as much detail as possible..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={6}
+            className={
+              validationResult && !validationResult.isValid ? 'has-error' :
+              validationResult && validationResult.warnings.length > 0 ? 'has-warning' : ''
+            }
           />
+          
+          {/* Validation feedback */}
+          {validationResult && (
+            <div className="validation-feedback">
+              {/* Errors */}
+              {validationResult.errors.length > 0 && (
+                <div className="validation-errors">
+                  {validationResult.errors.map((err, index) => (
+                    <div key={index} className="validation-message error">
+                      <MdError className="icon" />
+                      <span>{err}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Warnings */}
+              {validationResult.warnings.length > 0 && (
+                <div className="validation-warnings">
+                  {validationResult.warnings.map((warn, index) => (
+                    <div key={index} className="validation-message warning">
+                      <MdWarning className="icon" />
+                      <span>{warn}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="form-section">

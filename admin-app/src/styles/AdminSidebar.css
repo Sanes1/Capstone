@@ -132,3 +132,18 @@
 .logout-icon {
   font-size: 16px;
 }
+
+
+/* Profile picture in sidebar */
+.user-icon-img {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e0e0e0;
+}
+
+.sidebar-user:hover {
+  background-color: #f0f0f0;
+  border-radius: 8px;
+}

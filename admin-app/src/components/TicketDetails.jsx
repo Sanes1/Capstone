@@ -161,6 +161,15 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
     }
   };
 
+  const generateRequestId = (officeName) => {
+    // Generate format: FIN-123-654-789
+    const officePrefix = officeName.substring(0, 3).toUpperCase();
+    const randomNum1 = Math.floor(100 + Math.random() * 900); // 3 digits
+    const randomNum2 = Math.floor(100 + Math.random() * 900); // 3 digits
+    const randomNum3 = Math.floor(100 + Math.random() * 900); // 3 digits
+    return `${officePrefix}-${randomNum1}-${randomNum2}-${randomNum3}`;
+  };
+
   const handleReassign = async () => {
     if (reassignOffice === ticket.office) {
       alert('Ticket is already assigned to this office');
@@ -172,17 +181,27 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
     }
 
     try {
+      // Generate new request ID based on new office
+      const newRequestId = generateRequestId(reassignOffice);
+      const staffData = JSON.parse(localStorage.getItem('staffData'));
+      
       const docRef = doc(db, 'requests', ticket.firestoreId);
       await updateDoc(docRef, {
         office: reassignOffice,
+        requestId: newRequestId, // Update request ID to match new office
+        officeId: reassignOffice.toLowerCase(),
         assignedTo: null, // Clear assigned staff
         claimedBy: null,
         claimedAt: null,
         status: 'Pending', // Reset to pending
+        reassignedFrom: ticket.office, // Track original office
+        reassignedBy: staffData.name, // Track who reassigned it
+        reassignedAt: serverTimestamp(),
+        previousRequestId: ticket.requestId, // Keep old request ID for reference
         updatedAt: serverTimestamp()
       });
       
-      alert('Ticket reassigned successfully');
+      alert(`Ticket reassigned successfully!\nNew Request ID: ${newRequestId}`);
       onNavigate('my-tickets');
     } catch (error) {
       console.error('❌ Error reassigning ticket:', error);

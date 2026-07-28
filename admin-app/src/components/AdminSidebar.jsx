@@ -1,10 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaThLarge, FaTicketAlt, FaChartLine, FaClipboard, FaComment, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import '../styles/AdminSidebar.css';
 
-const AdminSidebar = ({ activePage, onNavigate, department }) => {
+const AdminSidebar = ({ activePage, onNavigate, department, onOpenProfile }) => {
+  const [staffName, setStaffName] = useState('Staff User');
+  const [profilePicture, setProfilePicture] = useState('');
+
+  useEffect(() => {
+    // Load staff data from localStorage
+    const staffData = localStorage.getItem('staffData');
+    if (staffData) {
+      try {
+        const parsed = JSON.parse(staffData);
+        // Try fullName first, then firstName + lastName
+        let fullName = parsed.fullName || '';
+        if (!fullName && (parsed.firstName || parsed.lastName)) {
+          fullName = `${parsed.firstName || ''} ${parsed.lastName || ''}`.trim();
+        }
+        setStaffName(fullName || 'Staff User');
+        setProfilePicture(parsed.profilePicture || '');
+      } catch (e) {
+        console.error('Error parsing staff data:', e);
+      }
+    }
+  }, []);
+
   const handleLogout = async () => {
     if (window.confirm('Are you sure you want to logout?')) {
       try {
@@ -17,6 +39,7 @@ const AdminSidebar = ({ activePage, onNavigate, department }) => {
       }
     }
   };
+  
   return (
     <aside className="admin-sidebar">
       <div className="sidebar-logo">
@@ -66,10 +89,14 @@ const AdminSidebar = ({ activePage, onNavigate, department }) => {
       </nav>
       
       <div className="sidebar-footer">
-        <div className="sidebar-user">
-          <FaUserCircle className="user-icon" />
+        <div className="sidebar-user" onClick={onOpenProfile} style={{ cursor: 'pointer' }}>
+          {profilePicture ? (
+            <img src={profilePicture} alt="Profile" className="user-icon-img" />
+          ) : (
+            <FaUserCircle className="user-icon" />
+          )}
           <div className="user-info">
-            <p className="user-name">Alex Smith</p>
+            <p className="user-name">{staffName}</p>
             <p className="user-department">{department} DEPARTMENT</p>
           </div>
         </div>

@@ -27,11 +27,19 @@ const UserManagement = () => {
   const [activeTab, setActiveTab] = useState('students'); // 'students' or 'staff'
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [studentId, setStudentId] = useState('');
-  const [studentName, setStudentName] = useState('');
+  const [studentFirstName, setStudentFirstName] = useState('');
+  const [studentLastName, setStudentLastName] = useState('');
+  const [studentMiddleName, setStudentMiddleName] = useState('');
+  const [studentSuffix, setStudentSuffix] = useState('');
+  const [studentGradeLevel, setStudentGradeLevel] = useState('');
+  const [studentSection, setStudentSection] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
   
   // Staff form fields
-  const [staffName, setStaffName] = useState('');
+  const [staffFirstName, setStaffFirstName] = useState('');
+  const [staffLastName, setStaffLastName] = useState('');
+  const [staffMiddleName, setStaffMiddleName] = useState('');
+  const [staffSuffix, setStaffSuffix] = useState('');
   const [staffEmail, setStaffEmail] = useState('');
   const [staffOffice, setStaffOffice] = useState('finance');
   const [staffUsername, setStaffUsername] = useState('');
@@ -145,14 +153,32 @@ const UserManagement = () => {
         return;
       }
 
-      if (!studentName.trim()) {
-        setError('Please enter student name');
+      if (!studentFirstName.trim()) {
+        setError('Please enter student first name');
+        setLoading(false);
+        return;
+      }
+
+      if (!studentLastName.trim()) {
+        setError('Please enter student last name');
         setLoading(false);
         return;
       }
 
       if (!studentEmail.trim()) {
         setError('Please enter student email');
+        setLoading(false);
+        return;
+      }
+
+      if (!studentGradeLevel.trim()) {
+        setError('Please select grade level');
+        setLoading(false);
+        return;
+      }
+
+      if (!studentSection.trim()) {
+        setError('Please enter section');
         setLoading(false);
         return;
       }
@@ -165,11 +191,23 @@ const UserManagement = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, studentEmail, password);
       const user = userCredential.user;
 
+      // Build full name
+      const middleInitial = studentMiddleName ? studentMiddleName.charAt(0).toUpperCase() + '.' : '';
+      const fullName = `${studentFirstName} ${middleInitial} ${studentLastName}${studentSuffix ? ' ' + studentSuffix : ''}`.replace(/\s+/g, ' ').trim();
+
       // Save student data to Firestore
       await addDoc(collection(db, 'students'), {
         id: studentId,
         uid: user.uid,
-        name: studentName.trim(),
+        firstName: studentFirstName.trim(),
+        lastName: studentLastName.trim(),
+        middleName: studentMiddleName.trim(),
+        middleInitial: studentMiddleName ? studentMiddleName.charAt(0).toUpperCase() : '',
+        suffix: studentSuffix.trim(),
+        gradeLevel: studentGradeLevel.trim(),
+        section: studentSection.trim(),
+        name: fullName,
+        fullName: fullName,
         email: studentEmail.trim(),
         role: 'student',
         createdAt: serverTimestamp(),
@@ -187,7 +225,7 @@ const UserManagement = () => {
             email: studentEmail.trim(),
             studentId: studentId,
             password: password,
-            studentName: studentName.trim()
+            studentName: fullName
           })
         });
 
@@ -210,13 +248,18 @@ const UserManagement = () => {
       // Show simple success message
       setCreatedStudent({
         id: studentId,
-        name: studentName.trim(),
+        name: fullName,
         email: studentEmail.trim()
       });
       setShowSuccessModal(true);
       setShowCreateForm(false);
       setStudentId('');
-      setStudentName('');
+      setStudentFirstName('');
+      setStudentLastName('');
+      setStudentMiddleName('');
+      setStudentSuffix('');
+      setStudentGradeLevel('');
+      setStudentSection('');
       setStudentEmail('');
       setLoading(false);
 
@@ -245,7 +288,12 @@ const UserManagement = () => {
     setActiveTab('students');
     setShowCreateForm(true);
     setStudentId('');
-    setStudentName('');
+    setStudentFirstName('');
+    setStudentLastName('');
+    setStudentMiddleName('');
+    setStudentSuffix('');
+    setStudentGradeLevel('');
+    setStudentSection('');
     setStudentEmail('');
     setGeneratedPassword('');
     setError('');
@@ -254,7 +302,10 @@ const UserManagement = () => {
   const handleNewStaff = () => {
     setActiveTab('staff');
     setShowCreateForm(true);
-    setStaffName('');
+    setStaffFirstName('');
+    setStaffLastName('');
+    setStaffMiddleName('');
+    setStaffSuffix('');
     setStaffEmail('');
     setStaffOffice('finance');
     setStaffUsername('');
@@ -268,8 +319,14 @@ const UserManagement = () => {
     setLoading(true);
 
     try {
-      if (!staffName.trim()) {
-        setError('Please enter staff name');
+      if (!staffFirstName.trim()) {
+        setError('Please enter staff first name');
+        setLoading(false);
+        return;
+      }
+
+      if (!staffLastName.trim()) {
+        setError('Please enter staff last name');
         setLoading(false);
         return;
       }
@@ -296,10 +353,20 @@ const UserManagement = () => {
 
       const selectedOffice = offices.find(o => o.id === staffOffice);
 
+      // Build full name
+      const middleInitial = staffMiddleName ? staffMiddleName.charAt(0).toUpperCase() + '.' : '';
+      const fullName = `${staffFirstName} ${middleInitial} ${staffLastName}${staffSuffix ? ' ' + staffSuffix : ''}`.replace(/\s+/g, ' ').trim();
+
       // Save staff data to Firestore
       await addDoc(collection(db, 'staff'), {
         uid: user.uid,
-        name: staffName.trim(),
+        firstName: staffFirstName.trim(),
+        lastName: staffLastName.trim(),
+        middleName: staffMiddleName.trim(),
+        middleInitial: staffMiddleName ? staffMiddleName.charAt(0).toUpperCase() : '',
+        suffix: staffSuffix.trim(),
+        name: fullName,
+        fullName: fullName,
         email: staffEmail.trim(),
         username: staffUsername.trim(),
         office: selectedOffice.name,
@@ -318,7 +385,7 @@ const UserManagement = () => {
           },
           body: JSON.stringify({
             email: staffEmail.trim(),
-            staffName: staffName.trim(),
+            staffName: fullName,
             username: staffUsername.trim(),
             password: password,
             office: selectedOffice.name
@@ -342,14 +409,17 @@ const UserManagement = () => {
 
       // Show success message
       setCreatedStaff({
-        name: staffName.trim(),
+        name: fullName,
         email: staffEmail.trim(),
         username: staffUsername.trim(),
         office: selectedOffice.name
       });
       setShowSuccessModal(true);
       setShowCreateForm(false);
-      setStaffName('');
+      setStaffFirstName('');
+      setStaffLastName('');
+      setStaffMiddleName('');
+      setStaffSuffix('');
       setStaffEmail('');
       setStaffUsername('');
       setLoading(false);
@@ -638,16 +708,87 @@ const UserManagement = () => {
                 />
               </div>
 
-              <div className="form-group-super">
-                <label className="form-label-super">Full Name</label>
-                <input
-                  type="text"
-                  className="form-input-super"
-                  value={studentName}
-                  onChange={(e) => setStudentName(e.target.value)}
-                  placeholder="Enter student's full name"
-                  required
-                />
+              <div className="form-row-super">
+                <div className="form-group-super">
+                  <label className="form-label-super">First Name *</label>
+                  <input
+                    type="text"
+                    className="form-input-super"
+                    value={studentFirstName}
+                    onChange={(e) => setStudentFirstName(e.target.value)}
+                    placeholder="First name"
+                    required
+                  />
+                </div>
+
+                <div className="form-group-super">
+                  <label className="form-label-super">Last Name *</label>
+                  <input
+                    type="text"
+                    className="form-input-super"
+                    value={studentLastName}
+                    onChange={(e) => setStudentLastName(e.target.value)}
+                    placeholder="Last name"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-row-super">
+                <div className="form-group-super">
+                  <label className="form-label-super">Middle Name</label>
+                  <input
+                    type="text"
+                    className="form-input-super"
+                    value={studentMiddleName}
+                    onChange={(e) => setStudentMiddleName(e.target.value)}
+                    placeholder="Middle name (optional)"
+                  />
+                </div>
+
+                <div className="form-group-super small-input">
+                  <label className="form-label-super">Suffix</label>
+                  <input
+                    type="text"
+                    className="form-input-super"
+                    value={studentSuffix}
+                    onChange={(e) => setStudentSuffix(e.target.value)}
+                    placeholder="Jr, Sr, III"
+                    maxLength="10"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row-super">
+                <div className="form-group-super">
+                  <label className="form-label-super">Grade Level *</label>
+                  <select
+                    className="form-input-super"
+                    value={studentGradeLevel}
+                    onChange={(e) => setStudentGradeLevel(e.target.value)}
+                    required
+                  >
+                    <option value="">Select grade level</option>
+                    <option value="Grade 7">Grade 7</option>
+                    <option value="Grade 8">Grade 8</option>
+                    <option value="Grade 9">Grade 9</option>
+                    <option value="Grade 10">Grade 10</option>
+                    <option value="Grade 11">Grade 11</option>
+                    <option value="Grade 12">Grade 12</option>
+                  </select>
+                </div>
+
+                <div className="form-group-super">
+                  <label className="form-label-super">Section *</label>
+                  <input
+                    type="text"
+                    className="form-input-super"
+                    value={studentSection}
+                    onChange={(e) => setStudentSection(e.target.value)}
+                    placeholder="e.g., Einstein, Newton"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="form-group-super">
@@ -699,16 +840,55 @@ const UserManagement = () => {
             )}
 
             <form onSubmit={handleCreateStaff} className="create-student-form">
-              <div className="form-group-super">
-                <label className="form-label-super">Full Name</label>
-                <input
-                  type="text"
-                  className="form-input-super"
-                  value={staffName}
-                  onChange={(e) => setStaffName(e.target.value)}
-                  placeholder="Enter staff's full name"
-                  required
-                />
+              <div className="form-row-super">
+                <div className="form-group-super">
+                  <label className="form-label-super">First Name *</label>
+                  <input
+                    type="text"
+                    className="form-input-super"
+                    value={staffFirstName}
+                    onChange={(e) => setStaffFirstName(e.target.value)}
+                    placeholder="First name"
+                    required
+                  />
+                </div>
+
+                <div className="form-group-super">
+                  <label className="form-label-super">Last Name *</label>
+                  <input
+                    type="text"
+                    className="form-input-super"
+                    value={staffLastName}
+                    onChange={(e) => setStaffLastName(e.target.value)}
+                    placeholder="Last name"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-row-super">
+                <div className="form-group-super">
+                  <label className="form-label-super">Middle Name</label>
+                  <input
+                    type="text"
+                    className="form-input-super"
+                    value={staffMiddleName}
+                    onChange={(e) => setStaffMiddleName(e.target.value)}
+                    placeholder="Middle name (optional)"
+                  />
+                </div>
+
+                <div className="form-group-super small-input">
+                  <label className="form-label-super">Suffix</label>
+                  <input
+                    type="text"
+                    className="form-input-super"
+                    value={staffSuffix}
+                    onChange={(e) => setStaffSuffix(e.target.value)}
+                    placeholder="Jr, Sr, III"
+                    maxLength="10"
+                  />
+                </div>
               </div>
 
               <div className="form-group-super">

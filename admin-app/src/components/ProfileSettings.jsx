@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../firebase';
-import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload } from 'react-icons/fa';
-import QRCode from 'qrcode';
-import { encryptCredentials } from '../utils/qrEncryption';
+import { FaCamera, FaEye, FaEyeSlash } from 'react-icons/fa';
 import '../styles/ProfileSettings.css';
 
 function ProfileSettings({ onClose }) {
@@ -17,25 +15,19 @@ function ProfileSettings({ onClose }) {
     middleName: '',
     middleInitial: '',
     suffix: '',
-    gradeLevel: '',
-    section: '',
-    schoolId: '',
+    position: '',
+    office: '',
+    staffId: '',
     email: '',
     phoneNumber: '',
     profilePicture: '',
     twoFactorEnabled: false,
-    lastPasswordUpdate: null,
-    qrCodeData: '' // Store encrypted QR data
+    lastPasswordUpdate: null
   });
 
   const [profilePicture, setProfilePicture] = useState(null);
   const [profilePicturePreview, setProfilePicturePreview] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [qrCodeDataURL, setQrCodeDataURL] = useState('');
-  const [showQRPasswordPrompt, setShowQRPasswordPrompt] = useState(false);
-  const [qrPassword, setQrPassword] = useState('');
-  const [showQRPassword, setShowQRPassword] = useState(false);
-  const qrCodeRef = useRef(null);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -51,241 +43,102 @@ function ProfileSettings({ onClose }) {
     loadProfileData();
   }, []);
 
-  useEffect(() => {
-    // Generate QR code image from stored encrypted data
-    if (profileData.qrCodeData) {
-      generateQRCodeImage(profileData.qrCodeData);
-    }
-  }, [profileData.qrCodeData]);
-
-  const generateQRCodeImage = async (encryptedData) => {
-    try {
-      // Generate QR code image from encrypted data
-      const qrDataURL = await QRCode.toDataURL(encryptedData, {
-        width: 300,
-        margin: 2,
-        color: {
-          dark: '#105E06',
-          light: '#FFFFFF'
-        },
-        errorCorrectionLevel: 'H'
-      });
-      setQrCodeDataURL(qrDataURL);
-      console.log('✅ QR code image generated from stored data');
-    } catch (error) {
-      console.error('❌ Error generating QR code image:', error);
-    }
-  };
-
-  const generateQRCode = async (studentId, password) => {
-    try {
-      console.log('🔲 Generating encrypted QR code for student ID:', studentId);
-      
-      // Ensure it's exactly 4 digits
-      if (!/^\d{4}$/.test(studentId)) {
-        console.error('❌ Invalid student ID format for QR:', studentId);
-        return;
-      }
-      
-      if (!password) {
-        console.error('❌ Password required for QR generation');
-        return;
-      }
-      
-      // Encrypt the credentials
-      const encryptedData = encryptCredentials(studentId, password);
-      
-      // Generate QR code image with encrypted data
-      const qrDataURL = await QRCode.toDataURL(encryptedData, {
-        width: 300,
-        margin: 2,
-        color: {
-          dark: '#105E06',
-          light: '#FFFFFF'
-        },
-        errorCorrectionLevel: 'H' // High error correction for encrypted data
-      });
-      setQrCodeDataURL(qrDataURL);
-      
-      // Save encrypted data to Firestore so QR persists
-      const studentData = JSON.parse(localStorage.getItem('studentData'));
-      if (studentData.firestoreDocId) {
-        const docRef = doc(db, 'students', studentData.firestoreDocId);
-        await updateDoc(docRef, {
-          qrCodeData: encryptedData,
-          qrCodeGeneratedAt: new Date().toISOString()
-        });
-        
-        // Update local state
-        setProfileData(prev => ({
-          ...prev,
-          qrCodeData: encryptedData
-        }));
-        
-        console.log('✅ QR code saved to Firestore');
-      }
-      
-      console.log('✅ QR code generated successfully with encrypted credentials');
-    } catch (error) {
-      console.error('❌ Error generating QR code:', error);
-      alert('Failed to generate QR code. Please try again.');
-    }
-  };
-
-  const handleGenerateQRCode = () => {
-    setShowQRPasswordPrompt(true);
-    setQrPassword('');
-  };
-
-  const handleQRPasswordSubmit = async () => {
-    if (!qrPassword) {
-      alert('Please enter your password');
-      return;
-    }
-
-    // Validate school ID before proceeding
-    if (!profileData.schoolId || !/^\d{4}$/.test(profileData.schoolId)) {
-      console.error('❌ Invalid school ID:', profileData.schoolId);
-      alert(`Invalid student ID format: "${profileData.schoolId}". Expected 4 digits. Please contact support.`);
-      return;
-    }
-
-    try {
-      // Verify password by attempting to reauthenticate
-      const credential = EmailAuthProvider.credential(profileData.email, qrPassword);
-      await reauthenticateWithCredential(auth.currentUser, credential);
-      
-      // Password is correct, generate QR code
-      console.log('🎫 Generating QR for student ID:', profileData.schoolId);
-      await generateQRCode(profileData.schoolId, qrPassword);
-      setShowQRPasswordPrompt(false);
-      setQrPassword('');
-      
-      const message = profileData.qrCodeData 
-        ? 'QR code regenerated successfully! Your old QR code will no longer work.'
-        : 'QR code generated successfully! You can now download it.';
-      alert(message);
-    } catch (error) {
-      console.error('Password verification failed:', error);
-      alert('Incorrect password. Please try again.');
-    }
-  };
-
-  const handleDownloadQRCode = () => {
-    if (!qrCodeDataURL) return;
-    
-    const link = document.createElement('a');
-    link.href = qrCodeDataURL;
-    link.download = `student-qr-${profileData.schoolId}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const loadProfileData = async () => {
     try {
-      const studentData = JSON.parse(localStorage.getItem('studentData'));
-      if (!studentData) {
+      const staffData = JSON.parse(localStorage.getItem('staffData'));
+      if (!staffData) {
         alert('Please log in again');
         return;
       }
 
-      console.log('📋 Loading profile for student:', studentData);
+      console.log('📋 Loading profile for staff:', staffData);
 
-      // Try to get the document using the Firestore document ID if available
+      // Try to get the document using the Firestore document ID
       let docSnap = null;
       
-      if (studentData.firestoreDocId) {
-        // Use the stored document ID
-        const docRef = doc(db, 'students', studentData.firestoreDocId);
+      if (staffData.firestoreDocId) {
+        const docRef = doc(db, 'staff', staffData.firestoreDocId);
         docSnap = await getDoc(docRef);
-        console.log('✅ Found using firestoreDocId:', studentData.firestoreDocId);
+        console.log('✅ Found using firestoreDocId:', staffData.firestoreDocId);
       }
       
       // If not found or no firestoreDocId, try using uid as document ID
       if (!docSnap || !docSnap.exists()) {
-        if (studentData.uid) {
-          const docRef = doc(db, 'students', studentData.uid);
+        if (staffData.uid) {
+          const docRef = doc(db, 'staff', staffData.uid);
           docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
-            console.log('✅ Found using uid as document ID:', studentData.uid);
+            console.log('✅ Found using uid as document ID:', staffData.uid);
           }
         }
       }
       
-      // If still not found, we need to query by uid field
+      // If still not found, query by uid field
       if (!docSnap || !docSnap.exists()) {
         const { collection, query, where, getDocs } = await import('firebase/firestore');
-        const studentsRef = collection(db, 'students');
+        const staffRef = collection(db, 'staff');
         
-        // Try querying by uid field
-        if (studentData.uid) {
-          const q = query(studentsRef, where('uid', '==', studentData.uid));
+        if (staffData.uid) {
+          const q = query(staffRef, where('uid', '==', staffData.uid));
           const querySnapshot = await getDocs(q);
           if (!querySnapshot.empty) {
             docSnap = querySnapshot.docs[0];
-            // Save the Firestore document ID for future use
-            studentData.firestoreDocId = docSnap.id;
-            localStorage.setItem('studentData', JSON.stringify(studentData));
+            staffData.firestoreDocId = docSnap.id;
+            localStorage.setItem('staffData', JSON.stringify(staffData));
             console.log('✅ Found by querying uid field, docId:', docSnap.id);
-          }
-        }
-        
-        // Try querying by id field (4 digits)
-        if ((!docSnap || !docSnap.exists()) && studentData.id) {
-          const q = query(studentsRef, where('id', '==', studentData.id));
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-            docSnap = querySnapshot.docs[0];
-            studentData.firestoreDocId = docSnap.id;
-            localStorage.setItem('studentData', JSON.stringify(studentData));
-            console.log('✅ Found by querying id field, docId:', docSnap.id);
           }
         }
       }
 
       if (docSnap && docSnap.exists()) {
         const data = docSnap.data();
-        console.log('📄 Student document data:', data);
+        console.log('📄 Staff document data:', data);
         
-        // Extract 4-digit ID from various formats
-        let fourDigitId = '';
-        const rawId = data.studentId || data.id || '';
+        // Handle different name field formats
+        let firstName = data.firstName || '';
+        let lastName = data.lastName || '';
         
-        if (rawId.includes('-')) {
-          // Format: "05-2324-XXXX" -> extract "XXXX"
-          const parts = rawId.split('-');
-          fourDigitId = parts[parts.length - 1];
-        } else if (rawId.length === 4 && /^\d{4}$/.test(rawId)) {
-          // Already 4 digits
-          fourDigitId = rawId;
-        } else {
-          // Try to extract last 4 digits
-          fourDigitId = rawId.slice(-4);
+        // If name exists but firstName/lastName don't, parse name
+        if (data.name && !firstName && !lastName) {
+          const nameParts = data.name.trim().split(' ');
+          if (nameParts.length >= 2) {
+            firstName = nameParts[0];
+            lastName = nameParts.slice(1).join(' ');
+          } else if (nameParts.length === 1) {
+            firstName = nameParts[0];
+          }
         }
         
-        console.log('🆔 Extracted 4-digit ID:', fourDigitId, 'from raw ID:', rawId);
+        // If fullName exists but firstName/lastName still don't, parse fullName
+        if (data.fullName && !firstName && !lastName) {
+          const nameParts = data.fullName.trim().split(' ');
+          if (nameParts.length >= 2) {
+            firstName = nameParts[0];
+            lastName = nameParts.slice(1).join(' ');
+          } else if (nameParts.length === 1) {
+            firstName = nameParts[0];
+          }
+        }
         
         setProfileData({
-          lastName: data.lastName || '',
-          firstName: data.firstName || '',
+          lastName: lastName,
+          firstName: firstName,
           middleName: data.middleName || '',
           middleInitial: data.middleInitial || (data.middleName ? data.middleName.charAt(0).toUpperCase() : ''),
           suffix: data.suffix || '',
-          gradeLevel: data.gradeLevel || '',
-          section: data.section || '',
-          schoolId: fourDigitId,
+          position: data.position || '',
+          office: data.office || '',
+          staffId: data.staffId || '',
           email: data.email || '',
           phoneNumber: data.phoneNumber || '',
           profilePicture: data.profilePicture || '',
           twoFactorEnabled: data.twoFactorEnabled || false,
-          lastPasswordUpdate: data.lastPasswordUpdate || null,
-          qrCodeData: data.qrCodeData || '' // Load existing QR data
+          lastPasswordUpdate: data.lastPasswordUpdate || null
         });
         setProfilePicturePreview(data.profilePicture || '');
       } else {
-        console.error('❌ Student document not found');
-        alert('Profile data not found. Please contact support.');
+        console.error('❌ Staff document not found');
+        alert('Profile data not found. Please contact admin.');
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -333,9 +186,9 @@ function ProfileSettings({ onClose }) {
   const handleUpdateProfile = async () => {
     try {
       setSaving(true);
-      const studentData = JSON.parse(localStorage.getItem('studentData'));
+      const staffData = JSON.parse(localStorage.getItem('staffData'));
       
-      if (!studentData.firestoreDocId) {
+      if (!staffData.firestoreDocId) {
         alert('Session error. Please log in again.');
         setSaving(false);
         return;
@@ -345,34 +198,43 @@ function ProfileSettings({ onClose }) {
 
       // Upload profile picture if changed
       if (profilePicture) {
-        const storageRef = ref(storage, `profile-pictures/${studentData.uid || studentData.firestoreDocId}`);
+        const storageRef = ref(storage, `staff-profile-pictures/${staffData.uid || staffData.firestoreDocId}`);
         await uploadBytes(storageRef, profilePicture);
         profilePictureURL = await getDownloadURL(storageRef);
       }
 
-      // Update Firestore using the correct document ID
-      const docRef = doc(db, 'students', studentData.firestoreDocId);
-      await updateDoc(docRef, {
+      // Prepare update data
+      const updateData = {
         lastName: profileData.lastName,
         firstName: profileData.firstName,
         middleName: profileData.middleName,
         middleInitial: profileData.middleInitial,
         suffix: profileData.suffix,
-        gradeLevel: profileData.gradeLevel,
-        section: profileData.section,
         phoneNumber: profileData.phoneNumber,
         profilePicture: profilePictureURL,
         twoFactorEnabled: profileData.twoFactorEnabled,
         updatedAt: new Date().toISOString()
-      });
+      };
+
+      // Also update name and fullName fields for compatibility
+      const fullNameValue = `${profileData.firstName} ${profileData.lastName}`.trim();
+      updateData.name = fullNameValue;
+      updateData.fullName = fullNameValue;
+
+      // Update Firestore
+      const docRef = doc(db, 'staff', staffData.firestoreDocId);
+      await updateDoc(docRef, updateData);
 
       // Update localStorage
-      const updatedStudentData = {
-        ...studentData,
+      const updatedStaffData = {
+        ...staffData,
         ...profileData,
-        profilePicture: profilePictureURL
+        profilePicture: profilePictureURL,
+        name: fullNameValue,
+        fullName: fullNameValue
       };
-      localStorage.setItem('studentData', JSON.stringify(updatedStudentData));
+      
+      localStorage.setItem('staffData', JSON.stringify(updatedStaffData));
 
       alert('Profile updated successfully!');
       window.location.reload();
@@ -409,25 +271,16 @@ function ProfileSettings({ onClose }) {
       // Update password
       await updatePassword(user, passwordForm.newPassword);
 
-      // Update last password change date in Firestore
-      const studentData = JSON.parse(localStorage.getItem('studentData'));
-      const docRef = doc(db, 'students', studentData.firestoreDocId);
+      // Update last password change date
+      const staffData = JSON.parse(localStorage.getItem('staffData'));
+      const docRef = doc(db, 'staff', staffData.firestoreDocId);
       await updateDoc(docRef, {
-        lastPasswordUpdate: new Date().toISOString(),
-        qrCodeData: '' // Clear old QR code data
+        lastPasswordUpdate: new Date().toISOString()
       });
 
-      alert('Password changed successfully!\n\n⚠ IMPORTANT: Your old QR code will no longer work. Please regenerate your QR code with the new password.');
+      alert('Password changed successfully!');
       setShowPasswordModal(false);
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      
-      // Clear QR code display
-      setQrCodeDataURL('');
-      setProfileData(prev => ({
-        ...prev,
-        qrCodeData: ''
-      }));
-      
       loadProfileData();
     } catch (error) {
       console.error('Error changing password:', error);
@@ -509,12 +362,11 @@ function ProfileSettings({ onClose }) {
                   </div>
 
                   <div className="form-group">
-                    <label>GRADE LEVEL <span className="required">*</span></label>
+                    <label>POSITION <span className="required">*</span></label>
                     <input
                       type="text"
-                      name="gradeLevel"
-                      value={profileData.gradeLevel}
-                      onChange={handleInputChange}
+                      name="position"
+                      value={profileData.position}
                       readOnly
                       className="readonly-field"
                     />
@@ -547,12 +399,11 @@ function ProfileSettings({ onClose }) {
                   </div>
 
                   <div className="form-group">
-                    <label>SECTION <span className="required">*</span></label>
+                    <label>OFFICE <span className="required">*</span></label>
                     <input
                       type="text"
-                      name="section"
-                      value={profileData.section}
-                      onChange={handleInputChange}
+                      name="office"
+                      value={profileData.office}
                       readOnly
                       className="readonly-field"
                     />
@@ -585,10 +436,10 @@ function ProfileSettings({ onClose }) {
                   </div>
 
                   <div className="form-group">
-                    <label>SCHOOL ID <span className="required">*</span></label>
+                    <label>STAFF ID <span className="required">*</span></label>
                     <input
                       type="text"
-                      value={profileData.schoolId}
+                      value={profileData.staffId}
                       readOnly
                       className="readonly-field"
                     />
@@ -653,79 +504,10 @@ function ProfileSettings({ onClose }) {
             </div>
           </div>
 
-          {/* QR Code Section */}
-          <div className="settings-section">
-            <h3>Quick Login QR Code</h3>
-            <p className="section-description">
-              {profileData.qrCodeData 
-                ? 'Your secure QR code for instant login. This QR code is unique and persistent.'
-                : 'Generate a secure QR code for instant login. This QR code contains encrypted credentials and can only be read by this website.'
-              }
-            </p>
-            
-            <div className="qr-code-container">
-              <div className="qr-code-display">
-                {qrCodeDataURL ? (
-                  <img ref={qrCodeRef} src={qrCodeDataURL} alt="Student QR Code" className="qr-code-image" />
-                ) : (
-                  <div className="qr-code-placeholder">
-                    <FaQrcode className="qr-placeholder-icon" />
-                    <p>No QR code generated yet</p>
-                    <button className="generate-qr-btn" onClick={handleGenerateQRCode}>
-                      <FaQrcode />
-                      Generate QR Code
-                    </button>
-                  </div>
-                )}
-                {qrCodeDataURL && <p className="qr-code-id">Student ID: {profileData.schoolId}</p>}
-              </div>
-              
-              <div className="qr-code-info">
-                <div className="info-item">
-                  <FaQrcode className="info-icon" />
-                  <div>
-                    <h4>How to use:</h4>
-                    {!profileData.qrCodeData ? (
-                      <>
-                        <p>1. Click "Generate QR Code" and enter your password</p>
-                        <p>2. Download and save it on your phone</p>
-                        <p>3. On login page, click "Login with QR code"</p>
-                        <p>4. Scan your QR code for instant automatic login</p>
-                      </>
-                    ) : (
-                      <>
-                        <p>1. Download your QR code (it's saved securely)</p>
-                        <p>2. On login page, click "Login with QR code"</p>
-                        <p>3. Scan your QR code for instant automatic login</p>
-                        <p>4. This QR code will work until you regenerate it</p>
-                      </>
-                    )}
-                    <p style={{ color: '#ef5350', marginTop: '10px', fontWeight: 600 }}>
-                      ⚠ Keep your QR code secure - it contains your login credentials!
-                    </p>
-                  </div>
-                </div>
-                
-                {qrCodeDataURL && (
-                  <div className="qr-action-buttons">
-                    <button className="download-qr-btn" onClick={handleDownloadQRCode}>
-                      <FaDownload />
-                      Download QR Code
-                    </button>
-                    <button className="regenerate-qr-btn" onClick={handleGenerateQRCode}>
-                      <FaQrcode />
-                      {profileData.qrCodeData ? 'Regenerate QR Code' : 'Generate QR Code'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
           {/* Action Buttons */}
           <div className="settings-actions">
-            <button className="logout-btn-settings" onClick={onClose}>
-              Log Out
+            <button className="cancel-btn-settings" onClick={onClose}>
+              Cancel
             </button>
             <button 
               className="update-btn" 
@@ -807,53 +589,6 @@ function ProfileSettings({ onClose }) {
                   disabled={saving}
                 >
                   {saving ? 'Changing...' : 'Change Password'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* QR Code Password Prompt Modal */}
-        {showQRPasswordPrompt && (
-          <div className="password-modal-overlay" onClick={() => setShowQRPasswordPrompt(false)}>
-            <div className="password-modal" onClick={(e) => e.stopPropagation()}>
-              <h3>{profileData.qrCodeData ? 'Regenerate QR Code' : 'Generate QR Code'}</h3>
-              <p className="modal-description">
-                {profileData.qrCodeData 
-                  ? 'Enter your password to regenerate your QR code. Your old QR code will stop working.'
-                  : 'Enter your password to generate an encrypted QR code'
-                }
-              </p>
-              
-              <div className="form-group">
-                <label>Password</label>
-                <div className="password-input-wrapper">
-                  <input
-                    type={showQRPassword ? 'text' : 'password'}
-                    value={qrPassword}
-                    onChange={(e) => setQrPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    onKeyPress={(e) => e.key === 'Enter' && handleQRPasswordSubmit()}
-                  />
-                  <button
-                    type="button"
-                    className="toggle-password"
-                    onClick={() => setShowQRPassword(!showQRPassword)}
-                  >
-                    {showQRPassword ? <FaEyeSlash /> : <FaEye />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="password-modal-actions">
-                <button className="cancel-btn" onClick={() => setShowQRPasswordPrompt(false)}>
-                  Cancel
-                </button>
-                <button 
-                  className="confirm-btn" 
-                  onClick={handleQRPasswordSubmit}
-                >
-                  {profileData.qrCodeData ? 'Regenerate QR Code' : 'Generate QR Code'}
                 </button>
               </div>
             </div>

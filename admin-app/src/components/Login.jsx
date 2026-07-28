@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaDollarSign, FaBook, FaUsers, FaClipboardList, FaShieldAlt } from 'react-icons/fa';
+import { FaDollarSign, FaBook, FaUsers, FaClipboardList, FaShieldAlt, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -12,6 +12,7 @@ const Login = ({ onLogin }) => {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const departments = [
     { id: 'finance', name: 'Finance', icon: FaDollarSign },
@@ -70,11 +71,19 @@ const Login = ({ onLogin }) => {
       // Store staff info in localStorage
       const staffInfo = {
         name: staffData.name,
+        fullName: staffData.name, // Save as fullName for compatibility
+        firstName: staffData.firstName || '',
+        lastName: staffData.lastName || '',
         email: staffData.email,
         username: staffData.username,
         office: staffData.office,
         officeId: staffData.officeId,
-        uid: staffData.uid
+        position: staffData.position || '',
+        staffId: staffData.staffId || '',
+        phoneNumber: staffData.phoneNumber || '',
+        profilePicture: staffData.profilePicture || '',
+        uid: staffData.uid,
+        firestoreDocId: staffDoc.id // Save the document ID
       };
       
       localStorage.setItem('staffData', JSON.stringify(staffInfo));
@@ -176,15 +185,25 @@ const Login = ({ onLogin }) => {
                 <label className="form-label">Password</label>
                 <a href="#" className="forgot-password">Forgot Password?</a>
               </div>
-              <input
-                type="password"
-                className="form-input"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-                disabled={loading}
-              />
+              <div className="password-input-wrapper">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  className="form-input"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label="Toggle password visibility"
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
             </div>
             
             <div className="remember-section">

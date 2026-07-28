@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { FaQrcode, FaUserCircle, FaShieldAlt } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaQrcode, FaUserCircle, FaShieldAlt, FaEye, FaEyeSlash, FaTimes, FaCheckCircle } from 'react-icons/fa';
 import { auth, db } from '../firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { Html5Qrcode } from 'html5-qrcode';
+import { decryptCredentials } from '../utils/qrEncryption';
 import '../styles/Login.css';
 
 const Login = ({ onLogin, onGuestLogin }) => {
@@ -11,6 +13,10 @@ const Login = ({ onLogin, onGuestLogin }) => {
   const [rememberDevice, setRememberDevice] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [qrScanner, setQrScanner] = useState(null);
+  const [scanningStatus, setScanningStatus] = useState('initializing'); // 'initializing', 'ready', 'scanning', 'success', 'error'
 
   const handleStudentIdChange = (e) => {
     const value = e.target.value;
@@ -126,8 +132,225 @@ const Login = ({ onLogin, onGuestLogin }) => {
     }
   };
 
-  const handleQRLogin = () => {
-    alert('QR Code login feature coming soon!');
+  useEffect(() => {
+    // Cleanup QR scanner on unmount
+    return () => {
+      if (qrScanner) {
+        qrScanner.stop().catch(err => console.error('Error stopping scanner:', err));
+      }
+    };
+  }, [qrScanner]);
+
+  const handleQRLogin = async () => {
+    setShowQRScanner(true);
+    setError('');
+    setScanningStatus('initializing');
+    
+    // Wait for DOM to be ready
+    setTimeout(() => {
+      initializeQRScanner();
+    }, 200);
+  };
+
+  const initializeQRScanner = async () => {
+    try {
+      console.log('🔧 Initializing QR scanner...');
+      
+      const scanner = new Html5Qrcode("qr-reader");
+      setQrScanner(scanner);
+      
+      console.log('📹 Starting camera...');
+      
+      await scanner.start(
+        { facingMode: "environment" }, // Use back camera
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+          disableFlip: false,
+          // Support multiple barcode formats
+          formatsToSupport: [
+            0, // QR_CODE
+            13 // DATA_MATRIX (backup)
+          ]
+        },
+        onScanSuccess,
+        onScanError
+      );
+      
+      setScanningStatus('ready');
+      console.log('✅ Camera started successfully - Ready to scan');
+      
+    } catch (error) {
+      console.error('❌ Error initializing QR scanner:', error);
+      setScanningStatus('error');
+      setError('Failed to start camera. Please ensure camera permissions are granted.');
+    }
+  };
+
+  const onScanSuccess = async (decodedText, decodedResult) => {
+    console.log('✅ QR Code scanned, raw data:', decodedText);
+    console.log('📊 Decoded result:', decodedResult);
+    setScanningStatus('success');
+    
+    // Stop scanner immediately
+    if (qrScanner) {
+      try {
+        await qrScanner.stop();
+        console.log('Scanner stopped successfully');
+      } catch (err) {
+        console.error('Error stopping scanner:', err);
+      }
+    }
+    
+    // Small delay to show success message
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    setShowQRScanner(false);
+    setLoading(true);
+    setError('');
+
+    try {
+      // Check if this looks like encrypted data (should be long string)
+      if (decodedText.length < 20) {
+        console.error('❌ Scanned data too short to be encrypted:', decodedText);
+        setScanningStatus('error');
+        setError('Invalid QR code. Please scan a valid student login QR code.');
+        setLoading(false);
+        return;
+      }
+      
+      // Decrypt the QR code data
+      console.log('🔓 Decrypting QR code data (length:', decodedText.length, ')...');
+      const credentials = decryptCredentials(decodedText);
+      
+      if (!credentials) {
+        console.error('❌ Invalid or corrupted QR code - decryption failed');
+        setScanningStatus('error');
+        setError('Invalid QR code. This QR code cannot be read or is from a different application.');
+        setLoading(false);
+        return;
+      }
+      
+      const { studentId, password } = credentials;
+      console.log('✅ QR code decrypted successfully');
+      console.log('🆔 Student ID from QR:', studentId, '(length:', studentId.length, ')');
+      console.log('🔑 Password length:', password.length);
+
+      // Validate student ID format - must be exactly 4 digits
+      if (!/^\d{4}$/.test(studentId)) {
+        console.error('❌ Invalid student ID format in QR:', studentId, '- expected 4 digits');
+        setScanningStatus('error');
+        setError(`Invalid QR code data format. Expected 4-digit ID, got: ${studentId}`);
+        setLoading(false);
+        return;
+      }
+
+      // Find student by Student ID
+      console.log('🔎 Searching for student with ID:', studentId);
+      const studentsRef = collection(db, 'students');
+      let q = query(studentsRef, where('id', '==', studentId));
+      let querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        console.log('Not found by id field, trying studentId field...');
+        q = query(studentsRef, where('studentId', '==', studentId));
+        querySnapshot = await getDocs(q);
+      }
+
+      if (querySnapshot.empty) {
+        console.error('❌ Student not found in database with ID:', studentId);
+        setScanningStatus('error');
+        setError(`Student not found. Please contact the administrator. (ID: ${studentId})`);
+        setLoading(false);
+        return;
+      }
+
+      const studentDoc = querySnapshot.docs[0];
+      const studentData = studentDoc.data();
+      const firestoreDocId = studentDoc.id;
+      console.log('✅ Student found:', studentData);
+
+      if (studentData.isActive === false) {
+        console.error('❌ Account suspended');
+        setScanningStatus('error');
+        setError('Your account has been suspended. Please contact the administrator.');
+        setLoading(false);
+        return;
+      }
+
+      // Attempt automatic login with decrypted password
+      console.log('🔐 Attempting automatic login with email:', studentData.email);
+      await signInWithEmailAndPassword(auth, studentData.email, password);
+
+      // Prepare student data for localStorage
+      const formattedStudentData = {
+        firestoreDocId: firestoreDocId,
+        uid: studentData.uid || auth.currentUser.uid,
+        studentId: studentData.studentId || studentData.id || studentId,
+        id: studentData.id || studentId,
+        firstName: studentData.firstName || studentData.name?.split(' ')[0] || '',
+        lastName: studentData.lastName || studentData.name?.split(' ').slice(1).join(' ') || '',
+        middleName: studentData.middleName || '',
+        suffix: studentData.suffix || '',
+        email: studentData.email,
+        name: studentData.name || `${studentData.firstName || ''} ${studentData.lastName || ''}`.trim(),
+        gradeLevel: studentData.gradeLevel || '',
+        section: studentData.section || '',
+        phoneNumber: studentData.phoneNumber || '',
+        profilePicture: studentData.profilePicture || '',
+        twoFactorEnabled: studentData.twoFactorEnabled || false
+      };
+      
+      console.log('✅ Login successful via QR code!');
+      localStorage.setItem('studentData', JSON.stringify(formattedStudentData));
+
+      // Login successful
+      onLogin();
+      setLoading(false);
+
+    } catch (error) {
+      console.error('❌ QR Login error:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack
+      });
+      setScanningStatus('error');
+      
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setError('QR code password is incorrect or outdated. Please generate a new QR code from your profile settings.');
+      } else if (error.message && error.message.includes('decrypt')) {
+        setError('Invalid QR code. This QR code is not compatible with this application.');
+      } else {
+        setError(`Failed to process QR code: ${error.message}. Please try manual login or generate a new QR code.`);
+      }
+      setLoading(false);
+    }
+  };
+
+  const onScanError = (errorMessage) => {
+    // The scanner continuously tries to read, so errors are normal
+    // Only log critical errors
+    if (errorMessage.includes('NotAllowedError')) {
+      console.error('🚫 Camera access denied:', errorMessage);
+      setScanningStatus('error');
+      setError('Camera access denied. Please allow camera permissions and try again.');
+    } else if (errorMessage.includes('NotFoundError')) {
+      console.error('📷 No camera found:', errorMessage);
+      setScanningStatus('error');
+      setError('No camera found on this device.');
+    }
+    // Ignore "NotFoundException" - it just means no QR code detected yet
+  };
+
+  const handleCloseQRScanner = () => {
+    if (qrScanner) {
+      qrScanner.stop().catch(err => console.error('Error stopping scanner:', err));
+      setQrScanner(null);
+    }
+    setShowQRScanner(false);
+    setScanningStatus('initializing');
   };
 
   const handleGuestLogin = () => {
@@ -173,13 +396,23 @@ const Login = ({ onLogin, onGuestLogin }) => {
                   <label className="form-label-student">Password</label>
                   <a href="#" className="forgot-password-link">Forget Password?</a>
                 </div>
-                <input
-                  type="password"
-                  className="form-input-student"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                />
+                <div className="password-input-wrapper">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    className="form-input-student"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
               </div>
 
               <div className="remember-device-row">
@@ -225,6 +458,59 @@ const Login = ({ onLogin, onGuestLogin }) => {
           </div>
         </div>
       </div>
+
+      {/* QR Scanner Modal */}
+      {showQRScanner && (
+        <div className="qr-scanner-modal">
+          <div className="qr-scanner-content">
+            <div className="qr-scanner-header">
+              <h2>Scan Your QR Code</h2>
+              <button className="close-scanner-btn" onClick={handleCloseQRScanner}>
+                <FaTimes />
+              </button>
+            </div>
+            
+            {/* Scanning Status Indicator */}
+            <div className={`scanning-status ${scanningStatus}`}>
+              {scanningStatus === 'initializing' && (
+                <div className="status-message initializing">
+                  <div className="spinner"></div>
+                  <p>Initializing camera...</p>
+                </div>
+              )}
+              {scanningStatus === 'ready' && (
+                <div className="status-message ready">
+                  <div className="pulse-indicator"></div>
+                  <p>🔍 Scanning... Position QR code in frame</p>
+                </div>
+              )}
+              {scanningStatus === 'success' && (
+                <div className="status-message success">
+                  <FaCheckCircle className="status-icon" />
+                  <p>✓ QR Code detected successfully!</p>
+                </div>
+              )}
+              {scanningStatus === 'error' && (
+                <div className="status-message error">
+                  <p>⚠ Error scanning QR code</p>
+                </div>
+              )}
+            </div>
+            
+            <p className="qr-scanner-instructions">
+              <strong>How to scan:</strong><br />
+              1. Allow camera access when prompted<br />
+              2. You will see a live camera view below<br />
+              3. Position your QR code inside the green square<br />
+              4. Hold steady - automatic login will happen instantly
+            </p>
+            <div id="qr-reader" className="qr-reader-container"></div>
+            <div className="qr-scanner-footer">
+              <p>Don't have a QR code? Download it from your profile settings after logging in manually.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
