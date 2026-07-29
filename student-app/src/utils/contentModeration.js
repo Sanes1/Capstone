@@ -52,17 +52,19 @@ export const validateContent = async (subject, description) => {
 
   try {
     // Create a comprehensive prompt for the AI
-    const prompt = `You are a content moderator for a school ticketing system. Analyze the following student request and provide a JSON response.
+    const prompt = `You are a STRICT content moderator for a school ticketing system. Analyze the following student request and provide a JSON response.
 
 Subject: "${subject}"
 Description: "${description}"
+
+CRITICAL: The description MUST be directly related to the subject. Be VERY STRICT about relevance.
 
 Analyze this content and respond ONLY with a valid JSON object (no markdown, no extra text) in this exact format:
 {
   "hasProfanity": boolean,
   "profanityReason": "string (only if hasProfanity is true)",
   "isRelevant": boolean,
-  "relevanceReason": "string (only if isRelevant is false)",
+  "relevanceReason": "string (explain why it's not relevant if isRelevant is false)",
   "language": "english" | "tagalog" | "bisaya" | "mixed" | "unknown",
   "isSpam": boolean,
   "tone": "appropriate" | "inappropriate" | "aggressive" | "neutral"
@@ -74,14 +76,31 @@ Profanity Detection:
 - Detect indirect profanity or offensive language
 - Consider context (medical terms or legitimate words are OK)
 
-Relevance Check:
-- Does the description match the subject?
-- Is it a legitimate school concern?
-- Examples of MISMATCH:
-  * Subject: "Tuition Payment Inquiry" but description talks about scholarships, books, or grades
-  * Subject: "Library Book Return" but description talks about tuition or grades
-  * Subject: "Transcript Request" but description talks about library books
-- If there's a clear mismatch, set isRelevant to FALSE
+Relevance Check - BE VERY STRICT:
+- The description MUST directly relate to the chosen subject
+- If the subject is "Tuition Payment Inquiry":
+  * Description MUST be about tuition fees, payment methods, payment schedules, payment issues
+  * Description about mental health, grades, books, library, etc. = NOT RELEVANT
+- If the subject is "Library Book Return":
+  * Description MUST be about returning books, book damage, lost books, renewal
+  * Description about tuition, grades, scholarships = NOT RELEVANT
+- If the subject is "Transcript Request":
+  * Description MUST be about transcript, diploma, certifications, academic records
+  * Description about library, tuition, personal issues = NOT RELEVANT
+- If the subject is "Grade Inquiry":
+  * Description MUST be about grades, scores, academic performance
+  * Description about mental health, tuition, library = NOT RELEVANT
+- If the subject is "Scholarship Application":
+  * Description MUST be about scholarships, financial aid, grants
+  * Description about grades alone, personal issues unrelated to finances = NOT RELEVANT
+
+Examples of MISMATCHES (set isRelevant to FALSE):
+- Subject: "Tuition Payment Inquiry" + Description: "problems with mental health" = NOT RELEVANT
+- Subject: "Library Book Return" + Description: "I need to pay my tuition" = NOT RELEVANT  
+- Subject: "Grade Inquiry" + Description: "How do I pay my fees" = NOT RELEVANT
+- Subject: "Transcript Request" + Description: "I lost a library book" = NOT RELEVANT
+
+ONLY accept descriptions that directly address the selected subject topic!
 
 Language Detection:
 - Identify primary language(s) used
