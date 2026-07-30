@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { FaBell, FaSearch, FaTicketAlt, FaEllipsisH, FaCheckCircle, FaChevronRight } from 'react-icons/fa';
 import { db } from '../firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
+import Notifications from './Notifications';
 import '../styles/MyTickets.css';
 
 const MyTickets = ({ department, onNavigate }) => {
@@ -12,6 +13,8 @@ const MyTickets = ({ department, onNavigate }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [staffData, setStaffData] = useState(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [stats, setStats] = useState({
     new: 0,
     inProgress: 0,
@@ -25,6 +28,22 @@ const MyTickets = ({ department, onNavigate }) => {
       const data = JSON.parse(storedStaffData);
       setStaffData(data);
       loadMyTickets(data.name);
+      
+      // Listen for unread notifications in real-time
+      if (data.uid) {
+        const q = query(
+          collection(db, 'notifications'),
+          where('recipientId', '==', data.uid),
+          where('recipientType', '==', 'staff')
+        );
+
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+          const unread = querySnapshot.docs.filter(doc => !doc.data().isRead).length;
+          setUnreadCount(unread);
+        });
+
+        return () => unsubscribe();
+      }
     }
   }, []);
 
@@ -142,7 +161,10 @@ const MyTickets = ({ department, onNavigate }) => {
               Month
             </button>
           </div>
-          <FaBell className="notification-bell" />
+          <div className="notification-bell" onClick={() => setShowNotifications(true)}>
+            <FaBell className="bell-icon" />
+            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+          </div>
         </div>
       </div>
 
@@ -266,6 +288,8 @@ const MyTickets = ({ department, onNavigate }) => {
           </>
         )}
       </div>
+
+      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
     </div>
   );
 };

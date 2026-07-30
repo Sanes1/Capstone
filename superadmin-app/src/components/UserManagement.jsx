@@ -211,12 +211,17 @@ const UserManagement = () => {
         email: studentEmail.trim(),
         role: 'student',
         createdAt: serverTimestamp(),
-        isActive: true
+        isActive: true,
+        mustChangePassword: true // Force password change on first login
       });
 
-      // Send credentials via email using local backend
+      // Send credentials via email
       try {
-        const response = await fetch('http://localhost:5000/api/send-credentials', {
+        const apiUrl = process.env.NODE_ENV === 'production' 
+          ? '/api/send-student-email'
+          : 'http://localhost:5000/api/send-credentials';
+          
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -229,12 +234,12 @@ const UserManagement = () => {
           })
         });
 
-        const data = await response.json();
+        const result = await response.json();
         
-        if (data.success) {
+        if (result.success) {
           console.log('✅ Email sent successfully to:', studentEmail);
         } else {
-          throw new Error(data.error || 'Failed to send email');
+          throw new Error(result.error || 'Failed to send email');
         }
       } catch (emailError) {
         console.error('❌ Failed to send email:', emailError);
@@ -376,9 +381,13 @@ const UserManagement = () => {
         isActive: true
       });
 
-      // Send credentials via email using local backend
+      // Send credentials via email
       try {
-        const response = await fetch('http://localhost:5000/api/send-staff-credentials', {
+        const apiUrl = process.env.NODE_ENV === 'production'
+          ? '/api/send-staff-email'
+          : 'http://localhost:5000/api/send-staff-credentials';
+          
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -392,15 +401,16 @@ const UserManagement = () => {
           })
         });
 
-        const data = await response.json();
+        const result = await response.json();
         
-        if (data.success) {
+        if (result.success) {
           console.log('✅ Email sent successfully to:', staffEmail);
         } else {
-          throw new Error(data.error || 'Failed to send email');
+          throw new Error(result.error || 'Failed to send email');
         }
       } catch (emailError) {
         console.error('❌ Failed to send email:', emailError);
+        // Continue anyway - account was created successfully
         alert('Account created but email failed to send. Please manually share credentials with staff:\nUsername: ' + staffUsername + '\nPassword: ' + password);
       }
 
@@ -472,43 +482,15 @@ const UserManagement = () => {
         }
         alert(`Account ${newStatus ? 'activated' : 'suspended'} successfully!`);
       } else if (confirmAction === 'delete') {
-        // First, delete from Firebase Authentication via backend
-        try {
-          const response = await fetch('http://localhost:5000/api/delete-user', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              uid: target.uid
-            })
-          });
-
-          let data;
-          try {
-            data = await response.json();
-          } catch (jsonError) {
-            throw new Error(`Server error: ${response.status} ${response.statusText}`);
-          }
-          
-          if (!data.success) {
-            throw new Error(data.error || 'Failed to delete from Firebase Auth');
-          }
-          
-          console.log('✅ Deleted from Firebase Auth');
-        } catch (authError) {
-          console.error('❌ Failed to delete from Firebase Auth:', authError);
-          alert('Warning: Could not delete from Firebase Authentication. The account will be removed from the database but may still exist in Authentication.');
-        }
-
-        // Then delete from Firestore
+        // Delete from Firestore
+        // Note: User will remain in Firebase Auth but cannot login without Firestore document
         await deleteDoc(doc(db, collectionName, target.firestoreId));
         if (isStudent) {
           await loadStudents();
         } else {
           await loadStaff();
         }
-        alert('Account deleted successfully from both database and authentication!');
+        alert('Account deleted successfully from database!');
       }
       setShowConfirmModal(false);
       setSelectedStudent(null);
@@ -526,13 +508,6 @@ const UserManagement = () => {
     setSelectedStaff(null);
     setConfirmAction(null);
   };
-
-  const activityHistory = [
-    { text: 'System login success', time: 'Today 09:10 am' },
-    { text: 'System login success', time: 'Today 09:10 am' },
-    { text: 'System login success', time: 'Today 09:10 am' },
-    { text: 'System login success', time: 'Today 09:10 am' }
-  ];
 
   return (
     <div className="user-management-container">
@@ -1054,111 +1029,6 @@ const UserManagement = () => {
           )}
         </div>
       )}
-
-      <div className="user-management-content">
-        <div className="user-profile-card">
-          <div className="user-avatar">
-            <FaUser className="avatar-icon" />
-          </div>
-          
-          <h2 className="user-name">Alex Smith</h2>
-          <p className="user-role">Staff - Finance</p>
-          
-          <div className="user-details">
-            <div className="detail-row">
-              <FaEnvelope className="detail-icon" />
-              <div className="detail-info">
-                <p className="detail-label">Email Address</p>
-                <p className="detail-value">alex.smith@gmail.com</p>
-              </div>
-            </div>
-            
-            <div className="detail-row">
-              <FaPhone className="detail-icon" />
-              <div className="detail-info">
-                <p className="detail-label">Phone Number</p>
-                <p className="detail-value">09912345678</p>
-              </div>
-            </div>
-            
-            <div className="detail-row">
-              <FaCalendarAlt className="detail-icon" />
-              <div className="detail-info">
-                <p className="detail-label">Member Since</p>
-                <p className="detail-value">Aug 11, 2020</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="admin-actions">
-            <div className="admin-actions-header">
-              <FaShieldAlt className="shield-icon" />
-              <h3 className="admin-actions-title">Administrative Action</h3>
-            </div>
-            
-            <button className="action-button">
-              <FaPen className="action-icon" />
-              Edit Profile
-            </button>
-            
-            <button className="action-button">
-              <FaLock className="action-icon" />
-              Change Permission
-            </button>
-            
-            <button className="action-button">
-              <FaKey className="action-icon" />
-              Reset Password
-            </button>
-            
-            <button className="action-button suspend">
-              <FaBan className="action-icon" />
-              Suspend Account
-            </button>
-          </div>
-        </div>
-        
-        <div className="user-activity-section">
-          <div className="activity-stats">
-            <div className="stat-box">
-              <p className="stat-header-text">Total Tickets Handled</p>
-              <p className="stat-period">Monthly</p>
-              <h3 className="stat-number">20</h3>
-            </div>
-            
-            <div className="stat-box">
-              <p className="stat-header-text">Avg. Response Time</p>
-              <p className="stat-period">Monthly</p>
-              <h3 className="stat-number">2.5hrs</h3>
-            </div>
-          </div>
-          
-          <div className="activity-history-card">
-            <div className="activity-history-header">
-              <h3 className="activity-history-title">System Activity History</h3>
-            </div>
-            
-            <div className="activity-list">
-              {activityHistory.map((activity, index) => (
-                <div key={index} className="activity-item">
-                  <div className="activity-icon-container">
-                    <FaSignInAlt className="activity-icon" />
-                  </div>
-                  <div className="activity-info">
-                    <p className="activity-text">{activity.text}</p>
-                    <p className="activity-time">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
-              
-              <button className="load-more">
-                <FaRedo className="load-more-icon" />
-                Load full Audit Log
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

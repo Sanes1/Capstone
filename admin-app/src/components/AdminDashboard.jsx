@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { FaBell, FaInbox, FaTicketAlt, FaClipboard, FaCheckCircle, FaUserCircle } from 'react-icons/fa';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import Notifications from './Notifications';
+import { notifyStudentStatusChange } from '../utils/notificationHelper';
 import '../styles/AdminDashboard.css';
 
 const AdminDashboard = ({ department }) => {
@@ -18,12 +20,34 @@ const AdminDashboard = ({ department }) => {
     resolved: 0
   });
   const [staffData, setStaffData] = useState(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     // Get staff data from localStorage
     const storedStaffData = localStorage.getItem('staffData');
     if (storedStaffData) {
-      setStaffData(JSON.parse(storedStaffData));
+      const parsedData = JSON.parse(storedStaffData);
+      setStaffData(parsedData);
+      
+      // Temporarily disabled notification listener to fix ticket loading
+      // TODO: Re-enable after fixing index issue
+      /*
+      if (parsedData.uid) {
+        const q = query(
+          collection(db, 'notifications'),
+          where('recipientId', '==', parsedData.uid),
+          where('recipientType', '==', 'staff')
+        );
+
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+          const unread = querySnapshot.docs.filter(doc => !doc.data().isRead).length;
+          setUnreadCount(unread);
+        });
+
+        return () => unsubscribe();
+      }
+      */
     }
     loadTickets();
   }, [department]);
@@ -44,6 +68,7 @@ const AdminDashboard = ({ department }) => {
       );
       
       const querySnapshot = await getDocs(q);
+      
       const ticketsData = querySnapshot.docs.map(doc => {
         const data = doc.data();
         return {
@@ -126,6 +151,20 @@ const AdminDashboard = ({ department }) => {
 
       console.log('✅ Ticket claimed by', staffData.name);
       
+      // Create notification for the student about status change
+      if (ticket.studentUid) {
+        await notifyStudentStatusChange(
+          ticket.studentUid,
+          ticket.id,
+          ticket.title,
+          ticket.status || 'Pending',
+          'In Process'
+        );
+        console.log('✅ Notification sent to student');
+      } else {
+        console.warn('⚠️ Student UID not found in ticket, notification not sent');
+      }
+      
       // Reload tickets
       await loadTickets();
       
@@ -155,7 +194,10 @@ const AdminDashboard = ({ department }) => {
               Month
             </button>
           </div>
-          <FaBell className="notification-bell" />
+          <div className="notification-bell" onClick={() => setShowNotifications(true)}>
+            <FaBell className="bell-icon" />
+            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+          </div>
         </div>
       </div>
 
@@ -311,6 +353,8 @@ const AdminDashboard = ({ department }) => {
           </>
         )}
       </div>
+
+      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
     </div>
   );
 };

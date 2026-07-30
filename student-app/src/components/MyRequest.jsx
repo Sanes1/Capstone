@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MdSearch, MdNotifications, MdKeyboardArrowLeft, MdKeyboardArrowRight } from 'react-icons/md';
+import { MdSearch, MdKeyboardArrowLeft, MdKeyboardArrowRight } from 'react-icons/md';
 import { db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import '../styles/MyRequest.css';
@@ -147,11 +147,6 @@ function MyRequest({ onViewDetails, onNavigate }) {
 
       <div className="page-header">
         <h1>Request History</h1>
-        <div className="header-actions">
-          <button className="notification-btn">
-            <MdNotifications />
-          </button>
-        </div>
       </div>
 
       <div className="filters">

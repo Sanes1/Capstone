@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MdNotifications, MdDownload, MdAttachFile, MdCheckCircle, MdClose } from 'react-icons/md';
+import { MdDownload, MdAttachFile, MdCheckCircle, MdClose } from 'react-icons/md';
 import { FaUserCircle } from 'react-icons/fa';
 import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
+import { notifyStaffFollowUp } from '../utils/notificationHelper';
 import '../styles/RequestDetails.css';
 
 function RequestDetails({ requestData, onNavigate }) {
@@ -118,6 +119,17 @@ function RequestDetails({ requestData, onNavigate }) {
         }),
         updatedAt: serverTimestamp()
       });
+
+      // Notify assigned staff member if ticket is assigned
+      if (request.assignedTo || request.claimedBy) {
+        await notifyStaffFollowUp(
+          request.assignedTo || request.claimedBy,
+          request.requestId,
+          request.subject,
+          studentData.name || `${studentData.firstName} ${studentData.lastName}`.trim(),
+          request.office
+        );
+      }
 
       alert('Follow-up sent successfully!');
       setComment('');
@@ -297,11 +309,6 @@ function RequestDetails({ requestData, onNavigate }) {
 
       <div className="page-header">
         <h1>Request Details</h1>
-        <div className="header-actions">
-          <button className="notification-btn">
-            <MdNotifications />
-          </button>
-        </div>
       </div>
 
       <div className="details-container">

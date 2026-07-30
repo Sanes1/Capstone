@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaBell, FaUndo, FaCheck, FaFileAlt, FaDownload, FaUserCircle, FaEnvelope, FaCheckCircle, FaTimes } from 'react-icons/fa';
-import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
+import { notifyStudentStatusChange, notifyStudentComment, notifyStaffReassignment } from '../utils/notificationHelper';
+import Notifications from './Notifications';
 import '../styles/TicketDetails.css';
 
 const TicketDetails = ({ ticketData, department, onNavigate }) => {
@@ -11,11 +13,32 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
   const [replyFiles, setReplyFiles] = useState([]);
   const [sending, setSending] = useState(false);
   const [reassignOffice, setReassignOffice] = useState('');
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [reassignNote, setReassignNote] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (ticketData) {
       loadTicketDetails();
+    }
+    
+    // Listen for unread notifications
+    const staffData = JSON.parse(localStorage.getItem('staffData'));
+    if (staffData?.uid) {
+      const q = query(
+        collection(db, 'notifications'),
+        where('recipientId', '==', staffData.uid),
+        where('recipientType', '==', 'staff')
+      );
+
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const unread = querySnapshot.docs.filter(doc => !doc.data().isRead).length;
+        setUnreadCount(unread);
+      });
+
+      return () => unsubscribe();
     }
   }, [ticketData]);
 
@@ -33,7 +56,14 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
           firestoreId: docSnap.id
         });
         setReassignOffice(data.office || '');
-        console.log('✅ Loaded ticket details:', data);
+        console.log('✅ Loaded ticket details:', {
+          requestId: data.requestId,
+          office: data.office,
+          assignedTo: data.assignedTo,
+          claimedBy: data.claimedBy,
+          status: data.status,
+          officeHistory: data.officeHistory
+        });
       } else {
         console.error('❌ Ticket not found');
         alert('Ticket not found');
@@ -100,11 +130,18 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
           attachments: attachments,
           sentBy: 'staff',
           sentByName: staffData.name,
-          sentAt: new Date().toISOString(),
-          timestamp: serverTimestamp()
+          sentAt: new Date().toISOString()
         }),
         updatedAt: serverTimestamp()
       });
+
+      // Notify student about the reply
+      await notifyStudentComment(
+        ticket.studentUid,
+        ticket.requestId,
+        ticket.subject,
+        staffData.name
+      );
 
       alert('Reply sent successfully!');
       setReplyMessage('');
@@ -146,12 +183,22 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
     }
 
     try {
+      const oldStatus = ticket.status;
       const docRef = doc(db, 'requests', ticket.firestoreId);
       await updateDoc(docRef, {
         status: 'Resolved',
         resolvedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
+      
+      // Notify student about status change
+      await notifyStudentStatusChange(
+        ticket.studentUid,
+        ticket.requestId,
+        ticket.subject,
+        oldStatus,
+        'Resolved'
+      );
       
       alert('Ticket resolved successfully');
       onNavigate('my-tickets');
@@ -176,37 +223,142 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
       return;
     }
 
-    if (!window.confirm(`Reassign this ticket to ${reassignOffice}?`)) {
+    // Show modal to get reassignment note
+    setShowReassignModal(true);
+  };
+
+  const confirmReassign = async () => {
+    if (!reassignNote.trim()) {
+      alert('Please provide a reason for reassigning this ticket');
+      return;
+    }
+
+    if (reassignNote.trim().length < 10) {
+      alert('Please provide a more detailed reason (at least 10 characters)');
       return;
     }
 
     try {
+      setShowReassignModal(false);
+      
       // Generate new request ID based on new office
       const newRequestId = generateRequestId(reassignOffice);
       const staffData = JSON.parse(localStorage.getItem('staffData'));
       
-      const docRef = doc(db, 'requests', ticket.firestoreId);
-      await updateDoc(docRef, {
+      // Create or update office history to track who handled it in each office
+      const currentOfficeHistory = ticket.officeHistory || {};
+      
+      // Save current handler before reassigning (use claimedBy if available, otherwise assignedTo)
+      const currentHandler = ticket.claimedBy || ticket.assignedTo || staffData.name;
+      if (currentHandler) {
+        currentOfficeHistory[ticket.office] = {
+          handledBy: currentHandler,
+          handledAt: new Date().toISOString()
+        };
+      }
+      
+      console.log('📋 Office History:', currentOfficeHistory);
+      console.log('🔍 Checking for previous handler in', reassignOffice);
+      
+      // Check if the ticket was previously in the target office
+      const previousHandler = currentOfficeHistory[reassignOffice];
+      console.log('👤 Previous Handler:', previousHandler);
+      
+      const updateData = {
         office: reassignOffice,
         requestId: newRequestId, // Update request ID to match new office
         officeId: reassignOffice.toLowerCase(),
-        assignedTo: null, // Clear assigned staff
-        claimedBy: null,
-        claimedAt: null,
-        status: 'Pending', // Reset to pending
         reassignedFrom: ticket.office, // Track original office
         reassignedBy: staffData.name, // Track who reassigned it
         reassignedAt: serverTimestamp(),
+        reassignmentNote: reassignNote.trim(), // Store the reason
         previousRequestId: ticket.requestId, // Keep old request ID for reference
+        previousOffice: ticket.office, // Track for history
+        officeHistory: currentOfficeHistory, // Save office history
         updatedAt: serverTimestamp()
-      });
+      };
       
-      alert(`Ticket reassigned successfully!\nNew Request ID: ${newRequestId}`);
+      // If ticket was previously in this office, auto-assign to previous handler
+      if (previousHandler && previousHandler.handledBy) {
+        console.log('✅ Auto-assigning to previous handler:', previousHandler.handledBy);
+        updateData.assignedTo = previousHandler.handledBy;
+        updateData.claimedBy = previousHandler.handledBy;
+        updateData.claimedAt = new Date().toISOString();
+        updateData.status = 'In Process'; // Auto-set to In Process since it's claimed
+        updateData.assignedToStaff = previousHandler.handledBy; // Add this field too
+        
+        // Add follow-ups for reassignment and auto-assignment
+        updateData.followUps = arrayUnion(
+          {
+            message: `Ticket reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\n\nReason: ${reassignNote.trim()}`,
+            sentBy: 'system',
+            sentByName: 'System',
+            sentAt: new Date().toISOString()
+          },
+          {
+            message: `Ticket automatically assigned to ${previousHandler.handledBy} (previously handled this ticket in ${reassignOffice})`,
+            sentBy: 'system',
+            sentByName: 'System',
+            sentAt: new Date().toISOString()
+          }
+        );
+      } else {
+        console.log('❌ No previous handler found. Setting to Pending.');
+        // New office - clear assignments
+        updateData.assignedTo = null;
+        updateData.claimedBy = null;
+        updateData.claimedAt = null;
+        updateData.assignedToStaff = null;
+        updateData.status = 'Pending'; // Reset to pending for new office
+        
+        // Add follow-up for reassignment only
+        updateData.followUps = arrayUnion({
+          message: `Ticket reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\n\nReason: ${reassignNote.trim()}`,
+          sentBy: 'system',
+          sentByName: 'System',
+          sentAt: new Date().toISOString()
+        });
+      }
+      
+      const docRef = doc(db, 'requests', ticket.firestoreId);
+      await updateDoc(docRef, updateData);
+      
+      // Notify student about the reassignment
+      await notifyStudentStatusChange(
+        ticket.studentUid,
+        ticket.requestId,
+        ticket.subject,
+        ticket.status,
+        updateData.status
+      );
+      
+      // Notify staff in the target office about the rerouted ticket
+      await notifyStaffReassignment(
+        reassignOffice,
+        newRequestId,
+        ticket.subject,
+        ticket.office,
+        staffData.name
+      );
+      
+      setReassignNote(''); // Clear the note
+      
+      if (previousHandler && previousHandler.handledBy) {
+        alert(`Ticket reassigned successfully!\nNew Request ID: ${newRequestId}\nAuto-assigned to ${previousHandler.handledBy} in ${reassignOffice}.`);
+      } else {
+        alert(`Ticket reassigned successfully!\nNew Request ID: ${newRequestId}\nThe ticket will appear in ${reassignOffice}'s dashboard for claiming.`);
+      }
+      
       onNavigate('my-tickets');
     } catch (error) {
       console.error('❌ Error reassigning ticket:', error);
-      alert('Failed to reassign ticket');
+      alert('Failed to reassign ticket: ' + error.message);
     }
+  };
+
+  const cancelReassign = () => {
+    setShowReassignModal(false);
+    setReassignNote('');
   };
 
   const downloadAttachment = (attachment) => {
@@ -278,7 +430,10 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
 
       <div className="page-header">
         <h1 className="page-title">Ticket Details</h1>
-        <FaBell className="notification-bell" />
+        <div className="notification-bell" onClick={() => setShowNotifications(true)}>
+          <FaBell className="bell-icon" />
+          {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+        </div>
       </div>
 
       <div className="ticket-details-content">
@@ -504,6 +659,47 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
           </div>
         </div>
       </div>
+
+      {/* Reassign Modal */}
+      {showReassignModal && (
+        <div className="reassign-modal-overlay">
+          <div className="reassign-modal">
+            <h3 className="reassign-modal-title">Reassign Ticket to {reassignOffice}</h3>
+            <p className="reassign-modal-subtitle">Please provide a reason for reassigning this ticket</p>
+            
+            <textarea
+              className="reassign-note-textarea"
+              placeholder="Example: This request is related to tuition payment and should be handled by the Finance Office..."
+              value={reassignNote}
+              onChange={(e) => setReassignNote(e.target.value)}
+              rows={5}
+              maxLength={500}
+            />
+            
+            <div className="reassign-note-counter">
+              {reassignNote.length}/500 characters
+              {reassignNote.length < 10 && reassignNote.length > 0 && (
+                <span className="note-warning"> (minimum 10 characters)</span>
+              )}
+            </div>
+            
+            <div className="reassign-modal-actions">
+              <button className="reassign-cancel-btn" onClick={cancelReassign}>
+                Cancel
+              </button>
+              <button 
+                className="reassign-confirm-btn" 
+                onClick={confirmReassign}
+                disabled={reassignNote.trim().length < 10}
+              >
+                Confirm Reassignment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
     </div>
   );
 };

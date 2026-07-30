@@ -1,9 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaBell, FaDownload, FaFilter, FaBalanceScale, FaClock, FaChartBar, FaUserCircle } from 'react-icons/fa';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
+import Notifications from './Notifications';
 import '../styles/Analytics.css';
 
 const Analytics = ({ department }) => {
   const [filterDate, setFilterDate] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    // Listen for unread notifications
+    const staffData = JSON.parse(localStorage.getItem('staffData'));
+    if (staffData?.uid) {
+      const q = query(
+        collection(db, 'notifications'),
+        where('recipientId', '==', staffData.uid),
+        where('recipientType', '==', 'staff')
+      );
+
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const unread = querySnapshot.docs.filter(doc => !doc.data().isRead).length;
+        setUnreadCount(unread);
+      });
+
+      return () => unsubscribe();
+    }
+  }, []);
 
   const staffActivity = [
     { name: 'Alex Smith', resolved: 48, percentage: 85 },
@@ -42,7 +66,10 @@ const Analytics = ({ department }) => {
             <FaFilter />
             by Date
           </button>
-          <FaBell className="notification-bell" />
+          <div className="notification-bell" onClick={() => setShowNotifications(true)}>
+            <FaBell className="bell-icon" />
+            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+          </div>
         </div>
       </div>
 
@@ -207,6 +234,8 @@ const Analytics = ({ department }) => {
           </div>
         </div>
       </div>
+      
+      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
     </div>
   );
 };

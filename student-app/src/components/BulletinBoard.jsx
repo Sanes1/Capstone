@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { MdNotifications } from 'react-icons/md';
 import '../styles/BulletinBoard.css';
 
 function BulletinBoard() {
@@ -28,11 +27,6 @@ function BulletinBoard() {
 
       <div className="page-header">
         <h1>Bulletin Board</h1>
-        <div className="header-actions">
-          <button className="notification-btn">
-            <MdNotifications />
-          </button>
-        </div>
       </div>
 
       <div className="hero-banner">

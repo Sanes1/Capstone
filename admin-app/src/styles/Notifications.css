@@ -11,7 +11,7 @@
   justify-content: flex-end;
   align-items: flex-start;
   padding-top: 70px;
-  padding-right: 280px;
+  padding-right: 90px;
 }
 
 .notifications-panel {
@@ -24,7 +24,6 @@
   display: flex;
   flex-direction: column;
   animation: slideDown 0.3s ease-out;
-  margin-right: 0;
 }
 
 @keyframes slideDown {

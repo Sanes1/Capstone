@@ -13,8 +13,8 @@ const Notifications = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (!isOpen) return;
 
-    const studentData = JSON.parse(localStorage.getItem('studentData'));
-    if (!studentData || !studentData.uid) {
+    const staffData = JSON.parse(localStorage.getItem('staffData'));
+    if (!staffData || !staffData.uid) {
       setLoading(false);
       return;
     }
@@ -22,8 +22,8 @@ const Notifications = ({ isOpen, onClose }) => {
     // Simplified query to avoid index requirement - we'll sort in JavaScript
     const q = query(
       collection(db, 'notifications'),
-      where('recipientId', '==', studentData.uid),
-      where('recipientType', '==', 'student')
+      where('recipientId', '==', staffData.uid),
+      where('recipientType', '==', 'staff')
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -64,15 +64,15 @@ const Notifications = ({ isOpen, onClose }) => {
   };
 
   const handleMarkAllAsRead = async () => {
-    const studentData = JSON.parse(localStorage.getItem('studentData'));
-    await markAllAsRead(studentData.uid, 'student');
+    const staffData = JSON.parse(localStorage.getItem('staffData'));
+    await markAllAsRead(staffData.uid, 'staff');
   };
 
   const getNotificationIcon = (type) => {
     switch (type) {
-      case 'status_change':
-        return '📊';
-      case 'new_comment':
+      case 'new_request':
+        return '📋';
+      case 'student_followup':
         return '💬';
       case 'ticket_rerouted':
         return '🔄';

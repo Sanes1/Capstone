@@ -1,8 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaBell, FaPlus, FaEllipsisV, FaCalendarAlt } from 'react-icons/fa';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
+import Notifications from './Notifications';
 import '../styles/BulletinBoard.css';
 
 const BulletinBoard = ({ department }) => {
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    // Listen for unread notifications
+    const staffData = JSON.parse(localStorage.getItem('staffData'));
+    if (staffData?.uid) {
+      const q = query(
+        collection(db, 'notifications'),
+        where('recipientId', '==', staffData.uid),
+        where('recipientType', '==', 'staff')
+      );
+
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const unread = querySnapshot.docs.filter(doc => !doc.data().isRead).length;
+        setUnreadCount(unread);
+      });
+
+      return () => unsubscribe();
+    }
+  }, []);
   const announcements = [
     {
       department: 'FINANCE',
@@ -42,7 +66,10 @@ const BulletinBoard = ({ department }) => {
             <FaPlus />
             Create new announcement
           </button>
-          <FaBell className="notification-bell" />
+          <div className="notification-bell" onClick={() => setShowNotifications(true)}>
+            <FaBell className="bell-icon" />
+            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+          </div>
         </div>
       </div>
 
@@ -110,6 +137,8 @@ const BulletinBoard = ({ department }) => {
           </div>
         </div>
       </div>
+      
+      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
     </div>
   );
 };

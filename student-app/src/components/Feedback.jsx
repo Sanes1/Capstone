@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MdNotifications, MdStar, MdStarBorder } from 'react-icons/md';
+import { MdStar, MdStarBorder } from 'react-icons/md';
 import '../styles/Feedback.css';
 
 function Feedback({ selectedOffice: initialOffice }) {
@@ -95,11 +95,6 @@ function Feedback({ selectedOffice: initialOffice }) {
         
         <div className="page-header">
           <h1>Share your feedback</h1>
-          <div className="header-actions">
-            <button className="notification-btn">
-              <MdNotifications />
-            </button>
-          </div>
         </div>
 
         {offices.length === 0 ? (
@@ -151,11 +146,6 @@ function Feedback({ selectedOffice: initialOffice }) {
       
       <div className="page-header">
         <h1>Share your feedback</h1>
-        <div className="header-actions">
-          <button className="notification-btn">
-            <MdNotifications />
-          </button>
-        </div>
       </div>
 
       <div className="feedback-form">

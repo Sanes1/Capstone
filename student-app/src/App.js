@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Login from './components/Login';
 import GuestLogin from './components/GuestLogin';
+import ChangePasswordModal from './components/ChangePasswordModal';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -21,6 +22,20 @@ function App() {
   });
   const [activePage, setActivePage] = useState('dashboard');
   const [selectedRequest, setSelectedRequest] = useState(null); // Store selected request
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [studentData, setStudentData] = useState(null);
+
+  // Check if user must change password on login
+  useEffect(() => {
+    if (isLoggedIn && !isGuest) {
+      const storedData = localStorage.getItem('studentData');
+      if (storedData) {
+        const data = JSON.parse(storedData);
+        setStudentData(data);
+        setMustChangePassword(data.mustChangePassword === true);
+      }
+    }
+  }, [isLoggedIn, isGuest]);
 
   const handleLogin = () => {
     setIsLoggedIn(true);
@@ -42,6 +57,15 @@ function App() {
     localStorage.removeItem('studentLoggedIn');
     localStorage.removeItem('studentIsGuest');
   };
+
+  const handlePasswordChanged = () => {
+    setMustChangePassword(false);
+    // Reload student data
+    const storedData = localStorage.getItem('studentData');
+    if (storedData) {
+      setStudentData(JSON.parse(storedData));
+    }
+  };
   
   const handleViewRequestDetails = (request) => {
     setSelectedRequest(request);
@@ -51,7 +75,7 @@ function App() {
   const renderPage = () => {
     switch(activePage) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard onNavigate={setActivePage} />;
       case 'request':
         return <MyRequest onViewDetails={handleViewRequestDetails} onNavigate={setActivePage} />;
       case 'request-details':
@@ -73,7 +97,7 @@ function App() {
       case 'faq':
         return <FAQs />;
       default:
-        return <Dashboard />;
+        return <Dashboard onNavigate={setActivePage} />;
     }
   };
 
@@ -83,6 +107,11 @@ function App() {
 
   if (isGuest) {
     return <GuestLogin />;
+  }
+
+  // Show password change modal if required
+  if (mustChangePassword && studentData) {
+    return <ChangePasswordModal studentData={studentData} onPasswordChanged={handlePasswordChanged} />;
   }
 
   return (

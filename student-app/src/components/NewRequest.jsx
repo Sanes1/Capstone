@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { MdNotifications, MdUploadFile, MdClose, MdCheckCircle, MdWarning, MdError } from 'react-icons/md';
+import { MdUploadFile, MdClose, MdCheckCircle, MdWarning, MdError } from 'react-icons/md';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { validateContent } from '../utils/contentModeration';
+import { notifyStaffNewRequest } from '../utils/notificationHelper';
 import '../styles/NewRequest.css';
 
 function NewRequest({ onNavigate }) {
@@ -54,6 +55,7 @@ function NewRequest({ onNavigate }) {
       subjects: [
         'Transcript Request',
         'Certificate Request',
+        'Document Request',
         'Grade Inquiry',
         'Enrollment Verification',
         'Record Correction',
@@ -260,6 +262,14 @@ function NewRequest({ onNavigate }) {
       const docRef = await addDoc(collection(db, 'requests'), requestData);
       console.log('✅ Request created with ID:', docRef.id);
 
+      // Notify all staff in the target office about the new request
+      await notifyStaffNewRequest(
+        selectedOfficeData.name,
+        requestId,
+        subject.trim(),
+        student.name || `${student.firstName} ${student.lastName}`.trim()
+      );
+
       // Show success message
       alert(`Request submitted successfully! Your request ID is: ${requestId}${attachments.length > 0 ? `\n${attachments.length} file(s) attached` : ''}`);
 
@@ -294,11 +304,6 @@ function NewRequest({ onNavigate }) {
 
       <div className="page-header">
         <h1>Submit New Request</h1>
-        <div className="header-actions">
-          <button className="notification-btn">
-            <MdNotifications />
-          </button>
-        </div>
       </div>
 
       <div className="request-form">

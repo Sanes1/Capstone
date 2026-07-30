@@ -104,7 +104,8 @@ const Login = ({ onLogin, onGuestLogin }) => {
         section: studentData.section || '',
         phoneNumber: studentData.phoneNumber || '',
         profilePicture: studentData.profilePicture || '',
-        twoFactorEnabled: studentData.twoFactorEnabled || false
+        twoFactorEnabled: studentData.twoFactorEnabled || false,
+        mustChangePassword: studentData.mustChangePassword || false // Flag for forced password change
       };
       
       console.log('✅ Formatted student data for localStorage:', formattedStudentData);
@@ -299,7 +300,8 @@ const Login = ({ onLogin, onGuestLogin }) => {
         section: studentData.section || '',
         phoneNumber: studentData.phoneNumber || '',
         profilePicture: studentData.profilePicture || '',
-        twoFactorEnabled: studentData.twoFactorEnabled || false
+        twoFactorEnabled: studentData.twoFactorEnabled || false,
+        mustChangePassword: studentData.mustChangePassword || false // Flag for forced password change
       };
       
       console.log('✅ Login successful via QR code!');
