@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Login from './components/Login';
 import AdminSidebar from './components/AdminSidebar';
 import AdminDashboard from './components/AdminDashboard';
@@ -28,7 +28,9 @@ function App() {
     }
     return '';
   });
-  const [activePage, setActivePage] = useState('dashboard');
+  const [activePage, setActivePage] = useState(() => {
+    return localStorage.getItem('adminActivePage') || 'dashboard';
+  });
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
 
@@ -50,6 +52,11 @@ function App() {
       setSelectedTicket(ticket);
     }
   };
+
+  // Save active page to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('adminActivePage', activePage);
+  }, [activePage]);
 
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;

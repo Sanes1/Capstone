@@ -4,7 +4,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import '../styles/Sidebar.css';
 
-function Sidebar({ activePage, onNavigate }) {
+function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false }) {
   const handleLogout = async () => {
     if (window.confirm('Are you sure you want to logout?')) {
       try {
@@ -45,6 +45,7 @@ function Sidebar({ activePage, onNavigate }) {
           onClick={() => onNavigate('bulletin')}
         >
           <MdViewList /> Bulletin Board
+          {hasUnreadBulletin && <span className="unread-indicator"></span>}
         </button>
         
         <div className="menu-group">

@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { collection, query, where, getDocs, doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import Notifications from './Notifications';
 import { notifyStudentStatusChange } from '../utils/notificationHelper';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/AdminDashboard.css';
 
 const AdminDashboard = ({ department }) => {
@@ -274,7 +275,7 @@ const AdminDashboard = ({ department }) => {
         </div>
 
         {loading ? (
-          <div className="loading-state">Loading tickets...</div>
+          <LoadingSpinner message="Loading tickets..." fullScreen={false} />
         ) : filteredTickets.length === 0 ? (
           <div className="empty-state">No tickets found.</div>
         ) : (

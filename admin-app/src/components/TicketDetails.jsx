@@ -4,6 +4,7 @@ import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp, collection, query,
 import { db } from '../firebase';
 import { notifyStudentStatusChange, notifyStudentComment, notifyStaffReassignment } from '../utils/notificationHelper';
 import Notifications from './Notifications';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/TicketDetails.css';
 
 const TicketDetails = ({ ticketData, department, onNavigate }) => {
@@ -13,6 +14,7 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
   const [replyFiles, setReplyFiles] = useState([]);
   const [sending, setSending] = useState(false);
   const [reassignOffice, setReassignOffice] = useState('');
+  const [urgencyLevel, setUrgencyLevel] = useState('Normal');
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [reassignNote, setReassignNote] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
@@ -56,6 +58,7 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
           firestoreId: docSnap.id
         });
         setReassignOffice(data.office || '');
+        setUrgencyLevel(data.urgencyLevel || 'Normal');
         console.log('✅ Loaded ticket details:', {
           requestId: data.requestId,
           office: data.office,
@@ -217,6 +220,21 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
     return `${officePrefix}-${randomNum1}-${randomNum2}-${randomNum3}`;
   };
 
+  const handleUrgencyChange = async (newUrgency) => {
+    setUrgencyLevel(newUrgency);
+    
+    // Save urgency level change to database
+    try {
+      const docRef = doc(db, 'requests', ticket.firestoreId);
+      await updateDoc(docRef, {
+        urgencyLevel: newUrgency,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error updating urgency level:', error);
+    }
+  };
+
   const handleReassign = async () => {
     if (reassignOffice === ticket.office) {
       alert('Ticket is already assigned to this office');
@@ -275,6 +293,7 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
         previousRequestId: ticket.requestId, // Keep old request ID for reference
         previousOffice: ticket.office, // Track for history
         officeHistory: currentOfficeHistory, // Save office history
+        urgencyLevel: urgencyLevel, // Use selected urgency level
         updatedAt: serverTimestamp()
       };
       
@@ -399,23 +418,7 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
   };
 
   if (loading || !ticket) {
-    return (
-      <div className="ticket-details-container">
-        <div className="breadcrumb">
-          <span className="breadcrumb-item clickable" onClick={handleBackToTickets}>
-            All Ticket
-          </span>
-          <span className="breadcrumb-separator">/</span>
-          <span className="breadcrumb-item">Ticket Details</span>
-        </div>
-        <div className="page-header">
-          <h1 className="page-title">Ticket Details</h1>
-        </div>
-        <div style={{ padding: '40px', textAlign: 'center' }}>
-          <p>Loading ticket details...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading ticket details..." fullScreen={true} />;
   }
 
   return (
@@ -471,6 +474,26 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
               <span className="created-date">Created on {formatDate(ticket.createdAt)}</span>
             </div>
             
+            {/* Show reassignment note if ticket was reassigned */}
+            {ticket.reassignedFrom && ticket.reassignmentNote && (
+              <div className="reassignment-notice">
+                <div className="reassignment-notice-header">
+                  <FaCheckCircle className="reassignment-icon" />
+                  <div>
+                    <strong>Rerouted from {ticket.reassignedFrom}</strong>
+                    <span className="reassignment-date"> on {formatDate(ticket.reassignedAt)}</span>
+                  </div>
+                </div>
+                <div className="reassignment-note-content">
+                  <p className="reassignment-note-label">Note from {ticket.reassignedFrom}:</p>
+                  <p className="reassignment-note-text">"{ticket.reassignmentNote}"</p>
+                  {ticket.previousRequestId && (
+                    <p className="reassignment-previous-id">Previous Request ID: #{ticket.previousRequestId}</p>
+                  )}
+                </div>
+              </div>
+            )}
+            
             <div className="submission-message">
               "{ticket.description}"
             </div>
@@ -487,8 +510,19 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
               </div>
             )}
 
-            {/* Display follow-ups */}
-            {ticket.followUps && ticket.followUps.map((followUp, index) => (
+            {/* Display follow-ups (exclude system reassignment messages since we show them in the notice box) */}
+            {ticket.followUps && ticket.followUps
+              .filter(followUp => {
+                // Filter out system messages about reassignment since we display them in the notice box
+                if (followUp.sentBy === 'system') {
+                  return !(
+                    followUp.message.includes('Ticket reassigned from') ||
+                    followUp.message.includes('Ticket automatically assigned to')
+                  );
+                }
+                return true;
+              })
+              .map((followUp, index) => (
               <div key={index} className={`followup-message ${followUp.sentBy === 'staff' ? 'staff-message' : 'student-message'}`}>
                 <div className="followup-header">
                   <FaUserCircle className="followup-avatar" />
@@ -612,7 +646,15 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
             
             <div className="management-field">
               <p className="field-label">URGENCY LEVEL</p>
-              <p className="field-value">Normal - Process within 2-3 days</p>
+              <select 
+                className="field-select"
+                value={urgencyLevel}
+                onChange={(e) => handleUrgencyChange(e.target.value)}
+              >
+                <option value="Normal">Normal - Process within 2-3 days</option>
+                <option value="Medium">Medium - Process within 1-2 days</option>
+                <option value="High">High - Process within the day</option>
+              </select>
             </div>
             
             <div className="management-field">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MdStar, MdStarBorder } from 'react-icons/md';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/Feedback.css';
 
 function Feedback({ selectedOffice: initialOffice }) {
@@ -98,9 +99,7 @@ function Feedback({ selectedOffice: initialOffice }) {
         </div>
 
         {offices.length === 0 ? (
-          <div className="empty-state">
-            <p>Loading office information...</p>
-          </div>
+          <LoadingSpinner message="Loading office information..." fullScreen={false} />
         ) : (
           <div className="office-grid">
             {offices.map((office) => (

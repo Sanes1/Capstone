@@ -3,6 +3,7 @@ import { MdAdd, MdConfirmationNumber } from 'react-icons/md';
 import { HiOutlineDocumentAdd, HiOutlineDocumentText, HiOutlineCheckCircle } from 'react-icons/hi';
 import { db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/Dashboard.css';
 
 function Dashboard({ onNavigate }) {
@@ -144,9 +145,7 @@ function Dashboard({ onNavigate }) {
         
         <div className="table-container">
           {loading ? (
-            <div className="empty-state">
-              <p>Loading requests...</p>
-            </div>
+            <LoadingSpinner message="Loading requests..." fullScreen={false} />
           ) : requests.length === 0 ? (
             <div className="empty-state">
               <p>No requests yet. Create your first request to get started!</p>

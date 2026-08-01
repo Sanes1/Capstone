@@ -600,3 +600,63 @@
     opacity: 1;
   }
 }
+
+
+/* QR Code Upload Section */
+.qr-upload-section {
+  margin-top: 20px;
+  padding-top: 20px;
+}
+
+.divider-qr {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  color: #999;
+  font-size: 13px;
+}
+
+.divider-qr::before,
+.divider-qr::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #ddd;
+}
+
+.divider-qr span {
+  padding: 0 15px;
+}
+
+.qr-upload-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #66bb6a 0%, #4caf50 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 187, 106, 0.3);
+}
+
+.qr-upload-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 187, 106, 0.4);
+  background: linear-gradient(135deg, #4caf50 0%, #43a047 100%);
+}
+
+.qr-upload-btn:active {
+  transform: translateY(0);
+}
+
+.qr-upload-btn svg {
+  width: 20px;
+  height: 20px;
+}

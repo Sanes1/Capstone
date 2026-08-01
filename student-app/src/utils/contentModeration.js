@@ -32,9 +32,10 @@ export const checkDescriptionLength = (text) => {
  * AI-powered content validation using Groq
  * @param {string} subject - Selected subject
  * @param {string} description - Description text
+ * @param {string} officeName - Selected office name (optional)
  * @returns {Promise<object>} - { isValid: boolean, errors: array, warnings: array, language: string }
  */
-export const validateContent = async (subject, description) => {
+export const validateContent = async (subject, description, officeName = '') => {
   const errors = [];
   const warnings = [];
   let language = 'unknown';
@@ -52,111 +53,107 @@ export const validateContent = async (subject, description) => {
 
   try {
     // Create a comprehensive prompt for the AI
-    const prompt = `You are a STRICT content moderator for a school ticketing system. Analyze the following student request and provide a JSON response.
-
+    const officeContext = officeName ? `\nOffice: "${officeName}"` : '';
+    const prompt = `You are an INTELLIGENT content moderator for a school ticketing system. Analyze the following student request and provide a JSON response.
+${officeContext}
 Subject: "${subject}"
 Description: "${description}"
 
-CRITICAL: The description MUST be directly related to the subject. Be VERY STRICT about relevance.
+IMPORTANT CONTEXT:
+- The system allows custom subjects to be added by administrators
+- You must be INTELLIGENT and FLEXIBLE when validating custom subjects
+- DO NOT rely only on predefined examples - UNDERSTAND what the subject is asking for based on its name and the office context
+- For ANY subject, analyze the subject name itself to understand what it's asking for, then check if the description relates to that
 
-Analyze this content and respond ONLY with a valid JSON object (no markdown, no extra text) in this exact format:
+CORE VALIDATION RULES:
+
+1. PROFANITY CHECK (STRICT):
+   - Detect bad words in English, Tagalog, and Bisaya
+   - Examples: fuck, shit, puta, gago, tangina, yawa, buang, etc.
+   - Detect offensive or aggressive language
+   - Medical/academic terms are acceptable
+
+2. RELEVANCE CHECK (INTELLIGENT & FLEXIBLE):
+   
+   **PRIMARY RULE**: The description must relate to what the SUBJECT NAME suggests.
+   
+   How to validate ANY subject (including custom ones):
+   - Read the subject name carefully
+   - Infer what topic it's about from the words used
+   - Check if the description discusses that topic
+   - Consider the office context to understand the domain
+   
+   **FOR MULTILINGUAL CONTENT**: 
+   - If text is in Tagalog or Bisaya, be MORE LENIENT
+   - Focus on keywords and overall topic match
+   - Only mark as irrelevant if CLEARLY discussing a completely different topic
+   
+   **SMART KEYWORD MATCHING**:
+   - For subjects with "Request", "Inquiry", "Application", "Appeal" - check if description asks for or discusses that type of request
+   - For subjects with financial terms (Payment, Balance, Refund, Fee, Tuition) - look for money/payment-related discussion
+   - For subjects with document terms (Form, Certificate, Transcript, Record) - look for document/paperwork discussion
+   - For subjects with service terms (Counseling, Support, Assistance) - look for help/service requests
+   
+   **EXAMPLES OF INTELLIGENT VALIDATION**:
+   
+   ✓ VALID Custom Subject Examples:
+   - Subject: "Scholarship Application" + Desc: "I want to apply for financial aid" = RELEVANT (financial assistance)
+   - Subject: "Lost ID Card" + Desc: "I lost my school ID yesterday" = RELEVANT (matches subject)
+   - Subject: "Uniform Complaint" + Desc: "My uniform size is wrong" = RELEVANT (uniform issue)
+   - Subject: "Internet Access Problem" + Desc: "Cannot connect to school wifi" = RELEVANT (internet issue)
+   - Subject: "Health Certificate" + Desc: "Need medical clearance form" = RELEVANT (health document)
+   
+   ✗ INVALID - Clear Mismatches:
+   - Subject: "Scholarship Application" + Desc: "I lost my library book" = NOT RELEVANT (different topics)
+   - Subject: "Lost ID Card" + Desc: "I need to pay my tuition" = NOT RELEVANT (payment vs ID)
+   - Subject: "Uniform Complaint" + Desc: "Request for transcript" = NOT RELEVANT (uniform vs documents)
+
+3. SPECIAL VALIDATION RULES (Keep these):
+   
+   **REFUND vs RECEIPT**:
+   - "Refund Request" = asking for money back, return payment
+   - "Receipt Request" = asking for proof of payment, official receipt
+   - If description asks for money back but subject is "Receipt Request" = NOT RELEVANT
+   
+   **DOCUMENT TYPES**:
+   - Form 137, Form 138, TOR, transcript, diploma, certificate = valid for document/certificate/transcript requests
+   - Accept if description mentions any official school documents
+   
+   **FINANCIAL TERMS**:
+   - For Finance office or payment-related subjects: accept terms like balance, tuition, payment, bayad, kwarta, refund
+   
+   **COMMON SUBJECTS** (if they appear, use strict checking):
+   - Balance Verification → financial balance inquiry
+   - Document Request → school records/forms
+   - Grade Inquiry → academic grades/scores  
+   - Book Request → library materials
+   - Counseling → guidance services
+
+4. LANGUAGE DETECTION:
+   - English: "the", "is", "my", "please"
+   - Tagalog: "ang", "po", "ko", "gusto", "kailangan"  
+   - Bisaya: "og", "ug", "palihug", "nako"
+
+5. SPAM DETECTION:
+   - Gibberish, random characters, nonsensical text
+   - Examples: "asdfasdf", "12345", repeated characters
+
+6. TONE ANALYSIS:
+   - Check if respectful and appropriate for school communication
+   - Flag aggressive, rude, or demanding language
+
+**KEY PRINCIPLE**: Be SMART, not RIGID. Understand what the subject is asking for, then check if the description discusses that topic. Accept valid requests even if they use custom or non-standard subjects.
+
+Respond ONLY with a valid JSON object (no markdown, no extra text):
 {
   "hasProfanity": boolean,
-  "profanityReason": "string (only if hasProfanity is true)",
+  "profanityReason": "string (only if true)",
   "isRelevant": boolean,
-  "relevanceReason": "string (explain why it's not relevant if isRelevant is false)",
+  "relevanceReason": "string (explain if false)",
   "language": "english" | "tagalog" | "bisaya" | "mixed" | "unknown",
   "isSpam": boolean,
   "tone": "appropriate" | "inappropriate" | "aggressive" | "neutral"
-}
-
-Profanity Detection:
-- Check for bad words in English, Tagalog, and Bisaya
-- Examples: fuck, shit, puta, gago, tangina, yawa, buang, etc.
-- Detect indirect profanity or offensive language
-- Consider context (medical terms or legitimate words are OK)
-
-Relevance Check - BE VERY STRICT BUT LANGUAGE-AWARE:
-- The description MUST directly relate to the chosen subject
-- **IMPORTANT**: If the text is in Tagalog or Bisaya (non-English), be MORE LENIENT with relevance checking
-  * Focus on key words that might relate to the subject
-  * Filipino languages may express topics differently than English
-  * Only flag as irrelevant if you're CERTAIN it's completely unrelated
-- If the subject contains "Refund" or "Refund Request":
-  * Look for words: refund, return, money back, give back, reimburse, downpayment, deposit, payment
-  * Tagalog/Bisaya: refund, ibalik, bumalik, kwarta, bayad
-  * Accept if it mentions wanting money back for any school-related item (uniforms, books, fees, etc.)
-  * **IMPORTANT**: Mentioning uniforms, books, downpayment, or tuition is RELEVANT for refund requests
-- If the subject is "Receipt Request":
-  * Description MUST be about requesting a receipt, proof of payment, official receipt, OR
-  * Accept if asking for documentation of payment
-  * **NOT VALID**: Asking for refund, money back = This should be "Refund Request" instead
-  * Valid words: receipt, OR, official receipt, resibo, proof of payment, payment confirmation
-- If the subject is "Balance Verification" or financial topics:
-  * Look for words: balance, bayad, payment, tuition, utang, kwarta, pesos, bill, refund
-  * Bisaya: balance, bayad, kwarta, utang
-  * Accept if it mentions checking, asking, inquiring about financial matters
-- If the subject is "Document Request":
-  * Description MUST be about requesting school documents
-  * Valid documents: Form 137, Form 138, transcript, diploma, certificate, good moral, clearance, TOR, grades sheet, enrollment form
-  * Accept any mention of these forms or general document requests
-  * "Form 137" or "Form 138" = VALID for Document Request
-- If the subject is "Transcript Request":
-  * Description MUST be about transcript, diploma, certifications, academic records, TOR (Transcript of Records)
-  * Description about library, tuition, personal issues = NOT RELEVANT
-- If the subject is "Certificate Request":
-  * Description MUST be about certificates, clearance, good moral certificate, enrollment certificate
-  * Description about library, tuition = NOT RELEVANT
-- If the subject is "Tuition Payment Inquiry":
-  * Description MUST be about tuition fees, payment methods, payment schedules, payment issues
-  * Description about mental health, grades, books, library, etc. = NOT RELEVANT
-- If the subject is "Library Book Return":
-  * Description MUST be about returning books, book damage, lost books, renewal
-  * Description about tuition, grades, scholarships = NOT RELEVANT
-- If the subject is "Grade Inquiry":
-  * Description MUST be about grades, scores, academic performance
-  * Description about mental health, tuition, library = NOT RELEVANT
-- If the subject is "Scholarship Application":
-  * Description MUST be about scholarships, financial aid, grants
-  * Description about grades alone, personal issues unrelated to finances = NOT RELEVANT
-
-**SPECIAL RULE FOR BISAYA/TAGALOG**: If you detect the language is Bisaya or Tagalog, be MORE LENIENT with relevance. Only mark as irrelevant if you're absolutely certain it's talking about a completely different topic (like talking about library books when subject is about tuition payment).
-
-**SPECIAL RULE FOR DOCUMENTS**: Form 137, Form 138, and similar school forms are valid for "Document Request", "Certificate Request", and "Transcript Request" subjects.
-
-Examples of MISMATCHES (set isRelevant to FALSE):
-- Subject: "Tuition Payment Inquiry" + Description: "problems with mental health" = NOT RELEVANT
-- Subject: "Library Book Return" + Description: "I need to pay my tuition" = NOT RELEVANT  
-- Subject: "Grade Inquiry" + Description: "How do I pay my fees" = NOT RELEVANT
-- Subject: "Transcript Request" + Description: "I lost a library book" = NOT RELEVANT
-- Subject: "Receipt Request" + Description: "I want a refund for my payment" = NOT RELEVANT (should be Refund Request)
-
-Examples of VALID MATCHES (set isRelevant to TRUE):
-- Subject: "Refund Request" + Description: "I want a refund for uniforms and books" = RELEVANT
-- Subject: "Refund Request" + Description: "I want to ask for a refund in my downpayment" = RELEVANT
-- Subject: "Receipt Request" + Description: "I need a receipt for my tuition payment" = RELEVANT
-- Subject: "Receipt Request" + Description: "Can I get an official receipt" = RELEVANT
-- Subject: "Balance Verification" + Description: "How much do I owe for tuition" = RELEVANT
-- Subject: "Document Request" + Description: "I need Form 137" = RELEVANT
-
-ONLY accept descriptions that directly address the selected subject topic!
-
-Language Detection:
-- Identify primary language(s) used
-- English: uses words like "the", "is", "my", "please"
-- Tagalog: uses words like "ang", "po", "ko", "gusto", "kailangan"
-- Bisaya: uses words like "og", "ug", "palihug", "nako"
-
-Spam Detection:
-- Check for gibberish, random characters, or nonsensical text
-- Examples: "asdfasdf", "12345", repeated characters
-- Detect repetitive or meaningless content
-
-Tone Analysis:
-- Is the tone respectful and appropriate for school communication?
-- Flag aggressive, rude, or demanding language
-
-Remember: Respond ONLY with the JSON object, nothing else.`;
+}`;
 
     // Call Groq AI (using Llama 3 model - fast and accurate)
     const chatCompletion = await groq.chat.completions.create({

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Login from './components/Login';
 import SuperAdminSidebar from './components/SuperAdminSidebar';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
@@ -11,7 +11,9 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem('superadminAuth') === 'true';
   });
-  const [activePage, setActivePage] = useState('dashboard');
+  const [activePage, setActivePage] = useState(() => {
+    return localStorage.getItem('superadminActivePage') || 'dashboard';
+  });
 
   const handleLogin = () => {
     setIsLoggedIn(true);
@@ -25,6 +27,11 @@ function App() {
   const handleNavigate = (page) => {
     setActivePage(page);
   };
+
+  // Save active page to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('superadminActivePage', activePage);
+  }, [activePage]);
 
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;

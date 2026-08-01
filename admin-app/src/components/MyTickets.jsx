@@ -3,6 +3,7 @@ import { FaBell, FaSearch, FaTicketAlt, FaEllipsisH, FaCheckCircle, FaChevronRig
 import { db } from '../firebase';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import Notifications from './Notifications';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/MyTickets.css';
 
 const MyTickets = ({ department, onNavigate }) => {
@@ -226,7 +227,7 @@ const MyTickets = ({ department, onNavigate }) => {
 
       <div className="tickets-list-section">
         {loading ? (
-          <div className="loading-state">Loading your tickets...</div>
+          <LoadingSpinner message="Loading your tickets..." fullScreen={false} />
         ) : filteredTickets.length === 0 ? (
           <div className="empty-state">
             {tickets.length === 0 

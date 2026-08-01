@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { MdSearch, MdKeyboardArrowLeft, MdKeyboardArrowRight } from 'react-icons/md';
 import { db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/MyRequest.css';
 
 function MyRequest({ onViewDetails, onNavigate }) {
@@ -108,11 +109,11 @@ function MyRequest({ onViewDetails, onNavigate }) {
   const filterRequests = () => {
     let filtered = [...requests];
 
-    // Search filter
+    // Search filter - search by subject OR office
     if (searchQuery) {
       filtered = filtered.filter(req => 
-        req.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        req.subject.toLowerCase().includes(searchQuery.toLowerCase())
+        req.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        req.office.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -154,7 +155,7 @@ function MyRequest({ onViewDetails, onNavigate }) {
           <MdSearch />
           <input 
             type="text" 
-            placeholder="Search by Ticket or Subject"
+            placeholder="Search by Subject or Office"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -180,9 +181,7 @@ function MyRequest({ onViewDetails, onNavigate }) {
 
       <div className="request-table">
         {loading ? (
-          <div className="loading-state">
-            <p>Loading requests...</p>
-          </div>
+          <LoadingSpinner message="Loading requests..." fullScreen={false} />
         ) : filteredRequests.length === 0 ? (
           <div className="empty-state">
             <p>No requests found. {searchQuery || statusFilter !== 'All Status' || officeFilter !== 'All Offices' ? 'Try adjusting your filters.' : 'Create your first request to get started!'}</p>

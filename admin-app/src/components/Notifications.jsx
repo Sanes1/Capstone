@@ -3,6 +3,7 @@ import { FaBell, FaCheck, FaCheckDouble, FaTimes } from 'react-icons/fa';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { markAsRead, markAllAsRead } from '../utils/notificationHelper';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/Notifications.css';
 
 const Notifications = ({ isOpen, onClose }) => {
@@ -68,19 +69,6 @@ const Notifications = ({ isOpen, onClose }) => {
     await markAllAsRead(staffData.uid, 'staff');
   };
 
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'new_request':
-        return '📋';
-      case 'student_followup':
-        return '💬';
-      case 'ticket_rerouted':
-        return '🔄';
-      default:
-        return '🔔';
-    }
-  };
-
   const getTimeAgo = (date) => {
     if (!date) return '';
     const now = new Date();
@@ -120,7 +108,7 @@ const Notifications = ({ isOpen, onClose }) => {
 
         <div className="notifications-list">
           {loading ? (
-            <div className="notifications-loading">Loading notifications...</div>
+            <LoadingSpinner message="Loading notifications..." fullScreen={false} />
           ) : notifications.length === 0 ? (
             <div className="notifications-empty">
               <FaBell className="empty-icon" />
@@ -133,7 +121,6 @@ const Notifications = ({ isOpen, onClose }) => {
                 className={`notification-item ${!notif.isRead ? 'unread' : ''}`}
                 onClick={() => !notif.isRead && handleMarkAsRead(notif.id)}
               >
-                <div className="notification-icon">{getNotificationIcon(notif.type)}</div>
                 <div className="notification-content">
                   <div className="notification-title">{notif.title}</div>
                   <div className="notification-message">{notif.message}</div>

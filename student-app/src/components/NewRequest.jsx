@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { MdUploadFile, MdClose, MdCheckCircle, MdWarning, MdError } from 'react-icons/md';
 import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { validateContent } from '../utils/contentModeration';
 import { notifyStaffNewRequest } from '../utils/notificationHelper';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/NewRequest.css';
 
 function NewRequest({ onNavigate }) {
@@ -11,73 +12,67 @@ function NewRequest({ onNavigate }) {
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(true);
   const [error, setError] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [offices, setOffices] = useState([]);
   const fileInputRef = useRef(null);
   
   // Validation states
   const [validationResult, setValidationResult] = useState(null);
   const [isValidating, setIsValidating] = useState(false);
 
-  const offices = [
+  // Default offices as fallback
+  const defaultOffices = [
     {
       id: 'finance',
       name: 'Finance',
       description: 'Manages tuition payments, student balances, billing concerns, and other school-related financial transactions.',
-      subjects: [
-        'Tuition Payment Inquiry',
-        'Balance Verification',
-        'Payment Plan Request',
-        'Receipt Request',
-        'Refund Request',
-        'Scholarship Inquiry',
-        'Other Financial Concern'
-      ]
+      subjects: ['Balance Verification', 'Payment Plan', 'Refund Request', 'Billing Inquiry']
     },
     {
       id: 'library',
       name: 'Library',
       description: 'Manages book borrowing/returning, library accounts, and student concerns related to library services and resources.',
-      subjects: [
-        'Book Borrowing Issue',
-        'Book Return Concern',
-        'Lost Book Report',
-        'Library Card Issue',
-        'Overdue Fine Inquiry',
-        'Research Assistance',
-        'Other Library Concern'
-      ]
+      subjects: ['Book Request', 'Lost Book Report', 'Library Card Issue', 'Resource Access']
     },
     {
       id: 'registrar',
       name: 'Registrar',
       description: 'Handles student records such as enrollment, grades, certificates, transcripts, and other official academic documents.',
-      subjects: [
-        'Transcript Request',
-        'Certificate Request',
-        'Document Request',
-        'Grade Inquiry',
-        'Enrollment Verification',
-        'Record Correction',
-        'Document Authentication',
-        'Other Registrar Concern'
-      ]
+      subjects: ['Document Request', 'Grade Inquiry', 'Enrollment Issue', 'Transcript Request']
     },
     {
       id: 'guidance',
       name: 'Guidance',
       description: 'Handles student behavior concerns, violations, and disciplinary cases to maintain order and safety in school.',
-      subjects: [
-        'Counseling Appointment',
-        'Disciplinary Case Inquiry',
-        'Behavior Report',
-        'Mental Health Support',
-        'Academic Guidance',
-        'Career Counseling',
-        'Other Guidance Concern'
-      ]
+      subjects: ['Counseling Request', 'Disciplinary Appeal', 'Behavior Report', 'Support Services']
     }
   ];
+
+  // Load office configuration from Firebase
+  useEffect(() => {
+    loadOfficeConfig();
+  }, []);
+
+  const loadOfficeConfig = async () => {
+    try {
+      setLoadingConfig(true);
+      const docRef = doc(db, 'config', 'requestForm');
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        setOffices(docSnap.data().offices || defaultOffices);
+      } else {
+        setOffices(defaultOffices);
+      }
+    } catch (error) {
+      console.error('Error loading office config:', error);
+      setOffices(defaultOffices);
+    } finally {
+      setLoadingConfig(false);
+    }
+  };
 
   const generateRequestId = (officeName) => {
     // Generate format: FIN-123-654-789
@@ -142,7 +137,9 @@ function NewRequest({ onNavigate }) {
     // Debounce validation by 1200ms to avoid excessive AI calls
     const timeoutId = setTimeout(async () => {
       try {
-        const result = await validateContent(subject, description);
+        const selectedOfficeData = offices.find(o => o.id === selectedOffice);
+        const officeName = selectedOfficeData?.name || '';
+        const result = await validateContent(subject, description, officeName);
         setValidationResult(result);
       } catch (error) {
         console.error('Validation error:', error);
@@ -247,6 +244,8 @@ function NewRequest({ onNavigate }) {
         studentUid: student.uid,
         studentName: student.name || `${student.firstName} ${student.lastName}`.trim(),
         studentEmail: student.email,
+        studentGradeLevel: student.gradeLevel || 'N/A',
+        studentSection: student.section || 'N/A',
         office: selectedOfficeData.name,
         officeId: selectedOffice,
         subject: subject.trim(),
@@ -291,6 +290,10 @@ function NewRequest({ onNavigate }) {
       setLoading(false);
     }
   };
+
+  if (loadingConfig) {
+    return <LoadingSpinner message="Loading form..." fullScreen={true} />;
+  }
 
   return (
     <div className="new-request-page">
@@ -463,10 +466,13 @@ function NewRequest({ onNavigate }) {
             onClick={handleSubmit}
             disabled={loading}
           >
+            {loading && <span className="btn-spinner"></span>}
             {loading ? 'Submitting...' : 'Submit Request'}
           </button>
         </div>
       </div>
+      
+      {loading && <LoadingSpinner message="Submitting your request..." fullScreen={true} />}
     </div>
   );
 }

@@ -137,7 +137,14 @@ const Login = ({ onLogin, onGuestLogin }) => {
     // Cleanup QR scanner on unmount
     return () => {
       if (qrScanner) {
-        qrScanner.stop().catch(err => console.error('Error stopping scanner:', err));
+        try {
+          const state = qrScanner.getState();
+          if (state === 2) { // Only stop if scanning
+            qrScanner.stop().catch(err => console.log('Cleanup stop warning:', err));
+          }
+        } catch (err) {
+          console.log('Cleanup error:', err);
+        }
       }
     };
   }, [qrScanner]);
@@ -165,15 +172,12 @@ const Login = ({ onLogin, onGuestLogin }) => {
       await scanner.start(
         { facingMode: "environment" }, // Use back camera
         {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
+          fps: 20, // Increased from 10 to 20 for faster detection
+          qrbox: 250, // Simplified to just a number
           aspectRatio: 1.0,
           disableFlip: false,
-          // Support multiple barcode formats
-          formatsToSupport: [
-            0, // QR_CODE
-            13 // DATA_MATRIX (backup)
-          ]
+          // Only focus on QR codes
+          formatsToSupport: [0] // QR_CODE only
         },
         onScanSuccess,
         onScanError
@@ -348,11 +352,64 @@ const Login = ({ onLogin, onGuestLogin }) => {
 
   const handleCloseQRScanner = () => {
     if (qrScanner) {
-      qrScanner.stop().catch(err => console.error('Error stopping scanner:', err));
+      try {
+        // Get the scanner state before stopping
+        const state = qrScanner.getState();
+        console.log('Scanner state before closing:', state);
+        
+        // Only stop if scanner is actually running
+        if (state === 2) { // 2 = SCANNING state
+          qrScanner.stop()
+            .then(() => console.log('Scanner stopped successfully'))
+            .catch(err => console.log('Scanner stop warning:', err));
+        } else {
+          console.log('Scanner not running, skipping stop');
+        }
+      } catch (err) {
+        console.log('Scanner close error:', err);
+      }
       setQrScanner(null);
     }
     setShowQRScanner(false);
     setScanningStatus('initializing');
+  };
+
+  const handleUploadQRCode = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image file (PNG, JPG, etc.)');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setScanningStatus('initializing');
+      console.log('📤 Processing uploaded QR code image...');
+
+      // Create a temporary scanner instance for file scanning
+      const scanner = new Html5Qrcode("qr-reader");
+      
+      // Scan the uploaded image file
+      const decodedText = await scanner.scanFile(file, true);
+      
+      console.log('✅ QR Code decoded from image:', decodedText);
+      setScanningStatus('success');
+      
+      // Process the scanned QR code (same as camera scan)
+      await onScanSuccess(decodedText, null);
+      
+      // Clear the file input
+      event.target.value = '';
+      
+    } catch (error) {
+      console.error('❌ Error scanning uploaded QR code:', error);
+      setScanningStatus('error');
+      setError('Failed to read QR code from image. Please ensure the image is clear and contains a valid QR code.');
+      setLoading(false);
+    }
   };
 
   const handleGuestLogin = () => {
@@ -507,6 +564,27 @@ const Login = ({ onLogin, onGuestLogin }) => {
               4. Hold steady - automatic login will happen instantly
             </p>
             <div id="qr-reader" className="qr-reader-container"></div>
+            
+            {/* Upload QR Code Option */}
+            <div className="qr-upload-section">
+              <div className="divider-qr">
+                <span>or</span>
+              </div>
+              <label htmlFor="qr-file-upload" className="qr-upload-btn">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 0C4.477 0 0 4.477 0 10s4.477 10 10 10 10-4.477 10-10S15.523 0 10 0zm5 11h-4v4H9v-4H5V9h4V5h2v4h4v2z"/>
+                </svg>
+                Upload QR Code Image
+              </label>
+              <input
+                id="qr-file-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleUploadQRCode}
+                style={{ display: 'none' }}
+              />
+            </div>
+            
             <div className="qr-scanner-footer">
               <p>Don't have a QR code? Download it from your profile settings after logging in manually.</p>
             </div>

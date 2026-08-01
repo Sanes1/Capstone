@@ -4,6 +4,7 @@ import { FaUserCircle } from 'react-icons/fa';
 import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { notifyStaffFollowUp } from '../utils/notificationHelper';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/RequestDetails.css';
 
 function RequestDetails({ requestData, onNavigate }) {
@@ -278,23 +279,7 @@ function RequestDetails({ requestData, onNavigate }) {
   };
 
   if (loading || !request) {
-    return (
-      <div className="request-details-page">
-        <div className="breadcrumb">
-          <span className="clickable" onClick={() => onNavigate('request')}>Request History</span>
-          <span className="separator">/</span>
-          <span className="active">Request Details</span>
-          <span className="separator">/</span>
-          <span className="clickable" onClick={() => onNavigate('new-request')}>New Request</span>
-        </div>
-        <div className="page-header">
-          <h1>Request Details</h1>
-        </div>
-        <div style={{ padding: '40px', textAlign: 'center' }}>
-          <p>Loading request details...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading request details..." fullScreen={true} />;
   }
 
   return (

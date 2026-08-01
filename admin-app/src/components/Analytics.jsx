@@ -1,16 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { FaBell, FaDownload, FaFilter, FaBalanceScale, FaClock, FaChartBar, FaUserCircle } from 'react-icons/fa';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import Notifications from './Notifications';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/Analytics.css';
 
 const Analytics = ({ department }) => {
   const [filterDate, setFilterDate] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [tickets, setTickets] = useState([]);
+  const [staffMembers, setStaffMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Analytics state
+  const [totalTickets, setTotalTickets] = useState(0);
+  const [avgResolutionTime, setAvgResolutionTime] = useState('0h 0mins');
+  const [cancelledRate, setCancelledRate] = useState('0%');
+  const [staffActivity, setStaffActivity] = useState([]);
+  const [submissionData, setSubmissionData] = useState([]);
+  const [subjectDistribution, setSubjectDistribution] = useState([]);
 
   useEffect(() => {
+    loadAnalyticsData();
+    
     // Listen for unread notifications
     const staffData = JSON.parse(localStorage.getItem('staffData'));
     if (staffData?.uid) {
@@ -27,31 +41,177 @@ const Analytics = ({ department }) => {
 
       return () => unsubscribe();
     }
-  }, []);
+  }, [department]);
+  
+  const loadAnalyticsData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all tickets for this department
+      const ticketsQuery = query(
+        collection(db, 'requests'),
+        where('office', '==', department)
+      );
+      const ticketsSnapshot = await getDocs(ticketsQuery);
+      const ticketsData = ticketsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setTickets(ticketsData);
+      
+      // Fetch all staff members in this department
+      const staffQuery = query(
+        collection(db, 'staff'),
+        where('office', '==', department)
+      );
+      const staffSnapshot = await getDocs(staffQuery);
+      const staffData = staffSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setStaffMembers(staffData);
+      
+      // Calculate analytics
+      calculateAnalytics(ticketsData, staffData);
+      
+    } catch (error) {
+      console.error('❌ Error loading analytics:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const calculateAnalytics = (ticketsData, staffData) => {
+    // 1. Total Tickets
+    setTotalTickets(ticketsData.length);
+    
+    // 2. Average Resolution Time
+    const resolvedTickets = ticketsData.filter(t => t.status === 'Resolved' && t.resolvedAt && t.createdAt);
+    if (resolvedTickets.length > 0) {
+      const totalTimeMs = resolvedTickets.reduce((sum, ticket) => {
+        const created = ticket.createdAt.toDate ? ticket.createdAt.toDate() : new Date(ticket.createdAt);
+        const resolved = ticket.resolvedAt.toDate ? ticket.resolvedAt.toDate() : new Date(ticket.resolvedAt);
+        return sum + (resolved - created);
+      }, 0);
+      const avgTimeMs = totalTimeMs / resolvedTickets.length;
+      const hours = Math.floor(avgTimeMs / (1000 * 60 * 60));
+      const mins = Math.floor((avgTimeMs % (1000 * 60 * 60)) / (1000 * 60));
+      setAvgResolutionTime(`${hours}h ${mins}mins`);
+    } else {
+      setAvgResolutionTime('N/A');
+    }
+    
+    // 3. Cancelled Rate
+    const cancelledTickets = ticketsData.filter(t => t.status === 'Cancelled').length;
+    const cancelRate = ticketsData.length > 0 ? Math.round((cancelledTickets / ticketsData.length) * 100) : 0;
+    setCancelledRate(`${cancelRate}%`);
+    
+    // 4. Staff Activity (count resolved tickets per staff)
+    const staffActivityData = staffData.map(staff => {
+      const resolvedByStaff = ticketsData.filter(t => 
+        (t.assignedTo === staff.name || t.claimedBy === staff.name) && t.status === 'Resolved'
+      ).length;
+      const totalByStaff = ticketsData.filter(t => 
+        t.assignedTo === staff.name || t.claimedBy === staff.name
+      ).length;
+      const percentage = totalByStaff > 0 ? Math.round((resolvedByStaff / totalByStaff) * 100) : 0;
+      
+      return {
+        name: staff.name,
+        resolved: resolvedByStaff,
+        percentage: percentage
+      };
+    }).sort((a, b) => b.resolved - a.resolved); // Sort by most resolved
+    setStaffActivity(staffActivityData);
+    
+    // 5. Submission Times by Month
+    const monthCounts = {
+      'JAN': 0, 'FEB': 0, 'MAR': 0, 'APR': 0, 'MAY': 0, 'JUN': 0,
+      'JUL': 0, 'AUG': 0, 'SEP': 0, 'OCT': 0, 'NOV': 0, 'DEC': 0
+    };
+    
+    ticketsData.forEach(ticket => {
+      const date = ticket.createdAt?.toDate ? ticket.createdAt.toDate() : new Date(ticket.createdAt);
+      const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      const month = monthNames[date.getMonth()];
+      monthCounts[month]++;
+    });
+    
+    const submissionChartData = Object.keys(monthCounts).map(month => ({
+      month,
+      value: monthCounts[month]
+    }));
+    setSubmissionData(submissionChartData);
+    
+    // 6. Subject Distribution (Pie Chart)
+    const subjectCounts = {};
+    ticketsData.forEach(ticket => {
+      const subject = ticket.subject || 'Other';
+      subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
+    });
+    
+    const total = ticketsData.length;
+    const subjectData = Object.keys(subjectCounts).map(subject => ({
+      subject,
+      count: subjectCounts[subject],
+      percentage: total > 0 ? Math.round((subjectCounts[subject] / total) * 100) : 0
+    })).sort((a, b) => b.count - a.count); // Sort by most frequent
+    
+    setSubjectDistribution(subjectData);
+  };
 
-  const staffActivity = [
-    { name: 'Alex Smith', resolved: 48, percentage: 85 },
-    { name: 'Anne Liam', resolved: 26, percentage: 60 },
-    { name: 'Rico Micheal', resolved: 18, percentage: 45 },
-    { name: 'Ryan Might', resolved: 8, percentage: 20 },
-  ];
+  const maxValue = submissionData.length > 0 ? Math.max(...submissionData.map(d => d.value)) : 1;
+  
+  // Helper to generate pie chart path
+  const generatePiePath = (startAngle, endAngle, radius = 150) => {
+    const cx = 200;
+    const cy = 200;
+    
+    // Special case: if it's 100% (full circle), draw a circle instead of a path
+    if (Math.abs(endAngle - startAngle) >= 359.9) {
+      return `M ${cx},${cy - radius} A ${radius},${radius} 0 1,1 ${cx},${cy + radius} A ${radius},${radius} 0 1,1 ${cx},${cy - radius} Z`;
+    }
+    
+    const startRad = (startAngle * Math.PI) / 180;
+    const endRad = (endAngle * Math.PI) / 180;
+    
+    const x1 = cx + radius * Math.cos(startRad);
+    const y1 = cy + radius * Math.sin(startRad);
+    const x2 = cx + radius * Math.cos(endRad);
+    const y2 = cy + radius * Math.sin(endRad);
+    
+    const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+    
+    return `M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+  };
+  
+  // Generate pie chart segments based on subject distribution
+  const pieColors = ['#5DADE2', '#66bb6a', '#5B7CE6', '#FFB74D', '#EF5350', '#AB47BC', '#26C6DA', '#FFA726'];
+  let currentAngle = -90; // Start from top
+  const pieSegments = subjectDistribution.slice(0, 8).map((item, index) => { // Limit to top 8
+    const sweepAngle = (item.percentage / 100) * 360;
+    const path = generatePiePath(currentAngle, currentAngle + sweepAngle);
+    const labelAngle = currentAngle + sweepAngle / 2;
+    const labelRad = (labelAngle * Math.PI) / 180;
+    const labelX = 200 + 110 * Math.cos(labelRad);
+    const labelY = 200 + 110 * Math.sin(labelRad);
+    
+    const segment = {
+      path,
+      color: pieColors[index % pieColors.length],
+      percentage: item.percentage,
+      subject: item.subject,
+      labelX,
+      labelY
+    };
+    
+    currentAngle += sweepAngle;
+    return segment;
+  });
 
-  const submissionData = [
-    { month: 'JAN', value: 50 },
-    { month: 'FEB', value: 150 },
-    { month: 'MAR', value: 150 },
-    { month: 'APR', value: 130 },
-    { month: 'MAY', value: 180 },
-    { month: 'JUN', value: 80 },
-    { month: 'JUL', value: 140 },
-    { month: 'AUG', value: 100 },
-    { month: 'SEP', value: 60 },
-    { month: 'OCT', value: 120 },
-    { month: 'NOV', value: 90 },
-    { month: 'DEC', value: 70 },
-  ];
-
-  const maxValue = Math.max(...submissionData.map(d => d.value));
+  if (loading) {
+    return <LoadingSpinner message="Loading analytics..." fullScreen={true} />;
+  }
 
   return (
     <div className="analytics-container">
@@ -81,7 +241,7 @@ const Analytics = ({ department }) => {
           <div className="stat-content">
             <p className="stat-label">OVERALL</p>
             <p className="stat-sublabel">Total Tickets</p>
-            <h2 className="stat-value">100</h2>
+            <h2 className="stat-value">{totalTickets}</h2>
           </div>
         </div>
 
@@ -92,7 +252,7 @@ const Analytics = ({ department }) => {
           <div className="stat-content">
             <p className="stat-label">ACTIVITY</p>
             <p className="stat-sublabel">Avg Resolution Time</p>
-            <h2 className="stat-value">1h 20mins</h2>
+            <h2 className="stat-value">{avgResolutionTime}</h2>
           </div>
         </div>
 
@@ -103,7 +263,7 @@ const Analytics = ({ department }) => {
           <div className="stat-content">
             <p className="stat-label">RATE</p>
             <p className="stat-sublabel">Cancelled Rate</p>
-            <h2 className="stat-value">8%</h2>
+            <h2 className="stat-value">{cancelledRate}</h2>
           </div>
         </div>
       </div>
@@ -129,7 +289,10 @@ const Analytics = ({ department }) => {
                   <div 
                     className="bar" 
                     style={{ height: `${(data.value / maxValue) * 100}%` }}
-                  ></div>
+                    title={`${data.month}: ${data.value} ticket${data.value !== 1 ? 's' : ''}`}
+                  >
+                    <span className="bar-tooltip">{data.value}</span>
+                  </div>
                   <span className="bar-label">{data.month}</span>
                 </div>
               ))}
@@ -175,62 +338,39 @@ const Analytics = ({ department }) => {
         <div className="pie-chart-container">
           <div className="pie-chart-wrapper">
             <svg viewBox="0 0 400 400" className="pie-chart">
-              {/* Payments & Fees - 40% (blue) */}
-              <path
-                d="M 200 200 L 200 50 A 150 150 0 0 1 329.9 129.9 Z"
-                fill="#5DADE2"
-              />
-              {/* Payment Concerns - 40% (green) */}
-              <path
-                d="M 200 200 L 329.9 129.9 A 150 150 0 0 1 329.9 270.1 Z"
-                fill="#66bb6a"
-              />
-              {/* Scholarships - 10% (dark blue) */}
-              <path
-                d="M 200 200 L 329.9 270.1 A 150 150 0 0 1 246.35 343.3 Z"
-                fill="#5B7CE6"
-              />
-              {/* Documents & Receipts - 8% (orange) */}
-              <path
-                d="M 200 200 L 246.35 343.3 A 150 150 0 0 1 153.65 343.3 Z"
-                fill="#FFB74D"
-              />
-              {/* Other - 2% (red) */}
-              <path
-                d="M 200 200 L 153.65 343.3 A 150 150 0 0 1 70.1 270.1 L 200 200 Z"
-                fill="#EF5350"
-              />
-              
-              {/* Labels */}
-              <text x="280" y="110" fill="#5DADE2" fontSize="20" fontWeight="600">40%</text>
-              <text x="320" y="200" fill="#66bb6a" fontSize="20" fontWeight="600">40%</text>
-              <text x="280" y="290" fill="#5B7CE6" fontSize="18" fontWeight="600">10%</text>
-              <text x="210" y="340" fill="#FFB74D" fontSize="16" fontWeight="600">8%</text>
-              <text x="110" y="310" fill="#EF5350" fontSize="14" fontWeight="600">2%</text>
+              {pieSegments.map((segment, index) => (
+                <g key={index}>
+                  <path
+                    d={segment.path}
+                    fill={segment.color}
+                  />
+                  {segment.percentage >= 5 && (
+                    <text 
+                      x={segment.labelX} 
+                      y={segment.labelY} 
+                      fill={segment.color} 
+                      fontSize={segment.percentage > 15 ? "20" : "16"} 
+                      fontWeight="600"
+                      textAnchor="middle"
+                    >
+                      {segment.percentage}%
+                    </text>
+                  )}
+                </g>
+              ))}
             </svg>
           </div>
 
           <div className="pie-legend">
-            <div className="legend-item">
-              <div className="legend-color" style={{ backgroundColor: '#5DADE2' }}></div>
-              <span className="legend-label">Payments & Fees</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color" style={{ backgroundColor: '#66bb6a' }}></div>
-              <span className="legend-label">Payment Concerns</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color" style={{ backgroundColor: '#5B7CE6' }}></div>
-              <span className="legend-label">Scholarships</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color" style={{ backgroundColor: '#FFB74D' }}></div>
-              <span className="legend-label">Documents & Receipts</span>
-            </div>
-            <div className="legend-item">
-              <div className="legend-color" style={{ backgroundColor: '#EF5350' }}></div>
-              <span className="legend-label">Other</span>
-            </div>
+            {subjectDistribution.slice(0, 8).map((item, index) => (
+              <div key={index} className="legend-item">
+                <div className="legend-color" style={{ backgroundColor: pieColors[index % pieColors.length] }}></div>
+                <span className="legend-label">{item.subject} ({item.count})</span>
+              </div>
+            ))}
+            {subjectDistribution.length === 0 && (
+              <p style={{ textAlign: 'center', color: '#999', padding: '20px' }}>No data available</p>
+            )}
           </div>
         </div>
       </div>

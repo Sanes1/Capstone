@@ -786,3 +786,68 @@
   border-radius: 50%;
   object-fit: cover;
 }
+
+/* Reassignment Notice */
+.reassignment-notice {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  border-left: 4px solid #2e7d32;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(46, 125, 50, 0.1);
+}
+
+.reassignment-notice-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.reassignment-icon {
+  font-size: 24px;
+  color: #2e7d32;
+  flex-shrink: 0;
+}
+
+.reassignment-notice-header strong {
+  color: #1b5e20;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.reassignment-date {
+  color: #558b2f;
+  font-size: 14px;
+  font-weight: normal;
+}
+
+.reassignment-note-content {
+  padding-left: 36px;
+}
+
+.reassignment-note-label {
+  color: #388e3c;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.reassignment-note-text {
+  color: #1b5e20;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+  padding: 12px;
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 6px;
+  font-style: italic;
+}
+
+.reassignment-previous-id {
+  color: #558b2f;
+  font-size: 13px;
+  margin-top: 10px;
+  margin-bottom: 0;
+  font-weight: 500;
+}

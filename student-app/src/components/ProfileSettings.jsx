@@ -6,6 +6,7 @@ import { db, auth, storage } from '../firebase';
 import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload } from 'react-icons/fa';
 import QRCode from 'qrcode';
 import { encryptCredentials } from '../utils/qrEncryption';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/ProfileSettings.css';
 
 function ProfileSettings({ onClose }) {
@@ -451,13 +452,7 @@ function ProfileSettings({ onClose }) {
   };
 
   if (loading) {
-    return (
-      <div className="profile-settings-overlay">
-        <div className="profile-settings-modal">
-          <div className="loading">Loading...</div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading profile..." fullScreen={true} />;
   }
 
   return (

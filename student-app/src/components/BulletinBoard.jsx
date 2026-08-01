@@ -1,24 +1,65 @@
 import { useState, useEffect } from 'react';
+import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { db } from '../firebase';
+import LoadingSpinner from './LoadingSpinner';
 import '../styles/BulletinBoard.css';
 
 function BulletinBoard() {
   const [announcements, setAnnouncements] = useState([]);
   const [deadlines, setDeadlines] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch announcements and deadlines from database
-    // This will be implemented when connecting to Firebase
     loadBulletinData();
   }, []);
 
+  // Mark announcements as read when user views the bulletin board
+  useEffect(() => {
+    if (announcements.length > 0) {
+      const announcementIds = announcements.map(a => a.id);
+      localStorage.setItem('readAnnouncements', JSON.stringify(announcementIds));
+    }
+  }, [announcements]);
+
   const loadBulletinData = async () => {
-    // TODO: Replace with actual Firebase queries
-    // const announcementsRef = collection(db, 'announcements');
-    // const deadlinesRef = collection(db, 'deadlines');
-    // const announcementsSnapshot = await getDocs(query(announcementsRef, orderBy('createdAt', 'desc')));
-    // const deadlinesSnapshot = await getDocs(query(deadlinesRef, orderBy('date', 'asc')));
-    setAnnouncements([]);
-    setDeadlines([]);
+    try {
+      // Load all announcements (from all offices)
+      const announcementsQuery = query(
+        collection(db, 'announcements'),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const unsubscribeAnnouncements = onSnapshot(announcementsQuery, (querySnapshot) => {
+        const announcementsData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setAnnouncements(announcementsData);
+        setLoading(false);
+      });
+      
+      // Load all important dates (from all offices) - students see all deadlines
+      const deadlinesQuery = query(
+        collection(db, 'importantDates'),
+        orderBy('dateValue', 'asc')
+      );
+      
+      const unsubscribeDeadlines = onSnapshot(deadlinesQuery, (querySnapshot) => {
+        const deadlinesData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setDeadlines(deadlinesData);
+      });
+      
+      return () => {
+        unsubscribeAnnouncements();
+        unsubscribeDeadlines();
+      };
+    } catch (error) {
+      console.error('❌ Error loading bulletin data:', error);
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,20 +81,27 @@ function BulletinBoard() {
         <div className="announcements-section">
           <h3>Announcements</h3>
           
-          {announcements.length === 0 ? (
+          {loading ? (
+            <LoadingSpinner message="Loading announcements..." fullScreen={false} />
+          ) : announcements.length === 0 ? (
             <div className="empty-state">
               <p>No announcements at this time. Check back later for updates!</p>
             </div>
           ) : (
             announcements.map((announcement) => (
               <div key={announcement.id} className="announcement-card">
-                <div className="announcement-image">
-                  <div className="placeholder-image"></div>
-                </div>
+                {announcement.photo && (
+                  <div className="announcement-image">
+                    <img src={announcement.photo} alt={announcement.title} className="announcement-photo" />
+                  </div>
+                )}
                 <div className="announcement-details">
-                  <div className="announcement-office">{announcement.office}</div>
+                  <div className="announcement-office">{announcement.department}</div>
                   <h4>{announcement.title}</h4>
-                  <p>{announcement.description}</p>
+                  <p>{announcement.body}</p>
+                  <div className="announcement-footer">
+                    <span className="announcement-author">By {announcement.createdBy}</span>
+                  </div>
                 </div>
               </div>
             ))
@@ -71,8 +119,8 @@ function BulletinBoard() {
               <p>No upcoming deadlines</p>
             </div>
           ) : (
-            deadlines.map((deadline, index) => (
-              <div key={index} className="deadline-item">
+            deadlines.map((deadline) => (
+              <div key={deadline.id} className="deadline-item">
                 <div className="deadline-date">
                   <div className="month">{deadline.month}</div>
                   <div className="day">{deadline.day}</div>
