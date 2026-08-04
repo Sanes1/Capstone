@@ -399,6 +399,327 @@ app.post('/api/delete-user', async (req, res) => {
   }
 });
 
+// Store verification codes temporarily (in production, use Redis or database)
+const verificationCodes = new Map();
+
+// Send password reset verification code
+app.post('/api/send-reset-code', async (req, res) => {
+  try {
+    const { email, studentName, studentId, expiryMinutes = 1 } = req.body;
+
+    if (!email || !studentName) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields'
+      });
+    }
+
+    // Generate 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store code with configurable expiration (default 1 minute)
+    const expiryMs = expiryMinutes * 60 * 1000;
+    verificationCodes.set(email, {
+      code: verificationCode,
+      expires: Date.now() + expiryMs,
+      studentId: studentId
+    });
+
+    // Auto-delete expired codes
+    setTimeout(() => {
+      verificationCodes.delete(email);
+    }, expiryMs);
+
+    // HTML email content
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+          }
+          .header {
+            background-color: #105E06;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+          }
+          .content {
+            padding: 20px;
+            background-color: #ffffff;
+          }
+          .code-box {
+            background-color: #f5f5f5;
+            border: 2px solid #105E06;
+            padding: 25px;
+            margin: 20px 0;
+            text-align: center;
+            border-radius: 8px;
+          }
+          .code {
+            font-size: 36px;
+            font-weight: bold;
+            color: #105E06;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+          }
+          .notice {
+            background-color: #fffbf0;
+            border-left: 3px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 14px;
+          }
+          .footer {
+            text-align: center;
+            color: #777;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h2>Password Reset Request</h2>
+        </div>
+        
+        <div class="content">
+          <p>Dear ${studentName},</p>
+          
+          <p>We received a request to reset your Academia De San Jose account password. Use the verification code below to proceed:</p>
+          
+          <div class="code-box">
+            <div style="font-size: 14px; color: #666; margin-bottom: 10px;">Your Verification Code</div>
+            <div class="code">${verificationCode}</div>
+            <div style="font-size: 12px; color: #999; margin-top: 10px;">Valid for ${expiryMinutes} minute${expiryMinutes > 1 ? 's' : ''}</div>
+          </div>
+          
+          <div class="notice">
+            <strong>Security Notice:</strong><br>
+            • This code expires in ${expiryMinutes} minute${expiryMinutes > 1 ? 's' : ''}<br>
+            • If you didn't request this, please ignore this email<br>
+            • Never share this code with anyone<br>
+            • Contact support if you notice suspicious activity
+          </div>
+          
+          <p>If you didn't request a password reset, you can safely ignore this email.</p>
+          
+          <p>Best regards,<br>
+          Academia De San Jose Support Team</p>
+        </div>
+        
+        <div class="footer">
+          <p>This is an automated email. Please do not reply to this message.</p>
+          <p>© 2025 Academia De San Jose. All rights reserved.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Plain text version
+    const textContent = `
+Academia De San Jose - Password Reset
+
+Dear ${studentName},
+
+We received a request to reset your Academia De San Jose account password.
+
+YOUR VERIFICATION CODE: ${verificationCode}
+
+This code is valid for ${expiryMinutes} minute${expiryMinutes > 1 ? 's' : ''}.
+
+SECURITY NOTICE:
+- This code expires in ${expiryMinutes} minute${expiryMinutes > 1 ? 's' : ''}
+- If you didn't request this, please ignore this email
+- Never share this code with anyone
+- Contact support if you notice suspicious activity
+
+If you didn't request a password reset, you can safely ignore this email.
+
+Best regards,
+Academia De San Jose Support Team
+
+This is an automated email. Please do not reply to this message.
+© 2025 Academia De San Jose. All rights reserved.
+    `.trim();
+
+    // Send email
+    const info = await transporter.sendMail({
+      from: '"Academia De San Jose" <' + process.env.GMAIL_USER + '>',
+      to: email,
+      subject: 'Password Reset Verification Code',
+      text: textContent,
+      html: htmlContent
+    });
+
+    console.log('✅ Reset code sent successfully:', info.messageId);
+    res.json({
+      success: true,
+      message: 'Verification code sent to email',
+      messageId: info.messageId
+    });
+
+  } catch (error) {
+    console.error('❌ Error sending reset code:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to send verification code'
+    });
+  }
+});
+
+// Verify reset code
+app.post('/api/verify-reset-code', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing email or code'
+      });
+    }
+
+    const stored = verificationCodes.get(email);
+
+    if (!stored) {
+      return res.status(400).json({
+        success: false,
+        error: 'No verification code found. Please request a new one.'
+      });
+    }
+
+    if (Date.now() > stored.expires) {
+      verificationCodes.delete(email);
+      return res.status(400).json({
+        success: false,
+        error: 'Verification code has expired. Please request a new one.'
+      });
+    }
+
+    if (stored.code !== code) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid verification code'
+      });
+    }
+
+    // Code is valid
+    console.log('✅ Verification code validated for:', email);
+    res.json({
+      success: true,
+      message: 'Code verified successfully',
+      studentId: stored.studentId
+    });
+
+    // Keep the code for password reset (don't delete yet)
+
+  } catch (error) {
+    console.error('❌ Error verifying code:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to verify code'
+    });
+  }
+});
+
+// Clear verification code after password reset
+app.post('/api/clear-reset-code', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (email && verificationCodes.has(email)) {
+      verificationCodes.delete(email);
+      console.log('✅ Verification code cleared for:', email);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Error clearing code:', error);
+    res.json({ success: false });
+  }
+});
+
+// Reset password using Firebase Admin SDK
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { email, newPassword, verificationCode } = req.body;
+
+    if (!email || !newPassword || !verificationCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields'
+      });
+    }
+
+    // Verify the code first
+    const stored = verificationCodes.get(email);
+    if (!stored) {
+      return res.status(400).json({
+        success: false,
+        error: 'No verification code found'
+      });
+    }
+
+    if (Date.now() > stored.expires) {
+      verificationCodes.delete(email);
+      return res.status(400).json({
+        success: false,
+        error: 'Verification code has expired'
+      });
+    }
+
+    if (stored.code !== verificationCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid verification code'
+      });
+    }
+
+    // Check if Firebase Admin is initialized
+    if (!admin.apps || admin.apps.length === 0) {
+      return res.status(500).json({
+        success: false,
+        error: 'Firebase Admin not initialized. Service account key required.'
+      });
+    }
+
+    // Get user by email
+    const userRecord = await admin.auth().getUserByEmail(email);
+
+    // Update password
+    await admin.auth().updateUser(userRecord.uid, {
+      password: newPassword
+    });
+
+    // Clear the verification code
+    verificationCodes.delete(email);
+
+    console.log('✅ Password reset successfully for:', email);
+    res.json({
+      success: true,
+      message: 'Password updated successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error resetting password:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to reset password'
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Email backend running on http://localhost:${PORT}`);

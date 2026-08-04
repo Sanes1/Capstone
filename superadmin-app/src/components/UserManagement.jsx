@@ -165,6 +165,12 @@ const UserManagement = () => {
         return;
       }
 
+      if (!studentMiddleName.trim()) {
+        setError('Please enter student middle name');
+        setLoading(false);
+        return;
+      }
+
       if (!studentEmail.trim()) {
         setError('Please enter student email');
         setLoading(false);
@@ -332,6 +338,12 @@ const UserManagement = () => {
 
       if (!staffLastName.trim()) {
         setError('Please enter staff last name');
+        setLoading(false);
+        return;
+      }
+
+      if (!staffMiddleName.trim()) {
+        setError('Please enter staff middle name');
         setLoading(false);
         return;
       }
@@ -711,18 +723,18 @@ const UserManagement = () => {
 
               <div className="form-row-super">
                 <div className="form-group-super">
-                  <label className="form-label-super">Middle Name</label>
+                  <label className="form-label-super">Middle Name *</label>
                   <input
                     type="text"
                     className="form-input-super"
                     value={studentMiddleName}
                     onChange={(e) => setStudentMiddleName(e.target.value)}
-                    placeholder="Middle name (optional)"
+                    placeholder="Middle name"
                   />
                 </div>
 
                 <div className="form-group-super small-input">
-                  <label className="form-label-super">Suffix</label>
+                  <label className="form-label-super">Suffix (optional)</label>
                   <input
                     type="text"
                     className="form-input-super"
@@ -843,18 +855,18 @@ const UserManagement = () => {
 
               <div className="form-row-super">
                 <div className="form-group-super">
-                  <label className="form-label-super">Middle Name</label>
+                  <label className="form-label-super">Middle Name *</label>
                   <input
                     type="text"
                     className="form-input-super"
                     value={staffMiddleName}
                     onChange={(e) => setStaffMiddleName(e.target.value)}
-                    placeholder="Middle name (optional)"
+                    placeholder="Middle name"
                   />
                 </div>
 
                 <div className="form-group-super small-input">
-                  <label className="form-label-super">Suffix</label>
+                  <label className="form-label-super">Suffix (optional)</label>
                   <input
                     type="text"
                     className="form-input-super"
@@ -937,7 +949,7 @@ const UserManagement = () => {
             <p className="no-students-message">No student accounts yet. Click "Create Student Account" to add one.</p>
           ) : (
             <div className="students-table">
-              <div className="table-header">
+              <div className="table-header students-header">
                 <div className="table-cell">Student ID</div>
                 <div className="table-cell">Name</div>
                 <div className="table-cell">Email</div>
@@ -945,7 +957,7 @@ const UserManagement = () => {
                 <div className="table-cell">Actions</div>
               </div>
               {students.map((student) => (
-                <div key={student.firestoreId || student.id} className="table-row">
+                <div key={student.firestoreId || student.id} className="table-row students-row">
                   <div className="table-cell">{student.id}</div>
                 <div className="table-cell">
                   {student.name}
@@ -981,7 +993,7 @@ const UserManagement = () => {
             <p className="no-students-message">No staff accounts yet. Click "Create Staff Account" to add one.</p>
           ) : (
             <div className="students-table">
-              <div className="table-header">
+              <div className="table-header staff-header">
                 <div className="table-cell">Name</div>
                 <div className="table-cell">Email</div>
                 <div className="table-cell">Username</div>
@@ -990,7 +1002,7 @@ const UserManagement = () => {
                 <div className="table-cell">Actions</div>
               </div>
               {staffMembers.map((staff) => (
-                <div key={staff.firestoreId} className="table-row">
+                <div key={staff.firestoreId} className="table-row staff-row">
                   <div className="table-cell">
                     {staff.name}
                     {!staff.isActive && <span className="suspended-badge">Suspended</span>}

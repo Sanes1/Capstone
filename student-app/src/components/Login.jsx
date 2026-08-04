@@ -5,6 +5,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Html5Qrcode } from 'html5-qrcode';
 import { decryptCredentials } from '../utils/qrEncryption';
+import ForgotPassword from './ForgotPassword';
 import '../styles/Login.css';
 
 const Login = ({ onLogin, onGuestLogin }) => {
@@ -15,6 +16,7 @@ const Login = ({ onLogin, onGuestLogin }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [qrScanner, setQrScanner] = useState(null);
   const [scanningStatus, setScanningStatus] = useState('initializing'); // 'initializing', 'ready', 'scanning', 'success', 'error'
 
@@ -453,7 +455,16 @@ const Login = ({ onLogin, onGuestLogin }) => {
               <div className="form-group-student">
                 <div className="label-row">
                   <label className="form-label-student">Password</label>
-                  <a href="#" className="forgot-password-link">Forget Password?</a>
+                  <a 
+                    href="#" 
+                    className="forgot-password-link"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowForgotPassword(true);
+                    }}
+                  >
+                    Forget Password?
+                  </a>
                 </div>
                 <div className="password-input-wrapper">
                   <input
@@ -590,6 +601,11 @@ const Login = ({ onLogin, onGuestLogin }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <ForgotPassword onClose={() => setShowForgotPassword(false)} />
       )}
     </div>
   );
