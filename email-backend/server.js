@@ -26,15 +26,22 @@ transporter.verify((error, success) => {
 });
 
 // Initialize Firebase Admin SDK
-try {
-  const serviceAccount = require('./serviceAccountKey.json');
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-  console.log('✅ Firebase Admin initialized');
-} catch (error) {
-  console.warn('⚠️ Firebase Admin not initialized - delete user from Auth will not work');
-  console.warn('Download service account key from Firebase Console to enable this feature');
+if (!admin.apps || admin.apps.length === 0) {
+  try {
+    const serviceAccount = require('./serviceAccountKey.json');
+    const { initializeApp, cert } = require('firebase-admin/app');
+    
+    initializeApp({
+      credential: cert(serviceAccount)
+    });
+    console.log('✅ Firebase Admin initialized');
+  } catch (error) {
+    console.warn('⚠️ Firebase Admin not initialized - delete user from Auth will not work');
+    console.warn('Download service account key from Firebase Console to enable this feature');
+    console.warn('Error details:', error.message);
+  }
+} else {
+  console.log('✅ Firebase Admin already initialized');
 }
 
 // Middleware

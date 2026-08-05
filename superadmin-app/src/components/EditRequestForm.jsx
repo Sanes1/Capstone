@@ -36,7 +36,7 @@ const EditRequestForm = () => {
     {
       id: 'guidance',
       name: 'Guidance',
-      description: 'Handles student behavior concerns, violations, and disciplinary cases to maintain order and safety in school.',
+      description: 'Provides counseling, emotional support, academic guidance, and handles student behavior concerns, personal problems, stress management, and disciplinary cases.',
       subjects: ['Counseling Request', 'Disciplinary Appeal', 'Behavior Report', 'Support Services']
     }
   ];

@@ -45,7 +45,7 @@ function NewRequest({ onNavigate }) {
     {
       id: 'guidance',
       name: 'Guidance',
-      description: 'Handles student behavior concerns, violations, and disciplinary cases to maintain order and safety in school.',
+      description: 'Provides counseling, emotional support, academic guidance, and handles student behavior concerns, personal problems, stress management, and disciplinary cases.',
       subjects: ['Counseling Request', 'Disciplinary Appeal', 'Behavior Report', 'Support Services']
     }
   ];
@@ -139,7 +139,8 @@ function NewRequest({ onNavigate }) {
       try {
         const selectedOfficeData = offices.find(o => o.id === selectedOffice);
         const officeName = selectedOfficeData?.name || '';
-        const result = await validateContent(subject, description, officeName);
+        const officeDescription = selectedOfficeData?.description || '';
+        const result = await validateContent(subject, description, officeName, officeDescription);
         setValidationResult(result);
       } catch (error) {
         console.error('Validation error:', error);
