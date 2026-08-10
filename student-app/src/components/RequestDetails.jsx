@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MdDownload, MdAttachFile, MdCheckCircle, MdClose } from 'react-icons/md';
+import { MdDownload, MdAttachFile, MdCheckCircle, MdClose, MdBlock, MdStar, MdInsertDriveFile } from 'react-icons/md';
 import { FaUserCircle } from 'react-icons/fa';
 import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { notifyStaffFollowUp } from '../utils/notificationHelper';
 import LoadingSpinner from './LoadingSpinner';
+import Breadcrumb from './Breadcrumb';
 import '../styles/RequestDetails.css';
 
 function RequestDetails({ requestData, onNavigate }) {
@@ -108,6 +109,8 @@ function RequestDetails({ requestData, onNavigate }) {
       const studentData = JSON.parse(localStorage.getItem('studentData'));
       
       // Add follow-up to Firestore
+      // Note: serverTimestamp() cannot be used inside arrayUnion objects.
+      // Use an ISO string for the nested timestamp instead.
       const docRef = doc(db, 'requests', request.firestoreId);
       await updateDoc(docRef, {
         followUps: arrayUnion({
@@ -116,7 +119,7 @@ function RequestDetails({ requestData, onNavigate }) {
           sentBy: 'student',
           sentByName: studentData.name || `${studentData.firstName} ${studentData.lastName}`.trim(),
           sentAt: new Date().toISOString(),
-          timestamp: serverTimestamp()
+          timestamp: new Date().toISOString()
         }),
         updatedAt: serverTimestamp()
       });
@@ -170,6 +173,21 @@ function RequestDetails({ requestData, onNavigate }) {
     link.href = attachment.data;
     link.download = attachment.name;
     link.click();
+  };
+
+  // Map a request office to the matching feedback page route (Feedback.jsx).
+  // Offices without a dedicated feedback page fall back to the overview.
+  const getFeedbackRoute = (office) => {
+    const routes = {
+      'Finance': 'feedback-finance',
+      'Library': 'feedback-library',
+      'Registrar': 'feedback-registrar'
+    };
+    return routes[office] || 'feedback';
+  };
+
+  const handleProvideFeedback = () => {
+    onNavigate(getFeedbackRoute(request.office));
   };
 
   const getStatusBadgeClass = (status) => {
@@ -284,13 +302,13 @@ function RequestDetails({ requestData, onNavigate }) {
 
   return (
     <div className="request-details-page">
-      <div className="breadcrumb">
-        <span className="clickable" onClick={() => onNavigate('request')}>Request History</span>
-        <span className="separator">/</span>
-        <span className="active">Request Details</span>
-        <span className="separator">/</span>
-        <span className="clickable" onClick={() => onNavigate('new-request')}>New Request</span>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Request History', onClick: () => onNavigate('request') },
+          { label: 'Request Details', current: true },
+          { label: 'New Request', onClick: () => onNavigate('new-request') }
+        ]}
+      />
 
       <div className="page-header">
         <h1>Request Details</h1>
@@ -305,11 +323,21 @@ function RequestDetails({ requestData, onNavigate }) {
                 <p className="request-id">#{request.requestId}</p>
               </div>
               <div className="request-actions">
+                {(request.claimedBy || request.assignedTo) && (
+                  <div className="request-assigned">
+                    <span className="assigned-office">{request.office || 'Office'} Department</span>
+                    <span className="assigned-staff">
+                      <FaUserCircle /> {request.claimedBy || request.assignedTo}
+                    </span>
+                  </div>
+                )}
                 <span className={`status-badge ${getStatusBadgeClass(request.status)}`}>
                   {request.status}
                 </span>
                 {request.status?.toLowerCase() === 'pending' && (
-                  <button className="cancel-btn" onClick={handleCancelRequest}>Cancel Request</button>
+                  <button className="cancel-btn" onClick={handleCancelRequest}>
+                    <MdBlock /> Cancel Request
+                  </button>
                 )}
               </div>
             </div>
@@ -324,13 +352,18 @@ function RequestDetails({ requestData, onNavigate }) {
               {request.attachments && request.attachments.length > 0 && (
                 <div className="attachments">
                   {request.attachments.map((file, index) => (
-                    <button 
-                      key={index} 
-                      className="attachment-btn"
-                      onClick={() => downloadAttachment(file)}
-                    >
-                      <MdDownload /> {file.name}
-                    </button>
+                    <div key={index} className="attachment-card">
+                      <MdInsertDriveFile className="attachment-file-icon" />
+                      <span className="attachment-name" title={file.name}>{file.name}</span>
+                      <button
+                        type="button"
+                        className="attachment-download-btn"
+                        onClick={() => downloadAttachment(file)}
+                        aria-label={`Download ${file.name}`}
+                      >
+                        <MdDownload /> Download
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -351,13 +384,18 @@ function RequestDetails({ requestData, onNavigate }) {
                 {followUp.attachments && followUp.attachments.length > 0 && (
                   <div className="attachments">
                     {followUp.attachments.map((file, idx) => (
-                      <button 
-                        key={idx} 
-                        className="attachment-btn"
-                        onClick={() => downloadAttachment(file)}
-                      >
-                        <MdDownload /> {file.name}
-                      </button>
+                      <div key={idx} className="attachment-card">
+                        <MdInsertDriveFile className="attachment-file-icon" />
+                        <span className="attachment-name" title={file.name}>{file.name}</span>
+                        <button
+                          type="button"
+                          className="attachment-download-btn"
+                          onClick={() => downloadAttachment(file)}
+                          aria-label={`Download ${file.name}`}
+                        >
+                          <MdDownload /> Download
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -378,19 +416,43 @@ function RequestDetails({ requestData, onNavigate }) {
                 {followUp.attachments && followUp.attachments.length > 0 && (
                   <div className="attachments">
                     {followUp.attachments.map((file, idx) => (
-                      <button 
-                        key={idx} 
-                        className="attachment-btn"
-                        onClick={() => downloadAttachment(file)}
-                      >
-                        <MdDownload /> {file.name}
-                      </button>
+                      <div key={idx} className="attachment-card">
+                        <MdInsertDriveFile className="attachment-file-icon" />
+                        <span className="attachment-name" title={file.name}>{file.name}</span>
+                        <button
+                          type="button"
+                          className="attachment-download-btn"
+                          onClick={() => downloadAttachment(file)}
+                          aria-label={`Download ${file.name}`}
+                        >
+                          <MdDownload /> Download
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
             ))}
           </div>
+
+          {/* Green feedback banner — only shown for resolved requests (Figma) */}
+          {request.status?.toLowerCase() === 'resolved' && (
+            <div className="feedback-banner">
+              <div className="feedback-banner-icon" aria-hidden="true">
+                <MdStar />
+              </div>
+              <div className="feedback-banner-copy">
+                <h3>Tell Us How We Did!</h3>
+                <p>
+                  We'd love to hear about your experience
+                  {request.office ? ` with the ${request.office} Department.` : ' with our team.'}
+                </p>
+              </div>
+              <button className="feedback-banner-btn" onClick={handleProvideFeedback}>
+                Provide Feedback
+              </button>
+            </div>
+          )}
 
           {/* Follow-up comment section */}
           {request.status?.toLowerCase() !== 'resolved' && request.status?.toLowerCase() !== 'cancelled' && (

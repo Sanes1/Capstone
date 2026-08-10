@@ -1,229 +1,454 @@
-.analytics-container {
-  flex: 1;
-  background-color: #f5f5f5;
-  padding: 30px 40px;
-  overflow-y: auto;
-}
+/* ==========================================================================
+   SUPER ADMIN ANALYTICS — stat cards, ticket volume chart, satisfaction,
+   department efficiency table
+   ========================================================================== */
 
-.analytics-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
+.analytics-container {
+  /* inherits .superadmin-page shell */
 }
 
 .analytics-title {
-  font-size: 32px;
-  font-weight: bold;
-  color: #333;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
   margin: 0;
 }
 
 .analytics-actions {
   display: flex;
-  gap: 15px;
+  gap: var(--space-3);
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Right side of the page header: actions row + pinned notification bell.
+   The bell lives OUTSIDE the wrapping actions row so it stays put in the
+   top-right corner and never moves when the filter is used or the row wraps. */
+.page-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
 }
 
 .export-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background-color: #66bb6a;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.export-button:hover {
-  background-color: #4caf50;
+  /* inherits .btn-primary */
 }
 
 .export-icon {
-  font-size: 14px;
+  font-size: 13px;
 }
 
-.filter-by-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background-color: white;
-  color: #666;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
+/* ---- Active filter summary (base styles in shared.css) ---- */
+.filter-summary {
+  margin-bottom: var(--space-6);
 }
 
-.filter-by-button:hover {
-  background-color: #f5f5f5;
-}
-
-.filter-icon {
-  font-size: 14px;
-}
-
+/* ---- Stat cards (same language as dashboard) ---- */
 .analytics-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 30px;
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
 }
 
+.analytics-stats .stat-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.analytics-stats .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.analytics-stats .stat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.analytics-stats .stat-icon-container {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--sage-100);
+}
+
+.analytics-stats .stat-icon {
+  font-size: 20px;
+  color: var(--color-primary);
+}
+
+.analytics-stats .stat-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.analytics-stats .stat-value {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  line-height: 1.1;
+}
+
+.analytics-stats .stat-subtext {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+/* ---- Charts row ---- */
 .analytics-content {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 20px;
-  margin-bottom: 20px;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
 }
 
-.chart-card {
-  background-color: white;
-  padding: 25px;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.chart-card,
+.satisfaction-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
 }
 
-.chart-card-header {
+.chart-card-header,
+.satisfaction-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 25px;
+  margin-bottom: var(--space-5);
 }
 
-.chart-card-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
+.chart-card-title,
+.satisfaction-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--green-950);
   margin: 0;
+  letter-spacing: 0.2px;
 }
 
-.chart-legend {
+/* Semester filter — segmented control in the card header. Acts as the filter
+   for which months are shown: 1ST SEM (Jun–Dec) bars are green, 2ND SEM
+   (Jan–Apr) bars are gray, matching the active swatch. */
+.sem-filter {
   display: flex;
-  gap: 15px;
   align-items: center;
-  font-size: 12px;
+  gap: var(--space-1);
+  background-color: var(--gray-100);
+  padding: 3px;
+  border-radius: var(--radius-pill);
 }
 
-.legend-item {
+.sem-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #666;
+  border: none;
+  background: transparent;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.legend-dot {
+.sem-btn:hover {
+  color: var(--color-text);
+}
+
+.sem-btn.active {
+  background-color: #fff;
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.sem-swatch {
   width: 12px;
   height: 12px;
-  border-radius: 50%;
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
-.legend-dot.second-sem {
-  background-color: #66bb6a;
+.sem-swatch--firstSem {
+  background-color: var(--sage-500);
 }
 
-.legend-dot.first-sem {
-  background-color: #e0e0e0;
+.sem-swatch--secondSem {
+  background-color: #d9d9d9;
 }
 
-.bar-chart {
+/* ==========================================================================
+   Ticket Volume Trends — y-axis, horizontal gridlines (0, 5, 10, …),
+   semester-filtered months (green 1ST SEM bars, gray 2ND SEM bars),
+   month labels below the 0 line, hover tooltips
+   ========================================================================== */
+
+.volume-chart {
+  display: flex;
+  gap: var(--space-3);
+  height: 300px;
+  padding-top: var(--space-3);
+}
+
+/* Left numeric axis */
+.volume-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 34px;
+  flex-shrink: 0;
+  padding-bottom: var(--space-8); /* keep labels clear of the month row */
+}
+
+.volume-y-label {
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-faint);
+  line-height: 1;
+}
+
+/* Plot area with horizontal gridlines at each y-tick (0, 5, 10, …) */
+.volume-plot {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.volume-gridlines {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: var(--space-8); /* the 0 line — month labels live below it */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.volume-gridline {
+  border-top: 1px solid var(--gray-200);
+  width: 100%;
+}
+
+.volume-gridline--zero {
+  border-top: 1.5px solid var(--gray-400);
+}
+
+.volume-bars {
+  position: absolute;
+  inset: 0;
+  bottom: var(--space-8);
   display: flex;
   align-items: flex-end;
   justify-content: space-around;
-  height: 300px;
-  gap: 20px;
-  padding: 0 20px;
+  gap: var(--space-3);
+  padding: 0 var(--space-2);
 }
 
-.bar-group {
+.volume-bar-group {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   flex: 1;
   height: 100%;
+  min-width: 0;
 }
 
-.bars-container {
+.volume-bar-track {
+  position: relative;
   display: flex;
-  gap: 8px;
   align-items: flex-end;
+  justify-content: center;
+  gap: 5px;
   flex: 1;
   width: 100%;
-  justify-content: center;
 }
 
-.bar {
-  width: 40px;
-  border-radius: 4px 4px 0 0;
-  transition: all 0.3s;
+.volume-bar {
+  border-radius: var(--radius-sm) var(--radius-sm) 2px 2px;
+  transform-origin: bottom;
+  animation: volume-grow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: filter var(--transition-fast);
 }
 
-.bar.second-sem {
-  background-color: #66bb6a;
+@keyframes volume-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
 }
 
-.bar.first-sem {
-  background-color: #e0e0e0;
+/* 1ST SEM (Jun–Dec) — sage-green bar */
+.volume-bar--first-sem {
+  width: min(34px, 3.4vw);
+  min-width: 10px;
+  background-color: var(--sage-500);
 }
 
-.month-label {
-  font-size: 13px;
-  color: #666;
-  margin-top: 10px;
-  font-weight: 500;
+/* 2ND SEM (Jan–Apr) — light-gray bar */
+.volume-bar--second-sem {
+  width: min(34px, 3.4vw);
+  min-width: 10px;
+  background-color: #d9d9d9;
 }
 
-.y-axis-labels {
+/* Placeholder stub for months with no requests yet (keeps the chart from
+   looking empty, e.g. the 2ND SEM months when there is no data) */
+.volume-bar--placeholder {
+  width: min(34px, 3.4vw);
+  min-width: 10px;
+  height: 16px;
+  border: 1.5px dashed var(--gray-300);
+  background-color: transparent;
+}
+
+.volume-bar-track:hover .volume-bar {
+  filter: brightness(1.06);
+}
+
+/* Hover tooltip (CSS-only, reads the data-tip attribute) */
+.volume-bar-track::after {
+  content: attr(data-tip);
   position: absolute;
-  left: 0;
-  top: 0;
-  height: 300px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  font-size: 12px;
-  color: #999;
-  padding-right: 10px;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background-color: var(--green-950);
+  color: #fff;
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  max-width: min(240px, calc(100vw - 80px));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  z-index: 5;
 }
 
+.volume-bar-track:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.volume-month-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-3);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.5px;
+}
+
+/* Satisfaction card — Figma designs this as a green banner */
 .satisfaction-card {
-  background-color: white;
-  padding: 25px;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: visible;
+  border: none;
+  background: linear-gradient(165deg, var(--sage-500) 0%, var(--sage-hero) 55%, var(--sage-hero-deep) 130%);
+  box-shadow: 0 8px 24px rgba(60, 119, 83, 0.22);
 }
 
-.satisfaction-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-}
-
-.satisfaction-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-  margin: 0;
+/* ---- Office filter dropdown on the satisfaction card ---- */
+.office-filter-wrap {
+  position: relative;
 }
 
 .satisfaction-filter {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #666;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--green-900);
+  background: rgba(255, 255, 255, 0.55);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-pill);
   cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.satisfaction-filter:hover {
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--green-950);
+}
+
+.satisfaction-filter.active {
+  background: #fff;
+  border-color: var(--green-900);
+  color: var(--green-800);
+  font-weight: var(--font-weight-semibold);
+}
+
+.office-filter-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  min-width: 170px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2);
+  animation: filter-dropdown-pop 0.18s ease;
+}
+
+.office-filter-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-body);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.office-filter-option:hover {
+  background: var(--sage-50);
+  color: var(--color-primary);
+}
+
+.office-filter-option.selected {
+  background: var(--sage-100);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
 }
 
 .satisfaction-content {
@@ -235,18 +460,21 @@
 }
 
 .satisfaction-percentage {
-  font-size: 72px;
-  font-weight: bold;
-  color: #2e7d32;
+  font-size: 64px;
+  font-weight: var(--font-weight-bold);
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(8, 58, 3, 0.28);
   line-height: 1;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-2);
 }
 
 .satisfaction-label {
-  font-size: 14px;
-  color: #2e7d32;
-  font-weight: 600;
-  margin-bottom: 40px;
+  font-size: var(--font-size-sm);
+  color: var(--green-950);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: var(--space-6);
 }
 
 .stars-breakdown {
@@ -257,60 +485,74 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 15px;
+  padding: var(--space-3) var(--space-4);
+  background-color: rgba(255, 255, 255, 0.55);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+  backdrop-filter: blur(4px);
 }
 
 .star-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .star-dot {
-  width: 12px;
-  height: 12px;
-  background-color: #2e7d32;
+  width: 10px;
+  height: 10px;
+  background-color: var(--green-800);
   border-radius: 50%;
 }
 
 .star-label {
-  font-size: 14px;
-  color: #666;
+  font-size: var(--font-size-sm);
+  color: var(--green-950);
+  font-weight: var(--font-weight-semibold);
 }
 
 .star-count {
-  font-size: 14px;
-  color: #666;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--green-950);
+  font-weight: var(--font-weight-bold);
 }
 
+/* ---- Department efficiency table ---- */
 .efficiency-table {
-  background-color: white;
-  border-radius: 12px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .efficiency-header {
-  background-color: #66bb6a;
-  padding: 20px 25px;
+  background-color: var(--sage-100);
+  padding: var(--space-5) var(--space-6);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid var(--sage-200);
 }
 
 .efficiency-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: white;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--sage-ink);
   margin: 0;
 }
 
 .view-report {
-  color: white;
-  font-size: 14px;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   text-decoration: underline;
+  transition: color var(--transition-fast);
+}
+
+.view-report:hover {
+  color: var(--color-primary-hover);
 }
 
 .table-wrapper {
@@ -323,30 +565,118 @@
 }
 
 .efficiency-table thead {
-  background-color: #f5f5f5;
+  background-color: var(--gray-100);
 }
 
 .efficiency-table th {
-  padding: 15px 25px;
+  padding: var(--space-4) var(--space-6);
   text-align: left;
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
 }
 
 .efficiency-table td {
-  padding: 20px 25px;
-  font-size: 14px;
-  color: #666;
-  border-bottom: 1px solid #f0f0f0;
+  padding: var(--space-4) var(--space-6);
+  font-size: var(--font-size-base);
+  color: var(--color-text-body);
+  border-bottom: 1px solid var(--gray-100);
 }
 
 .efficiency-table tbody tr:last-child td {
   border-bottom: none;
 }
 
+.efficiency-table tbody tr {
+  transition: background-color var(--transition-fast);
+}
+
 .efficiency-table tbody tr:hover {
-  background-color: #fafafa;
+  background-color: var(--sage-50);
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 1200px) {
+  .analytics-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .analytics-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  /* .page-header stacking is handled in shared.css for all pages */
+  .page-header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .analytics-actions {
+    flex: 1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 639px) {
+  .analytics-stats {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .analytics-stats .stat-value {
+    font-size: var(--font-size-2xl);
+  }
+
+  .chart-card,
+  .satisfaction-card {
+    padding: var(--space-4);
+  }
+
+  .volume-chart {
+    height: 230px;
+  }
+
+  .volume-bar--first-sem,
+  .volume-bar--second-sem,
+  .volume-bar--placeholder {
+    width: min(26px, 4vw);
+    min-width: 8px;
+  }
+
+  .volume-bar-track {
+    gap: 3px;
+  }
+
+  .volume-bars {
+    gap: var(--space-1);
+    padding: 0;
+  }
+
+  .analytics-actions {
+    gap: var(--space-2);
+  }
+
+  .chart-card-header,
+  .satisfaction-header {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  /* The card spans full width on small screens, so the right-anchored
+     absolute menu already fits — no override needed */
+}
+
+@media (max-width: 420px) {
+  .analytics-actions .export-button {
+    flex: 1;
+    justify-content: center;
+  }
 }

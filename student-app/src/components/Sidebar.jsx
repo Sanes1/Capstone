@@ -1,122 +1,179 @@
-import React, { useState } from 'react';
-import { MdDashboard, MdDescription, MdViewList, MdThumbUp, MdHelp, MdExpandMore, MdExpandLess, MdExitToApp } from 'react-icons/md';
-import { signOut } from 'firebase/auth';
-import { auth } from '../firebase';
+import { useState, useRef, useEffect } from 'react';
+import {
+  MdDashboard,
+  MdDescription,
+  MdViewList,
+  MdThumbUp,
+  MdHelp,
+  MdExpandMore,
+  MdExpandLess,
+  MdClose
+} from 'react-icons/md';
 import '../styles/Sidebar.css';
 
-function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false }) {
-  const handleLogout = async () => {
-    if (window.confirm('Are you sure you want to logout?')) {
-      try {
-        await signOut(auth);
-        // Clear all student-related localStorage
-        localStorage.removeItem('studentData');
-        localStorage.removeItem('studentLoggedIn');
-        localStorage.removeItem('studentIsGuest');
-        // Reload to trigger login screen
-        window.location.href = '/';
-      } catch (error) {
-        console.error('Logout error:', error);
-        alert('Failed to logout. Please try again.');
+const FEEDBACK_OFFICES = [
+  { label: 'Discipline', page: 'feedback-discipline' },
+  { label: 'Library', page: 'feedback-library' },
+  { label: 'Registrar', page: 'feedback-registrar' },
+  { label: 'Finance', page: 'feedback-finance' }
+];
+
+function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false, isOpen = false, onClose }) {
+  const [feedbackOpen, setFeedbackOpen] = useState(activePage.startsWith('feedback'));
+  const closeBtnRef = useRef(null);
+
+  // Move focus into the drawer when it opens and restore it to the trigger
+  // (hamburger) when it closes, for keyboard accessibility.
+  useEffect(() => {
+    if (isOpen) {
+      closeBtnRef.current?.focus();
+    } else {
+      const toggle = document.querySelector('.menu-toggle');
+      if (toggle && window.matchMedia('(max-width: 1023px)').matches) {
+        toggle.focus();
       }
     }
+  }, [isOpen]);
+
+  const handleNavigate = (page) => {
+    onNavigate(page);
+    onClose?.(); // Close the mobile drawer after navigating
   };
-  const [feedbackOpen, setFeedbackOpen] = useState(
-    activePage.startsWith('feedback')
-  );
+
+  const handleToggleFeedback = () => {
+    setFeedbackOpen((prev) => {
+      const next = !prev;
+      // On desktop, opening the submenu also navigates to the feedback overview.
+      // On mobile the drawer stays open so the user can pick a specific office.
+      if (next && !isOpen && activePage !== 'feedback') {
+        handleNavigate('feedback');
+      }
+      return next;
+    });
+  };
 
   return (
-    <aside className="sidebar">
-      <nav className="menu">
-        <button 
-          className={activePage === 'dashboard' ? 'active' : ''} 
-          onClick={() => onNavigate('dashboard')}
+    <>
+      {/* Backdrop — only visible when the drawer is open on small screens */}
+      <div
+        className={`sidebar-backdrop ${isOpen ? 'sidebar-backdrop--show' : ''}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <aside id="primary-sidebar" className={`sidebar ${isOpen ? 'sidebar--open' : ''}`} aria-label="Primary navigation">
+        {/* Close button — only visible on the mobile drawer (Figma: no brand block in sidebar) */}
+        <button
+          type="button"
+          ref={closeBtnRef}
+          className="sidebar-close-btn"
+          onClick={onClose}
+          aria-label="Close navigation menu"
         >
-          <MdDashboard /> Dashboard
+          <MdClose aria-hidden="true" />
         </button>
-        <button 
-          className={activePage === 'request' ? 'active' : ''} 
-          onClick={() => onNavigate('request')}
-        >
-          <MdDescription /> My Request
-        </button>
-        <button 
-          className={activePage === 'bulletin' ? 'active' : ''} 
-          onClick={() => onNavigate('bulletin')}
-        >
-          <MdViewList /> Bulletin Board
-          {hasUnreadBulletin && <span className="unread-indicator"></span>}
-        </button>
-        
-        <div className="menu-group">
-          <button 
-            className={activePage.startsWith('feedback') ? 'active' : ''} 
-            onClick={() => {
-              if (feedbackOpen && activePage === 'feedback') {
-                // If already open and on feedback overview, just toggle
-                setFeedbackOpen(!feedbackOpen);
-              } else {
-                // Open dropdown and navigate to overview
-                setFeedbackOpen(true);
-                onNavigate('feedback');
-              }
-            }}
+
+        <nav className="menu" aria-label="Main">
+          <button
+            type="button"
+            className={activePage === 'dashboard' ? 'active' : ''}
+            onClick={() => handleNavigate('dashboard')}
+            aria-current={activePage === 'dashboard' ? 'page' : undefined}
           >
-            <MdThumbUp /> Feedback
-            {feedbackOpen ? <MdExpandLess className="expand-icon" /> : <MdExpandMore className="expand-icon" />}
+            <MdDashboard aria-hidden="true" />
+            <span>Dashboard</span>
           </button>
-          {feedbackOpen && (
-            <div className="submenu">
-              <div 
-                className={`submenu-item ${activePage === 'feedback-discipline' ? 'submenu-active' : ''}`}
-                onClick={() => onNavigate('feedback-discipline')}
-              >
-                Discipline
-              </div>
-              <div 
-                className={`submenu-item ${activePage === 'feedback-library' ? 'submenu-active' : ''}`}
-                onClick={() => onNavigate('feedback-library')}
-              >
-                Library
-              </div>
-              <div 
-                className={`submenu-item ${activePage === 'feedback-registrar' ? 'submenu-active' : ''}`}
-                onClick={() => onNavigate('feedback-registrar')}
-              >
-                Registrar
-              </div>
-              <div 
-                className={`submenu-item ${activePage === 'feedback-finance' ? 'submenu-active' : ''}`}
-                onClick={() => onNavigate('feedback-finance')}
-              >
-                Finance
-              </div>
-            </div>
-          )}
-        </div>
 
-        <button 
-          className={activePage === 'faq' ? 'active' : ''} 
-          onClick={() => onNavigate('faq')}
-        >
-          <MdHelp /> FAQ's
-        </button>
-      </nav>
+          <button
+            type="button"
+            className={activePage === 'request' ? 'active' : ''}
+            onClick={() => handleNavigate('request')}
+            aria-current={activePage === 'request' ? 'page' : undefined}
+          >
+            <MdDescription aria-hidden="true" />
+            <span>My Request</span>
+          </button>
 
-      <div className="office-info">
-        <h4>OFFICE HOURS</h4>
-        <p>Mon - Fri: 7:00AM - 7:00PM</p>
-        <p>Sat: 9:00AM - 3:00PM</p>
-        <h4>Email:</h4>
-        <p>academiasanjose@gmail.com</p>
-        <h4>Location:</h4>
-        <p>8WHV+322, S.B. Cabahug, Mandaue, 6014 Cebu</p>
-      </div>
+          <button
+            type="button"
+            className={activePage === 'bulletin' ? 'active' : ''}
+            onClick={() => handleNavigate('bulletin')}
+            aria-current={activePage === 'bulletin' ? 'page' : undefined}
+          >
+            <MdViewList aria-hidden="true" />
+            <span>Bulletin Board</span>
+            {hasUnreadBulletin && (
+              <>
+                <span className="unread-indicator" aria-hidden="true" />
+                <span className="sr-only">Unread announcements</span>
+              </>
+            )}
+          </button>
 
-      <button className="logout-button" onClick={handleLogout}>
-        <MdExitToApp /> Logout
-      </button>
-    </aside>
+          <div className="menu-group">
+            <button
+              type="button"
+              className={activePage.startsWith('feedback') ? 'active' : ''}
+              onClick={handleToggleFeedback}
+              aria-expanded={feedbackOpen}
+              aria-controls="feedback-submenu"
+              aria-current={activePage.startsWith('feedback') ? 'page' : undefined}
+            >
+              <MdThumbUp aria-hidden="true" />
+              <span>Feedback</span>
+              {feedbackOpen ? (
+                <MdExpandLess className="expand-icon" aria-hidden="true" />
+              ) : (
+                <MdExpandMore className="expand-icon" aria-hidden="true" />
+              )}
+            </button>
+
+            {feedbackOpen && (
+              <div id="feedback-submenu" className="submenu">
+                {FEEDBACK_OFFICES.map((office) => (
+                  <button
+                    type="button"
+                    key={office.page}
+                    className={`submenu-item ${activePage === office.page ? 'submenu-active' : ''}`}
+                    onClick={() => handleNavigate(office.page)}
+                    aria-current={activePage === office.page ? 'page' : undefined}
+                  >
+                    {office.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className={activePage === 'faq' ? 'active' : ''}
+            onClick={() => handleNavigate('faq')}
+            aria-current={activePage === 'faq' ? 'page' : undefined}
+          >
+            <MdHelp aria-hidden="true" />
+            <span>FAQ's</span>
+          </button>
+        </nav>
+
+        <address className="office-info">
+          <div className="office-info-block">
+            <h4>Office Hours</h4>
+            <p>Mon - Fri: 7:00AM - 7:00PM</p>
+            <p>Sat: 9:00AM - 3:00PM</p>
+          </div>
+          <div className="office-info-divider" aria-hidden="true" />
+          <div className="office-info-row">
+            <span className="office-info-label">Email:</span>
+            <span className="office-info-value">academiadesanjose@gmail.com</span>
+          </div>
+          <div className="office-info-row">
+            <span className="office-info-label">Location:</span>
+            <span className="office-info-value">8WHV+322, S.B. Cabahug, Mandaue, 6014 Cebu</span>
+          </div>
+        </address>
+      </aside>
+    </>
   );
 }
 

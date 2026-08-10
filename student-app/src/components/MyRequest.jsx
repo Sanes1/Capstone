@@ -1,9 +1,20 @@
 import { useState, useEffect } from 'react';
-import { MdSearch, MdKeyboardArrowLeft, MdKeyboardArrowRight } from 'react-icons/md';
+import {
+  MdSearch,
+  MdKeyboardArrowLeft,
+  MdKeyboardArrowRight,
+  MdInbox
+} from 'react-icons/md';
 import { db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import LoadingSpinner from './LoadingSpinner';
+import Breadcrumb from './Breadcrumb';
+import StatusBadge from './StatusBadge';
 import '../styles/MyRequest.css';
+
+const STATUS_OPTIONS = ['All Status', 'In Process', 'Resolved', 'Pending'];
+const OFFICE_OPTIONS = ['All Offices', 'Finance', 'Library', 'Registrar', 'Guidance'];
+const PAGE_SIZE = 8;
 
 function MyRequest({ onViewDetails, onNavigate }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -13,6 +24,7 @@ function MyRequest({ onViewDetails, onNavigate }) {
   const [requests, setRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     loadRequests();
@@ -21,12 +33,14 @@ function MyRequest({ onViewDetails, onNavigate }) {
   useEffect(() => {
     // Filter requests based on search and filters
     filterRequests();
+    // eslint-disable-next-line
   }, [searchQuery, statusFilter, officeFilter, requests]);
 
   const loadRequests = async () => {
     try {
       setLoading(true);
-      
+      setError('');
+
       // Get student data from localStorage
       const studentData = localStorage.getItem('studentData');
       if (!studentData) {
@@ -36,45 +50,40 @@ function MyRequest({ onViewDetails, onNavigate }) {
       }
 
       const student = JSON.parse(studentData);
-      console.log('🔍 Student data:', student);
-      
+
       // Collect all requests from multiple query attempts
       const allRequests = new Map(); // Use Map to avoid duplicates by firestoreId
       const requestsRef = collection(db, 'requests');
-      
+
       // Try 1: Query by full studentId (e.g., "05-2324-2222")
       if (student.studentId) {
         const q1 = query(requestsRef, where('studentId', '==', student.studentId));
         const snapshot1 = await getDocs(q1);
         snapshot1.docs.forEach(doc => allRequests.set(doc.id, doc));
-        console.log(`Query 1 (studentId=${student.studentId}): ${snapshot1.docs.length} results`);
       }
-      
+
       // Try 2: Query by short ID (last 4 digits, e.g., "2222")
       if (student.studentId) {
         const shortId = student.studentId.split('-').pop(); // Get last part after last dash
         const q2 = query(requestsRef, where('studentId', '==', shortId));
         const snapshot2 = await getDocs(q2);
         snapshot2.docs.forEach(doc => allRequests.set(doc.id, doc));
-        console.log(`Query 2 (studentId=${shortId}): ${snapshot2.docs.length} results`);
       }
-      
+
       // Try 3: Query by studentUid
       if (student.uid) {
         const q3 = query(requestsRef, where('studentUid', '==', student.uid));
         const snapshot3 = await getDocs(q3);
         snapshot3.docs.forEach(doc => allRequests.set(doc.id, doc));
-        console.log(`Query 3 (studentUid=${student.uid}): ${snapshot3.docs.length} results`);
       }
-      
+
       // Try 4: Query by legacy 'id' field
       if (student.id) {
         const q4 = query(requestsRef, where('studentId', '==', student.id));
         const snapshot4 = await getDocs(q4);
         snapshot4.docs.forEach(doc => allRequests.set(doc.id, doc));
-        console.log(`Query 4 (studentId=${student.id}): ${snapshot4.docs.length} results`);
       }
-      
+
       // Convert Map to array and format
       const requestsData = Array.from(allRequests.values()).map(doc => {
         const data = doc.data();
@@ -83,24 +92,24 @@ function MyRequest({ onViewDetails, onNavigate }) {
           id: data.requestId,
           office: data.office,
           subject: data.subject,
-          date: data.createdAt?.toDate().toLocaleDateString('en-US', { 
-            month: 'long', 
-            day: 'numeric', 
-            year: 'numeric' 
+          date: data.createdAt?.toDate().toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
           }) || 'N/A',
           status: data.status,
           createdAtTimestamp: data.createdAt?.toDate().getTime() || 0,
           ...data
         };
       });
-      
+
       // Sort by date manually (newest first)
       requestsData.sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
-      
+
       setRequests(requestsData);
-      console.log('✅ Loaded', requestsData.length, 'total unique requests');
-    } catch (error) {
-      console.error('❌ Error loading requests:', error);
+    } catch (loadError) {
+      console.error('❌ Error loading requests:', loadError);
+      setError('Unable to load your requests. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -111,9 +120,9 @@ function MyRequest({ onViewDetails, onNavigate }) {
 
     // Search filter - search by subject OR office
     if (searchQuery) {
-      filtered = filtered.filter(req => 
-        req.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        req.office.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(req =>
+        req.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        req.office?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -128,6 +137,8 @@ function MyRequest({ onViewDetails, onNavigate }) {
     }
 
     setFilteredRequests(filtered);
+    // Return to the first page whenever the filter results change
+    setCurrentPage(1);
   };
 
   const handleResetFilters = () => {
@@ -136,15 +147,24 @@ function MyRequest({ onViewDetails, onNavigate }) {
     setOfficeFilter('All Offices');
   };
 
+  const hasActiveFilters = Boolean(searchQuery) || statusFilter !== 'All Status' || officeFilter !== 'All Offices';
+
+  // Client-side pagination over the filtered results
+  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE));
+  const visibleRequests = filteredRequests.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
   return (
     <div className="my-request">
-      <div className="breadcrumb">
-        <span className="active">Request History</span>
-        <span className="separator">/</span>
-        <span className="clickable" onClick={() => onNavigate('request-details')}>Request Details</span>
-        <span className="separator">/</span>
-        <span className="clickable" onClick={() => onNavigate('new-request')}>New Request</span>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Request History', current: true },
+          { label: 'Request Details' },
+          { label: 'New Request', onClick: () => onNavigate('new-request') }
+        ]}
+      />
 
       <div className="page-header">
         <h1>Request History</h1>
@@ -152,81 +172,142 @@ function MyRequest({ onViewDetails, onNavigate }) {
 
       <div className="filters">
         <div className="search-box">
-          <MdSearch />
-          <input 
-            type="text" 
+          <MdSearch aria-hidden="true" />
+          <label htmlFor="request-search" className="sr-only">
+            Search by subject or office
+          </label>
+          <input
+            id="request-search"
+            type="text"
             placeholder="Search by Subject or Office"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option>All Status</option>
-          <option>In Process</option>
-          <option>Resolved</option>
-          <option>Pending</option>
+
+        <label htmlFor="status-filter" className="sr-only">Filter by status</label>
+        <select
+          id="status-filter"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          {STATUS_OPTIONS.map((option) => (
+            <option key={option} value={option}>{option}</option>
+          ))}
         </select>
 
-        <select value={officeFilter} onChange={(e) => setOfficeFilter(e.target.value)}>
-          <option>All Offices</option>
-          <option>Finance</option>
-          <option>Library</option>
-          <option>Registrar</option>
-          <option>Guidance</option>
+        <label htmlFor="office-filter" className="sr-only">Filter by office</label>
+        <select
+          id="office-filter"
+          value={officeFilter}
+          onChange={(e) => setOfficeFilter(e.target.value)}
+        >
+          {OFFICE_OPTIONS.map((option) => (
+            <option key={option} value={option}>{option}</option>
+          ))}
         </select>
 
-        <button className="reset-btn" onClick={handleResetFilters}>Reset Filters</button>
+        <button type="button" className="reset-btn" onClick={handleResetFilters}>
+          Reset Filters
+        </button>
       </div>
 
       <div className="request-table">
         {loading ? (
           <LoadingSpinner message="Loading requests..." fullScreen={false} />
+        ) : error ? (
+          <div className="empty-state">
+            <MdInbox className="empty-state-icon" aria-hidden="true" />
+            <p>{error}</p>
+          </div>
         ) : filteredRequests.length === 0 ? (
           <div className="empty-state">
-            <p>No requests found. {searchQuery || statusFilter !== 'All Status' || officeFilter !== 'All Offices' ? 'Try adjusting your filters.' : 'Create your first request to get started!'}</p>
+            <MdInbox className="empty-state-icon" aria-hidden="true" />
+            <p>
+              No requests found.
+              {hasActiveFilters
+                ? ' Try adjusting your filters.'
+                : ' Create your first request to get started!'}
+            </p>
           </div>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>REQUEST ID</th>
-                <th>OFFICE</th>
-                <th>SUBJECT</th>
-                <th>DATE SUBMITTED</th>
-                <th>STATUS</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRequests.map((req, index) => (
-                <tr key={req.firestoreId || index} onClick={() => onViewDetails(req)} style={{ cursor: 'pointer' }}>
-                  <td>#{req.id}</td>
-                  <td>{req.office}</td>
-                  <td>{req.subject}</td>
-                  <td>{req.date}</td>
-                  <td>
-                    <span className={`status ${req.status.toLowerCase().replace(' ', '-')}`}>
-                      {req.status}
-                    </span>
-                  </td>
-                  <td>›</td>
+          <div className="table-scroll">
+            <table className="data-table">
+              <caption className="sr-only">Request history</caption>
+              <thead>
+                <tr>
+                  <th scope="col">REQUEST ID</th>
+                  <th scope="col">OFFICE</th>
+                  <th scope="col">SUBJECT</th>
+                  <th scope="col">DATE SUBMITTED</th>
+                  <th scope="col">STATUS</th>
+                  <th scope="col">
+                    <span className="sr-only">Details</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {visibleRequests.map((req, index) => (
+                  <tr key={req.firestoreId || index} onClick={() => onViewDetails(req)}>
+                    <td>#{req.id}</td>
+                    <td>{req.office}</td>
+                    <td>{req.subject}</td>
+                    <td>{req.date}</td>
+                    <td><StatusBadge status={req.status} /></td>
+                    <td className="row-action">
+                      <button
+                        type="button"
+                        className="row-action-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewDetails(req);
+                        }}
+                        aria-label={`View details for request ${req.id || req.subject || index + 1}`}
+                      >
+                        <MdKeyboardArrowRight aria-hidden="true" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      <div className="pagination">
-        <button className="page-btn" disabled={currentPage === 1}>
-          <MdKeyboardArrowLeft />
-        </button>
-        <button className={`page-num ${currentPage === 1 ? 'active' : ''}`} onClick={() => setCurrentPage(1)}>1</button>
-        <button className="page-btn">
-          <MdKeyboardArrowRight />
-        </button>
-      </div>
+      {totalPages > 1 && (
+        <div className="pagination" aria-label="Pagination">
+          <button
+            type="button"
+            className="page-btn"
+            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            disabled={currentPage === 1}
+            aria-label="Previous page"
+          >
+            <MdKeyboardArrowLeft aria-hidden="true" />
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            <button
+              type="button"
+              key={page}
+              className={`page-num ${currentPage === page ? 'active' : ''}`}
+              onClick={() => setCurrentPage(page)}
+              aria-current={currentPage === page ? 'page' : undefined}
+            >
+              {page}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="page-btn"
+            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+            disabled={currentPage === totalPages}
+            aria-label="Next page"
+          >
+            <MdKeyboardArrowRight aria-hidden="true" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

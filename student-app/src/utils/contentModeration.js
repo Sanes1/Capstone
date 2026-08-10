@@ -33,10 +33,9 @@ export const checkDescriptionLength = (text) => {
  * @param {string} subject - Selected subject
  * @param {string} description - Description text
  * @param {string} officeName - Selected office name (optional)
- * @param {string} officeDescription - Description of what the office handles (optional)
  * @returns {Promise<object>} - { isValid: boolean, errors: array, warnings: array, language: string }
  */
-export const validateContent = async (subject, description, officeName = '', officeDescription = '') => {
+export const validateContent = async (subject, description, officeName = '') => {
   const errors = [];
   const warnings = [];
   let language = 'unknown';
@@ -53,109 +52,105 @@ export const validateContent = async (subject, description, officeName = '', off
   }
 
   try {
-    // Create a comprehensive prompt for the AI with office context
-    const officeContext = officeName ? `\nOffice: "${officeName}"${officeDescription ? `\nOffice handles: "${officeDescription}"` : ''}` : '';
-    const prompt = `You are a STRICT content moderator for a school ticketing system. You must CAREFULLY validate if the student's description is CLEAR, UNDERSTANDABLE, and appropriate.
+    // Create a comprehensive prompt for the AI
+    const officeContext = officeName ? `\nOffice: "${officeName}"` : '';
+    const prompt = `You are an INTELLIGENT content moderator for a school ticketing system. Analyze the following student request and provide a JSON response.
 ${officeContext}
 Subject: "${subject}"
 Description: "${description}"
 
-YOUR TASK:
-Analyze the description WORD BY WORD and CHARACTER BY CHARACTER to check if it makes sense.
+IMPORTANT CONTEXT:
+- The system allows custom subjects to be added by administrators
+- You must be INTELLIGENT and FLEXIBLE when validating custom subjects
+- DO NOT rely only on predefined examples - UNDERSTAND what the subject is asking for based on its name and the office context
+- For ANY subject, analyze the subject name itself to understand what it's asking for, then check if the description relates to that
 
-CRITICAL VALIDATION RULES:
+CORE VALIDATION RULES:
 
-1. PROFANITY CHECK:
-   - Detect offensive, vulgar, or disrespectful language in any language (English, Tagalog, Bisaya)
-   - Examples: fuck, shit, puta, gago, tangina, yawa, buang, or any aggressive tone
+1. PROFANITY CHECK (STRICT):
+   - Detect bad words in English, Tagalog, and Bisaya
+   - Examples: fuck, shit, puta, gago, tangina, yawa, buang, etc.
+   - Detect offensive or aggressive language
+   - Medical/academic terms are acceptable
 
-2. SPAM/GIBBERISH CHECK - THIS IS CRITICAL AND MUST BE STRICT:
+2. RELEVANCE CHECK (INTELLIGENT & FLEXIBLE):
    
-   The description MUST be a CLEAR, COHERENT sentence that makes complete sense.
+   **PRIMARY RULE**: The description must relate to what the SUBJECT NAME suggests.
    
-   CHECK CAREFULLY:
-   - Are all words spelled correctly?
-   - Does the sentence structure make sense?
-   - Can you understand what the student is asking for?
-   - Are there nonsense words like "yoyo", "ciance", "cance", etc?
-   - Are there random letter combinations that aren't real words?
+   How to validate ANY subject (including custom ones):
+   - Read the subject name carefully
+   - Infer what topic it's about from the words used
+   - Check if the description discusses that topic
+   - Consider the office context to understand the domain
    
-   MARK AS SPAM (isSpam = true) if:
-   - Contains misspelled nonsense words (e.g., "yoyo ciance", "cance", "yoyo")
-   - Contains broken/incomplete sentences that don't make grammatical sense
-   - Contains random characters or letter combinations (e.g., "asdfgh", "jkl;")
-   - The sentence is incomprehensible or unclear
-   - You cannot understand what the student is actually requesting
+   **FOR MULTILINGUAL CONTENT**: 
+   - If text is in Tagalog or Bisaya, be MORE LENIENT
+   - Focus on keywords and overall topic match
+   - Only mark as irrelevant if CLEARLY discussing a completely different topic
    
-   EXAMPLES OF SPAM/GIBBERISH (mark isSpam = true):
-   - "I tn if yoyo ciance books" → SPAM (contains "tn", "yoyo", "ciance" which are nonsense)
-   - "I to if yoyo cance books" → SPAM (contains "yoyo", "cance" which are nonsense)
-   - "asdfgh jkl; books" → SPAM (random characters)
-   - "I want to if books yes" → SPAM (broken grammar, doesn't make sense)
+   **SMART KEYWORD MATCHING**:
+   - For subjects with "Request", "Inquiry", "Application", "Appeal" - check if description asks for or discusses that type of request
+   - For subjects with financial terms (Payment, Balance, Refund, Fee, Tuition) - look for money/payment-related discussion
+   - For subjects with document terms (Form, Certificate, Transcript, Record) - look for document/paperwork discussion
+   - For subjects with service terms (Counseling, Support, Assistance) - look for help/service requests
    
-   EXAMPLES OF VALID (mark isSpam = false):
-   - "I need to borrow books for my research project" → VALID
-   - "Can I request books about science?" → VALID
-   - "I want to borrow history books" → VALID
+   **EXAMPLES OF INTELLIGENT VALIDATION**:
+   
+   ✓ VALID Custom Subject Examples:
+   - Subject: "Scholarship Application" + Desc: "I want to apply for financial aid" = RELEVANT (financial assistance)
+   - Subject: "Lost ID Card" + Desc: "I lost my school ID yesterday" = RELEVANT (matches subject)
+   - Subject: "Uniform Complaint" + Desc: "My uniform size is wrong" = RELEVANT (uniform issue)
+   - Subject: "Internet Access Problem" + Desc: "Cannot connect to school wifi" = RELEVANT (internet issue)
+   - Subject: "Health Certificate" + Desc: "Need medical clearance form" = RELEVANT (health document)
+   
+   ✗ INVALID - Clear Mismatches:
+   - Subject: "Scholarship Application" + Desc: "I lost my library book" = NOT RELEVANT (different topics)
+   - Subject: "Lost ID Card" + Desc: "I need to pay my tuition" = NOT RELEVANT (payment vs ID)
+   - Subject: "Uniform Complaint" + Desc: "Request for transcript" = NOT RELEVANT (uniform vs documents)
 
-3. OFFICE-SUBJECT-DESCRIPTION ALIGNMENT:
+3. SPECIAL VALIDATION RULES (Keep these):
    
-   Read the office description carefully and understand what services it provides.
-   Then analyze the student's description to understand their actual need.
+   **REFUND vs RECEIPT**:
+   - "Refund Request" = asking for money back, return payment
+   - "Receipt Request" = asking for proof of payment, official receipt
+   - If description asks for money back but subject is "Receipt Request" = NOT RELEVANT
    
-   Ask yourself:
-   - What is the student actually asking for?
-   - Does this request align with what the office handles?
-   - Does the description match the subject they selected?
+   **DOCUMENT TYPES**:
+   - Form 137, Form 138, TOR, transcript, diploma, certificate = valid for document/certificate/transcript requests
+   - Accept if description mentions any official school documents
    
-   BE INTELLIGENT AND CONTEXTUAL:
+   **FINANCIAL TERMS**:
+   - For Finance office or payment-related subjects: accept terms like balance, tuition, payment, bayad, kwarta, refund
    
-   UNDERSTAND VAGUE LANGUAGE:
-   - If a student says "struggling with school" → understand they need emotional/academic support
-   - If they say "having problems" or "exhausted" or "stressed" → understand the context based on which office they selected
-   - If they say "need help" → check if the help they need fits the office's services
-   
-   ONLY FLAG AS WRONG OFFICE when the description EXPLICITLY mentions a service from a DIFFERENT office:
-   
-   Examples of WRONG OFFICE (mark isRelevant = false):
-   - Student selects "Guidance" but description mentions "pay tuition" → Finance handles payments, WRONG
-   - Student selects "Guidance" but description mentions "borrow books" → Library handles books, WRONG
-   - Student selects "Registrar" but description mentions "tuition balance" → Finance handles payments, WRONG
-   - Student selects "Library" but description mentions "check grades" → Registrar handles grades, WRONG
-   
-   Examples of CORRECT OFFICE (mark isRelevant = true):
-   - Student selects "Guidance" and description says "struggling", "exhausted", "stressed", "having problems" → Guidance provides support, CORRECT
-   - Student selects "Guidance" and description says "need counseling" or "personal issues" → Guidance provides counseling, CORRECT
-   - Student selects "Registrar" and description mentions "enrollment" → Registrar handles enrollment, CORRECT
-   - Student selects "Finance" and description mentions "tuition" or "payment" → Finance handles payments, CORRECT
-   - Student selects "Library" and description mentions "borrow" or "books" → Library handles books, CORRECT
-   
-   KEY PRINCIPLE:
-   - Be FLEXIBLE with general support language like "struggling", "exhausted", "stressed", "having problems", "need help"
-   - Be STRICT only when student explicitly mentions a service that belongs to a DIFFERENT office
-   - UNDERSTAND the student's underlying concern, don't just match keywords
-   - If the description could reasonably fit the office's services = VALID
+   **COMMON SUBJECTS** (if they appear, use strict checking):
+   - Balance Verification → financial balance inquiry
+   - Document Request → school records/forms
+   - Grade Inquiry → academic grades/scores  
+   - Book Request → library materials
+   - Counseling → guidance services
 
-4. SUBJECT-DESCRIPTION MATCH:
-   - Check if the description content aligns with the subject they selected
-   - Example: "Balance Verification" subject but description talks about books = mismatch
+4. LANGUAGE DETECTION:
+   - English: "the", "is", "my", "please"
+   - Tagalog: "ang", "po", "ko", "gusto", "kailangan"  
+   - Bisaya: "og", "ug", "palihug", "nako"
 
-5. LANGUAGE DETECTION:
-   - Identify the primary language used
+5. SPAM DETECTION:
+   - Gibberish, random characters, nonsensical text
+   - Examples: "asdfasdf", "12345", repeated characters
 
 6. TONE ANALYSIS:
-   - Ensure respectful and appropriate communication
+   - Check if respectful and appropriate for school communication
+   - Flag aggressive, rude, or demanding language
 
-CRITICAL: Respond ONLY with valid JSON. Do not include markdown. Do not duplicate any keys.
+**KEY PRINCIPLE**: Be SMART, not RIGID. Understand what the subject is asking for, then check if the description discusses that topic. Accept valid requests even if they use custom or non-standard subjects.
 
-IMPORTANT: Check for SPAM/GIBBERISH FIRST before checking anything else. If the description is incomprehensible, mark isSpam = true.
-
+Respond ONLY with a valid JSON object (no markdown, no extra text):
 {
   "hasProfanity": boolean,
-  "profanityReason": "string (only if hasProfanity is true, otherwise empty string)",
+  "profanityReason": "string (only if true)",
   "isRelevant": boolean,
-  "relevanceReason": "string (only if isRelevant is false, explain: 'Your description mentions [X] which is handled by [Y office], but you selected [Z office].' OR 'Your description does not match the subject you selected.' Otherwise empty string)",
-  "language": "english" | "tagalog" | "bisaya" | "mixed",
+  "relevanceReason": "string (explain if false)",
+  "language": "english" | "tagalog" | "bisaya" | "mixed" | "unknown",
   "isSpam": boolean,
   "tone": "appropriate" | "inappropriate" | "aggressive" | "neutral"
 }`;
@@ -198,15 +193,15 @@ IMPORTANT: Check for SPAM/GIBBERISH FIRST before checking anything else. If the 
     }
 
     if (!aiAnalysis.isRelevant) {
-      errors.push(aiAnalysis.relevanceReason || 'Your description does not match the selected subject or office. Please ensure your description is relevant to what you selected.');
+      errors.push(aiAnalysis.relevanceReason || 'Your description does not match the selected subject. Please ensure your description is relevant to the subject you chose.');
     }
 
     if (aiAnalysis.isSpam) {
-      errors.push('Your description appears to contain spam, gibberish, or is incomprehensible. Please provide a clear, meaningful explanation in proper English, Tagalog, or Bisaya.');
+      errors.push('Your description appears to contain spam or gibberish. Please provide a clear, meaningful explanation.');
     }
 
     if (aiAnalysis.tone === 'inappropriate' || aiAnalysis.tone === 'aggressive') {
-      errors.push('Please maintain a respectful and professional tone in your request.');
+      warnings.push('Please maintain a respectful and professional tone in your request.');
     }
 
     language = aiAnalysis.language || 'unknown';

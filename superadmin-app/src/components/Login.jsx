@@ -89,9 +89,19 @@ const Login = ({ onLogin }) => {
 
   return (
     <div className="login-page">
+      <div
+        className="login-bg-photo"
+        style={{ backgroundImage: "url('/school-cover.jpg')" }}
+        aria-hidden="true"
+      ></div>
       <div className="superadmin-login">
         <div className="login-left green-solid">
-          {/* Green background - no image for now */}
+          <img
+            src="/school-logo.jpg"
+            alt="Academia De San Jose school logo"
+            className="school-logo-large"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
         </div>
         
         <div className="login-right">
@@ -117,29 +127,35 @@ const Login = ({ onLogin }) => {
               )}
               
               <div className="form-group">
-                <label className="form-label">Username/ Student ID</label>
+                <label className="form-label" htmlFor="username">Username/ Student ID</label>
                 <input
                   type="text"
+                  id="username"
+                  name="username"
                   className="form-input"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder=""
+                  autoComplete="username"
                   required
                 />
               </div>
               
               <div className="form-group">
                 <div className="password-label-row">
-                  <label className="form-label">Password</label>
+                  <label className="form-label" htmlFor="password">Password</label>
                   <a href="#" className="forgot-password">Forgot Password?</a>
                 </div>
                 <div className="password-input-wrapper">
                   <input
                     type={showPassword ? "text" : "password"}
+                    id="password"
+                    name="password"
                     className="form-input"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder=""
+                    autoComplete="current-password"
                     required
                   />
                   <button

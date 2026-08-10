@@ -5,6 +5,7 @@ import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/fires
 import { validateContent } from '../utils/contentModeration';
 import { notifyStaffNewRequest } from '../utils/notificationHelper';
 import LoadingSpinner from './LoadingSpinner';
+import Breadcrumb from './Breadcrumb';
 import '../styles/NewRequest.css';
 
 function NewRequest({ onNavigate }) {
@@ -45,7 +46,7 @@ function NewRequest({ onNavigate }) {
     {
       id: 'guidance',
       name: 'Guidance',
-      description: 'Provides counseling, emotional support, academic guidance, and handles student behavior concerns, personal problems, stress management, and disciplinary cases.',
+      description: 'Handles student behavior concerns, violations, and disciplinary cases to maintain order and safety in school.',
       subjects: ['Counseling Request', 'Disciplinary Appeal', 'Behavior Report', 'Support Services']
     }
   ];
@@ -139,8 +140,7 @@ function NewRequest({ onNavigate }) {
       try {
         const selectedOfficeData = offices.find(o => o.id === selectedOffice);
         const officeName = selectedOfficeData?.name || '';
-        const officeDescription = selectedOfficeData?.description || '';
-        const result = await validateContent(subject, description, officeName, officeDescription);
+        const result = await validateContent(subject, description, officeName);
         setValidationResult(result);
       } catch (error) {
         console.error('Validation error:', error);
@@ -156,7 +156,7 @@ function NewRequest({ onNavigate }) {
     }, 1200);
 
     return () => clearTimeout(timeoutId);
-  }, [description, subject]);
+  }, [description, subject, selectedOffice, offices]);
 
   const uploadFilesToStorage = async () => {
     const uploadedFileUrls = [];
@@ -298,13 +298,13 @@ function NewRequest({ onNavigate }) {
 
   return (
     <div className="new-request-page">
-      <div className="breadcrumb">
-        <span className="clickable" onClick={() => onNavigate('request')}>Request History</span>
-        <span className="separator">/</span>
-        <span className="clickable" onClick={() => onNavigate('request-details')}>Request Details</span>
-        <span className="separator">/</span>
-        <span className="active">New Request</span>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Request History', onClick: () => onNavigate('request') },
+          { label: 'Request Details', onClick: () => onNavigate('request-details') },
+          { label: 'New Request', current: true }
+        ]}
+      />
 
       <div className="page-header">
         <h1>Submit New Request</h1>

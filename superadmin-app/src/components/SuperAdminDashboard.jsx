@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { FaInbox, FaClock, FaBan, FaUsers, FaCalendarAlt, FaBell } from 'react-icons/fa';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import React, { useState, useEffect, useRef } from 'react';
+import { FaInbox, FaClock, FaBan, FaUsers, FaCalendarAlt } from 'react-icons/fa';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
+import NotificationBell from './NotificationBell';
+import DateRangeFilterDropdown from './DateRangeFilterDropdown';
 import '../styles/SuperAdminDashboard.css';
+
+const EMPTY_FILTER = { from: '', to: '' };
 
 const SuperAdminDashboard = () => {
   const [stats, setStats] = useState({
@@ -21,10 +25,58 @@ const SuperAdminDashboard = () => {
   ]);
   
   const [loading, setLoading] = useState(true);
+  const [dateFilter, setDateFilter] = useState(EMPTY_FILTER);
+  const [appliedFilter, setAppliedFilter] = useState(EMPTY_FILTER);
+  const [filteredTotal, setFilteredTotal] = useState(0);
+  
+  // Keep all fetched requests in a ref so filters can be applied without refetching
+  const allRequestsRef = useRef([]);
 
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  const getRequestDate = (req) => {
+    if (!req.createdAt) return null;
+    const date = req.createdAt?.toDate ? req.createdAt.toDate() : new Date(req.createdAt);
+    return date instanceof Date && !isNaN(date.getTime()) ? date : null;
+  };
+
+  const filterRequestsByDate = (requests, filter) => {
+    if (!filter.from && !filter.to) return requests;
+
+    return requests.filter(req => {
+      const created = getRequestDate(req);
+      if (!created) return false;
+
+      const from = filter.from ? new Date(`${filter.from}T00:00:00`) : null;
+      const to = filter.to ? new Date(`${filter.to}T23:59:59.999`) : null;
+
+      if (from && created < from) return false;
+      if (to && created > to) return false;
+      return true;
+    });
+  };
+
+  const computeDepartmentData = (requests, filter) => {
+    const filteredRequests = filterRequestsByDate(requests, filter);
+
+    // Count requests per department within the filtered set
+    const financeCount = filteredRequests.filter(req => req.office === 'Finance').length;
+    const registrarCount = filteredRequests.filter(req => req.office === 'Registrar').length;
+    const libraryCount = filteredRequests.filter(req => req.office === 'Library').length;
+    const guidanceCount = filteredRequests.filter(req => req.office === 'Guidance').length;
+
+    const maxCount = Math.max(financeCount, registrarCount, libraryCount, guidanceCount, 100);
+
+    setFilteredTotal(filteredRequests.length);
+    setDepartmentData([
+      { label: 'FIN', value: financeCount, max: maxCount, name: 'Finance' },
+      { label: 'REG', value: registrarCount, max: maxCount, name: 'Registrar' },
+      { label: 'LIB', value: libraryCount, max: maxCount, name: 'Library' },
+      { label: 'GUI', value: guidanceCount, max: maxCount, name: 'Guidance' }
+    ]);
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -36,6 +88,7 @@ const SuperAdminDashboard = () => {
         id: doc.id,
         ...doc.data()
       }));
+      allRequestsRef.current = allRequests;
 
       // Total requests
       const totalRequests = allRequests.length;
@@ -74,15 +127,6 @@ const SuperAdminDashboard = () => {
       
       const activeUsers = activeStudents + activeStaff;
 
-      // Count requests per department
-      const financeCount = allRequests.filter(req => req.office === 'Finance').length;
-      const registrarCount = allRequests.filter(req => req.office === 'Registrar').length;
-      const libraryCount = allRequests.filter(req => req.office === 'Library').length;
-      const guidanceCount = allRequests.filter(req => req.office === 'Guidance').length;
-
-      // Find max value for scaling
-      const maxCount = Math.max(financeCount, registrarCount, libraryCount, guidanceCount, 100);
-
       setStats({
         totalRequests,
         avgResolution: avgResolutionTime,
@@ -90,12 +134,7 @@ const SuperAdminDashboard = () => {
         activeUsers
       });
 
-      setDepartmentData([
-        { label: 'FIN', value: financeCount, max: maxCount, name: 'Finance' },
-        { label: 'REG', value: registrarCount, max: maxCount, name: 'Registrar' },
-        { label: 'LIB', value: libraryCount, max: maxCount, name: 'Library' },
-        { label: 'GUI', value: guidanceCount, max: maxCount, name: 'Guidance' }
-      ]);
+      computeDepartmentData(allRequests, appliedFilter);
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -104,13 +143,40 @@ const SuperAdminDashboard = () => {
     }
   };
 
+  const applyDateFilter = () => {
+    // Validate range: From cannot be after To
+    if (dateFilter.from && dateFilter.to && dateFilter.from > dateFilter.to) {
+      alert('The "From" date cannot be later than the "To" date.');
+      return false;
+    }
+    setAppliedFilter(dateFilter);
+    computeDepartmentData(allRequestsRef.current, dateFilter);
+    return true;
+  };
+
+  const clearDateFilter = () => {
+    setDateFilter(EMPTY_FILTER);
+    setAppliedFilter(EMPTY_FILTER);
+    computeDepartmentData(allRequestsRef.current, EMPTY_FILTER);
+  };
+
+  const formatFilterDate = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const isFilterActive = Boolean(appliedFilter.from || appliedFilter.to);
+
   return (
-    <div className="superadmin-dashboard-container">
-      <div className="dashboard-header">
-        <h1 className="dashboard-title">Dashboard</h1>
-        <div className="dashboard-notification">
-          <FaBell className="notification-icon" />
+    <div className="superadmin-page superadmin-dashboard-container">
+      <div className="page-header">
+        <div>
+          <h1 className="dashboard-title">Dashboard</h1>
+          <p className="page-subtitle">Overview of the school request and ticketing system</p>
         </div>
+        <NotificationBell />
       </div>
 
       {loading ? (
@@ -166,7 +232,27 @@ const SuperAdminDashboard = () => {
           <div className="chart-section">
             <div className="chart-header">
               <h2 className="chart-title">Request Receive Per Department</h2>
+              <DateRangeFilterDropdown
+                filter={dateFilter}
+                onFilterChange={setDateFilter}
+                isActive={isFilterActive}
+                onApply={applyDateFilter}
+                onClear={clearDateFilter}
+                idPrefix="dashboard"
+              />
             </div>
+
+            {isFilterActive && (
+              <div className="filter-summary">
+                <FaCalendarAlt className="filter-summary-icon" aria-hidden="true" />
+                <span>
+                  Showing <strong>{filteredTotal.toLocaleString()}</strong> request{filteredTotal === 1 ? '' : 's'}
+                  {appliedFilter.from && <> from <strong>{formatFilterDate(appliedFilter.from)}</strong></>}
+                  {appliedFilter.from && appliedFilter.to && <> to </>}
+                  {appliedFilter.to && <><strong>{formatFilterDate(appliedFilter.to)}</strong></>}
+                </span>
+              </div>
+            )}
             
             <div className="chart-content">
               {departmentData.map((dept, index) => (
@@ -178,6 +264,7 @@ const SuperAdminDashboard = () => {
                       style={{ width: `${(dept.value / dept.max) * 100}%` }}
                     />
                   </div>
+                  <div className="department-value">{dept.value}</div>
                 </div>
               ))}
               

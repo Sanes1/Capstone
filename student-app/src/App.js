@@ -29,11 +29,31 @@ function App() {
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [studentData, setStudentData] = useState(null);
   const [hasUnreadBulletin, setHasUnreadBulletin] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile drawer state
 
   // Save active page to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('studentActivePage', activePage);
   }, [activePage]);
+
+  // Close the mobile drawer whenever the active page changes
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [activePage]);
+
+  // Close the mobile drawer with the Escape key
+  useEffect(() => {
+    if (!isSidebarOpen) return undefined;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSidebarOpen]);
 
   // Check for unread bulletin posts
   useEffect(() => {
@@ -119,7 +139,7 @@ function App() {
   const renderPage = () => {
     switch(activePage) {
       case 'dashboard':
-        return <Dashboard onNavigate={setActivePage} />;
+        return <Dashboard onNavigate={setActivePage} onViewDetails={handleViewRequestDetails} />;
       case 'request':
         return <MyRequest onViewDetails={handleViewRequestDetails} onNavigate={setActivePage} />;
       case 'request-details':
@@ -129,15 +149,15 @@ function App() {
       case 'bulletin':
         return <BulletinBoard />;
       case 'feedback':
-        return <Feedback />;
+        return <Feedback onNavigate={setActivePage} />;
       case 'feedback-discipline':
-        return <Feedback selectedOffice="discipline" />;
+        return <Feedback selectedOffice="discipline" onNavigate={setActivePage} />;
       case 'feedback-library':
-        return <Feedback selectedOffice="library" />;
+        return <Feedback selectedOffice="library" onNavigate={setActivePage} />;
       case 'feedback-registrar':
-        return <Feedback selectedOffice="registrar" />;
+        return <Feedback selectedOffice="registrar" onNavigate={setActivePage} />;
       case 'feedback-finance':
-        return <Feedback selectedOffice="finance" />;
+        return <Feedback selectedOffice="finance" onNavigate={setActivePage} />;
       case 'faq':
         return <FAQs />;
       default:
@@ -160,14 +180,20 @@ function App() {
 
   return (
     <div className="app">
-      <Header />
+      <a href="#main-content" className="skip-link">Skip to main content</a>
+      <Header
+        onMenuToggle={() => setIsSidebarOpen(true)}
+        isSidebarOpen={isSidebarOpen}
+      />
       <div className="app-body">
-        <Sidebar 
-          activePage={activePage} 
+        <Sidebar
+          activePage={activePage}
           onNavigate={setActivePage}
           hasUnreadBulletin={hasUnreadBulletin}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
-        <main className="main-content">
+        <main id="main-content" className="main-content" tabIndex={-1}>
           {renderPage()}
         </main>
       </div>

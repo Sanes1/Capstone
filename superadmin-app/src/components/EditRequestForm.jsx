@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FaBell, FaPlus, FaEdit, FaTrash, FaSave, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaSave, FaTimes } from 'react-icons/fa';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
+import NotificationBell from './NotificationBell';
 import '../styles/EditRequestForm.css';
 
 const EditRequestForm = () => {
@@ -11,6 +12,8 @@ const EditRequestForm = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingOffice, setEditingOffice] = useState(null);
+  const [editingCardOffice, setEditingCardOffice] = useState(null);
+  const [cardDraft, setCardDraft] = useState('');
   const [editingSubject, setEditingSubject] = useState(null);
   const [newSubject, setNewSubject] = useState('');
 
@@ -36,7 +39,7 @@ const EditRequestForm = () => {
     {
       id: 'guidance',
       name: 'Guidance',
-      description: 'Provides counseling, emotional support, academic guidance, and handles student behavior concerns, personal problems, stress management, and disciplinary cases.',
+      description: 'Handles student behavior concerns, violations, and disciplinary cases to maintain order and safety in school.',
       subjects: ['Counseling Request', 'Disciplinary Appeal', 'Behavior Report', 'Support Services']
     }
   ];
@@ -88,6 +91,33 @@ const EditRequestForm = () => {
     ));
   };
 
+  const startCardEdit = (office) => {
+    setEditingCardOffice(office.id);
+    setCardDraft(office.description);
+    // Keep only one description editor active at a time
+    setEditingOffice(null);
+  };
+
+  const saveCardEdit = (officeId) => {
+    if (!cardDraft.trim()) {
+      alert('Description cannot be empty.');
+      return;
+    }
+    handleOfficeDescriptionChange(officeId, cardDraft.trim());
+    setEditingCardOffice(null);
+  };
+
+  const cancelCardEdit = () => {
+    // Draft edits never touch `offices` until Save, so just exit edit mode
+    setEditingCardOffice(null);
+  };
+
+  const startSectionEdit = (officeId) => {
+    setEditingOffice(officeId);
+    // Keep only one description editor active at a time
+    setEditingCardOffice(null);
+  };
+
   const handleAddSubject = (officeId) => {
     if (!newSubject.trim()) {
       alert('Please enter a subject');
@@ -136,14 +166,17 @@ const EditRequestForm = () => {
   }
 
   return (
-    <div className="edit-request-form-container">
-      <div className="form-header">
-        <h1 className="form-title">Edit Request Form Configuration</h1>
+    <div className="superadmin-page edit-request-form-container">
+      <div className="page-header">
+        <div>
+          <h1 className="form-title">Edit Request Form Configuration</h1>
+          <p className="page-subtitle">Manage the offices, descriptions, and subjects students can request</p>
+        </div>
         <div className="form-actions-header">
-          <button className="save-config-btn" onClick={saveFormConfig} disabled={saving}>
-            <FaSave /> {saving ? 'Saving...' : 'Save Changes'}
+          <button className="btn-primary save-config-btn" onClick={saveFormConfig} disabled={saving}>
+            <FaSave aria-hidden="true" /> {saving ? 'Saving...' : 'Save Changes'}
           </button>
-          <FaBell className="notification-icon" />
+          <NotificationBell />
         </div>
       </div>
 
@@ -156,13 +189,52 @@ const EditRequestForm = () => {
             {offices.map((office) => (
               <div
                 key={office.id}
-                className={`office-card ${selectedOffice === office.id ? 'selected' : ''}`}
+                className={`office-card ${selectedOffice === office.id ? 'selected' : ''} ${editingCardOffice === office.id ? 'editing' : ''}`}
                 onClick={() => setSelectedOffice(office.id)}
               >
                 <div className="radio-circle"></div>
                 <div className="office-info">
                   <h3 className="office-name">{office.name}</h3>
-                  <p className="office-description">{office.description}</p>
+                  {editingCardOffice === office.id ? (
+                    <>
+                      <textarea
+                        className="office-card-textarea"
+                        value={cardDraft}
+                        onChange={(e) => setCardDraft(e.target.value)}
+                        rows={3}
+                        aria-label={`Edit ${office.name} description`}
+                        autoFocus
+                      />
+                      <div className="office-card-actions">
+                        <button
+                          type="button"
+                          className="icon-btn save-btn"
+                          onClick={(e) => { e.stopPropagation(); saveCardEdit(office.id); }}
+                        >
+                          <FaSave /> Save
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-btn cancel-btn"
+                          onClick={(e) => { e.stopPropagation(); cancelCardEdit(); }}
+                        >
+                          <FaTimes /> Cancel
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="office-description">{office.description}</p>
+                      <button
+                        type="button"
+                        className="office-edit-btn"
+                        onClick={(e) => { e.stopPropagation(); startCardEdit(office); }}
+                        aria-label={`Edit ${office.name} description`}
+                      >
+                        <FaEdit /> Edit
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -184,7 +256,7 @@ const EditRequestForm = () => {
                 ) : (
                   <button 
                     className="icon-btn edit-btn"
-                    onClick={() => setEditingOffice(selectedOffice)}
+                    onClick={() => startSectionEdit(selectedOffice)}
                   >
                     <FaEdit /> Edit
                   </button>

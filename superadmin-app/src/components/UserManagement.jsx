@@ -1,26 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  FaBell, 
-  FaUser, 
-  FaEnvelope, 
-  FaPhone, 
-  FaCalendarAlt, 
-  FaShieldAlt, 
-  FaPen, 
-  FaLock, 
+import React, { useState, useEffect } from 'react';import {
+  FaEnvelope,
   FaKey,
   FaBan,
-  FaSignInAlt,
-  FaRedo,
   FaPlus,
   FaUserPlus,
-  FaCopy,
   FaCheck,
-  FaTrash
+  FaSearch
 } from 'react-icons/fa';
 import { db, auth } from '../firebase';
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
+import NotificationBell from './NotificationBell';
 import '../styles/UserManagement.css';
 
 const UserManagement = () => {
@@ -56,6 +46,34 @@ const UserManagement = () => {
   const [confirmAction, setConfirmAction] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedStaff, setSelectedStaff] = useState(null);
+
+  // Frontend-only search + pagination state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 8;
+
+  const resetPagination = () => setCurrentPage(1);
+
+  const filterList = (items) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((item) =>
+      [item.name, item.firstName, item.lastName, item.email, item.username, item.id, item.office]
+        .filter(Boolean)
+        .some((field) => String(field).toLowerCase().includes(q))
+    );
+  };
+
+  const paginate = (items) => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return {
+      pageItems: items.slice(start, start + PAGE_SIZE),
+      totalPages: Math.max(1, Math.ceil(items.length / PAGE_SIZE))
+    };
+  };
+
+  const visibleStudents = paginate(filterList(students));
+  const visibleStaff = paginate(filterList(staffMembers));
 
   const offices = [
     { id: 'finance', name: 'Finance' },
@@ -161,12 +179,6 @@ const UserManagement = () => {
 
       if (!studentLastName.trim()) {
         setError('Please enter student last name');
-        setLoading(false);
-        return;
-      }
-
-      if (!studentMiddleName.trim()) {
-        setError('Please enter student middle name');
         setLoading(false);
         return;
       }
@@ -338,12 +350,6 @@ const UserManagement = () => {
 
       if (!staffLastName.trim()) {
         setError('Please enter staff last name');
-        setLoading(false);
-        return;
-      }
-
-      if (!staffMiddleName.trim()) {
-        setError('Please enter staff middle name');
         setLoading(false);
         return;
       }
@@ -522,34 +528,49 @@ const UserManagement = () => {
   };
 
   return (
-    <div className="user-management-container">
-      <div className="user-management-header">
-        <h1 className="user-management-title">User Management</h1>
+    <div className="superadmin-page user-management-container">
+      <div className="page-header">
+        <div>
+          <h1 className="user-management-title">User Management</h1>
+          <p className="page-subtitle">Create, suspend, or remove student and staff accounts</p>
+        </div>
         <div className="header-actions">
-          <button className="create-student-btn" onClick={activeTab === 'students' ? handleNewStudent : handleNewStaff}>
-            <FaUserPlus />
+          <button className="btn-primary create-student-btn" onClick={activeTab === 'students' ? handleNewStudent : handleNewStaff}>
+            <FaUserPlus aria-hidden="true" />
             {activeTab === 'students' ? 'Create Student Account' : 'Create Staff Account'}
           </button>
-          <div className="form-notification">
-            <FaBell className="notification-icon" />
-          </div>
+          <NotificationBell />
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="user-tabs">
-        <button 
-          className={`user-tab ${activeTab === 'students' ? 'active' : ''}`}
-          onClick={() => setActiveTab('students')}
-        >
-          Students
-        </button>
-        <button 
-          className={`user-tab ${activeTab === 'staff' ? 'active' : ''}`}
-          onClick={() => setActiveTab('staff')}
-        >
-          Staff Members
-        </button>
+      {/* Tabs + search */}
+      <div className="user-tabs-row">
+        <div className="user-tabs">
+          <button
+            className={`user-tab ${activeTab === 'students' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('students'); resetPagination(); }}
+          >
+            Students
+          </button>
+          <button
+            className={`user-tab ${activeTab === 'staff' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('staff'); resetPagination(); }}
+          >
+            Staff Members
+          </button>
+        </div>
+
+        <div className="search-bar">
+          <FaSearch className="search-icon" aria-hidden="true" />
+          <input
+            type="search"
+            name="account-search"
+            placeholder={activeTab === 'students' ? 'Search students...' : 'Search staff...'}
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); resetPagination(); }}
+            aria-label="Search accounts"
+          />
+        </div>
       </div>
 
       {showConfirmModal && (selectedStudent || selectedStaff) && (
@@ -723,18 +744,18 @@ const UserManagement = () => {
 
               <div className="form-row-super">
                 <div className="form-group-super">
-                  <label className="form-label-super">Middle Name *</label>
+                  <label className="form-label-super">Middle Name</label>
                   <input
                     type="text"
                     className="form-input-super"
                     value={studentMiddleName}
                     onChange={(e) => setStudentMiddleName(e.target.value)}
-                    placeholder="Middle name"
+                    placeholder="Middle name (optional)"
                   />
                 </div>
 
                 <div className="form-group-super small-input">
-                  <label className="form-label-super">Suffix (optional)</label>
+                  <label className="form-label-super">Suffix</label>
                   <input
                     type="text"
                     className="form-input-super"
@@ -855,18 +876,18 @@ const UserManagement = () => {
 
               <div className="form-row-super">
                 <div className="form-group-super">
-                  <label className="form-label-super">Middle Name *</label>
+                  <label className="form-label-super">Middle Name</label>
                   <input
                     type="text"
                     className="form-input-super"
                     value={staffMiddleName}
                     onChange={(e) => setStaffMiddleName(e.target.value)}
-                    placeholder="Middle name"
+                    placeholder="Middle name (optional)"
                   />
                 </div>
 
                 <div className="form-group-super small-input">
-                  <label className="form-label-super">Suffix (optional)</label>
+                  <label className="form-label-super">Suffix</label>
                   <input
                     type="text"
                     className="form-input-super"
@@ -943,101 +964,167 @@ const UserManagement = () => {
       )}
 
       {activeTab === 'students' ? (
-        <div className="students-list-section">
+        <div className="card students-list-section">
           <h2 className="section-title-super">Student Accounts</h2>
-          {students.length === 0 ? (
-            <p className="no-students-message">No student accounts yet. Click "Create Student Account" to add one.</p>
-          ) : (
-            <div className="students-table">
-              <div className="table-header students-header">
-                <div className="table-cell">Student ID</div>
-                <div className="table-cell">Name</div>
-                <div className="table-cell">Email</div>
-                <div className="table-cell">Created</div>
-                <div className="table-cell">Actions</div>
-              </div>
-              {students.map((student) => (
-                <div key={student.firestoreId || student.id} className="table-row students-row">
-                  <div className="table-cell">{student.id}</div>
-                <div className="table-cell">
-                  {student.name}
-                  {!student.isActive && <span className="suspended-badge">Suspended</span>}
-                </div>
-                <div className="table-cell">{student.email}</div>
-                <div className="table-cell">{student.createdAt}</div>
-                <div className="table-cell">
-                  <button 
-                    className="table-action-btn reset"
-                    onClick={() => handleSuspendStudent(student)}
-                  >
-                    <FaBan />
-                    {student.isActive ? 'Suspend' : 'Activate'}
-                  </button>
-                  <button 
-                    className="table-action-btn delete"
-                    onClick={() => handleDeleteStudent(student)}
-                  >
-                    <FaKey />
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      ) : (
-        <div className="students-list-section">
-          <h2 className="section-title-super">Staff Accounts</h2>
-          {staffMembers.length === 0 ? (
-            <p className="no-students-message">No staff accounts yet. Click "Create Staff Account" to add one.</p>
-          ) : (
-            <div className="students-table">
-              <div className="table-header staff-header">
-                <div className="table-cell">Name</div>
-                <div className="table-cell">Email</div>
-                <div className="table-cell">Username</div>
-                <div className="table-cell">Office</div>
-                <div className="table-cell">Created</div>
-                <div className="table-cell">Actions</div>
-              </div>
-              {staffMembers.map((staff) => (
-                <div key={staff.firestoreId} className="table-row staff-row">
-                  <div className="table-cell">
-                    {staff.name}
-                    {!staff.isActive && <span className="suspended-badge">Suspended</span>}
-                  </div>
-                  <div className="table-cell">{staff.email}</div>
-                  <div className="table-cell">{staff.username}</div>
-                  <div className="table-cell">{staff.office}</div>
-                  <div className="table-cell">{staff.createdAt}</div>
-                  <div className="table-cell">
-                    <button 
-                      className="table-action-btn reset"
-                      onClick={() => {
-                        setSelectedStaff(staff);
-                        setConfirmAction('suspend');
-                        setShowConfirmModal(true);
-                      }}
-                    >
-                      <FaBan />
-                      {staff.isActive ? 'Suspend' : 'Activate'}
-                    </button>
-                    <button 
-                      className="table-action-btn delete"
-                      onClick={() => {
-                        setSelectedStaff(staff);
-                        setConfirmAction('delete');
-                        setShowConfirmModal(true);
-                      }}
-                    >
-                      <FaKey />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
+          {visibleStudents.pageItems.length === 0 ? (
+            <div className="empty-state">
+              <FaSearch className="empty-state-icon" aria-hidden="true" />
+              <p>{students.length === 0 ? 'No student accounts yet. Click "Create Student Account" to add one.' : 'No students match your search.'}</p>
             </div>
+          ) : (
+            <>
+              <div className="table-container">
+                <div className="students-table">
+                  <div className="table-header">
+                    <div className="table-cell">Student ID</div>
+                    <div className="table-cell">Name</div>
+                    <div className="table-cell">Email</div>
+                    <div className="table-cell">Created</div>
+                    <div className="table-cell">Actions</div>
+                  </div>
+                  {visibleStudents.pageItems.map((student) => (
+                    <div key={student.firestoreId || student.id} className="table-row">
+                      <div className="table-cell">{student.id}</div>
+                      <div className="table-cell">
+                        {student.name}
+                        {!student.isActive && <span className="status status-suspended">Suspended</span>}
+                      </div>
+                      <div className="table-cell">{student.email}</div>
+                      <div className="table-cell">{student.createdAt}</div>
+                      <div className="table-cell">
+                        <button
+                          className="table-action-btn reset"
+                          onClick={() => handleSuspendStudent(student)}
+                        >
+                          <FaBan aria-hidden="true" />
+                          {student.isActive ? 'Suspend' : 'Activate'}
+                        </button>
+                        <button
+                          className="table-action-btn delete"
+                          onClick={() => handleDeleteStudent(student)}
+                        >
+                          <FaKey aria-hidden="true" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="pagination">
+                <span className="pagination-info">
+                  Showing {filterList(students).length} student{filterList(students).length === 1 ? '' : 's'}
+                </span>
+                {visibleStudents.totalPages > 1 && (
+                  <>
+                    <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} aria-label="Previous page">
+                      ‹
+                    </button>
+                    {Array.from({ length: visibleStudents.totalPages }, (_, i) => i + 1).map((pg) => (
+                      <button
+                        key={pg}
+                        className={currentPage === pg ? 'active' : ''}
+                        onClick={() => setCurrentPage(pg)}
+                        aria-label={`Page ${pg}`}
+                        aria-current={currentPage === pg ? 'page' : undefined}
+                      >
+                        {pg}
+                      </button>
+                    ))}
+                    <button onClick={() => setCurrentPage((p) => Math.min(visibleStudents.totalPages, p + 1))} disabled={currentPage === visibleStudents.totalPages} aria-label="Next page">
+                      ›
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="card students-list-section">
+          <h2 className="section-title-super">Staff Accounts</h2>
+          {visibleStaff.pageItems.length === 0 ? (
+            <div className="empty-state">
+              <FaSearch className="empty-state-icon" aria-hidden="true" />
+              <p>{staffMembers.length === 0 ? 'No staff accounts yet. Click "Create Staff Account" to add one.' : 'No staff match your search.'}</p>
+            </div>
+          ) : (
+            <>
+              <div className="table-container">
+                <div className="students-table staff-table">
+                  <div className="table-header">
+                    <div className="table-cell">Name</div>
+                    <div className="table-cell">Email</div>
+                    <div className="table-cell">Username</div>
+                    <div className="table-cell">Office</div>
+                    <div className="table-cell">Created</div>
+                    <div className="table-cell">Actions</div>
+                  </div>
+                  {visibleStaff.pageItems.map((staff) => (
+                    <div key={staff.firestoreId} className="table-row">
+                      <div className="table-cell">
+                        {staff.name}
+                        {!staff.isActive && <span className="status status-suspended">Suspended</span>}
+                      </div>
+                      <div className="table-cell">{staff.email}</div>
+                      <div className="table-cell">{staff.username}</div>
+                      <div className="table-cell">{staff.office}</div>
+                      <div className="table-cell">{staff.createdAt}</div>
+                      <div className="table-cell">
+                        <button
+                          className="table-action-btn reset"
+                          onClick={() => {
+                            setSelectedStaff(staff);
+                            setConfirmAction('suspend');
+                            setShowConfirmModal(true);
+                          }}
+                        >
+                          <FaBan aria-hidden="true" />
+                          {staff.isActive ? 'Suspend' : 'Activate'}
+                        </button>
+                        <button
+                          className="table-action-btn delete"
+                          onClick={() => {
+                            setSelectedStaff(staff);
+                            setConfirmAction('delete');
+                            setShowConfirmModal(true);
+                          }}
+                        >
+                          <FaKey aria-hidden="true" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="pagination">
+                <span className="pagination-info">
+                  Showing {filterList(staffMembers).length} staff member{filterList(staffMembers).length === 1 ? '' : 's'}
+                </span>
+                {visibleStaff.totalPages > 1 && (
+                  <>
+                    <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} aria-label="Previous page">
+                      ‹
+                    </button>
+                    {Array.from({ length: visibleStaff.totalPages }, (_, i) => i + 1).map((pg) => (
+                      <button
+                        key={pg}
+                        className={currentPage === pg ? 'active' : ''}
+                        onClick={() => setCurrentPage(pg)}
+                        aria-label={`Page ${pg}`}
+                        aria-current={currentPage === pg ? 'page' : undefined}
+                      >
+                        {pg}
+                      </button>
+                    ))}
+                    <button onClick={() => setCurrentPage((p) => Math.min(visibleStaff.totalPages, p + 1))} disabled={currentPage === visibleStaff.totalPages} aria-label="Next page">
+                      ›
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
           )}
         </div>
       )}

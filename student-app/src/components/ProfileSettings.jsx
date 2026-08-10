@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, signOut } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../firebase';
 import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload } from 'react-icons/fa';
@@ -47,6 +47,7 @@ function ProfileSettings({ onClose }) {
     new: false,
     confirm: false
   });
+  const [showEmail, setShowEmail] = useState(false);
 
   useEffect(() => {
     loadProfileData();
@@ -385,6 +386,23 @@ function ProfileSettings({ onClose }) {
     }
   };
 
+  const handleLogout = async () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      try {
+        await signOut(auth);
+        // Clear all student-related localStorage
+        localStorage.removeItem('studentData');
+        localStorage.removeItem('studentLoggedIn');
+        localStorage.removeItem('studentIsGuest');
+        // Reload to trigger login screen
+        window.location.href = '/';
+      } catch (error) {
+        console.error('Logout error:', error);
+        alert('Failed to logout. Please try again.');
+      }
+    }
+  };
+
   const handleChangePassword = async () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       alert('New passwords do not match');
@@ -449,6 +467,17 @@ function ProfileSettings({ onClose }) {
     const lastUpdate = new Date(profileData.lastPasswordUpdate);
     const monthsAgo = Math.floor((new Date() - lastUpdate) / (1000 * 60 * 60 * 24 * 30));
     return `Last updated ${monthsAgo} months ago. We recommend updating regularly.`;
+  };
+
+  // Mask an email for privacy: keep the first character of the local part
+  // and the full domain, e.g. "m•••@gmail.com"
+  const maskEmail = (email) => {
+    if (!email || !email.includes('@')) return email;
+    const [localPart, ...rest] = email.split('@');
+    if (!localPart) return email;
+    const first = localPart.charAt(0);
+    const maskedLocal = first + '•'.repeat(Math.max(localPart.length - 1, 0));
+    return `${maskedLocal}@${rest.join('@')}`;
   };
 
   if (loading) {
@@ -519,12 +548,21 @@ function ProfileSettings({ onClose }) {
                     <label>EMAIL ADDRESS <span className="required">*</span></label>
                     <div className="input-with-icon">
                       <input
-                        type="email"
-                        value={profileData.email}
+                        type="text"
+                        value={showEmail ? profileData.email : maskEmail(profileData.email)}
                         readOnly
-                        className="readonly-field masked-field"
+                        className="readonly-field masked-field email-masked"
+                        aria-label="Email address"
                       />
-                      <FaEyeSlash className="eye-icon" />
+                      <button
+                        type="button"
+                        className="eye-icon-btn"
+                        onClick={() => setShowEmail(prev => !prev)}
+                        aria-label={showEmail ? 'Hide email address' : 'Show email address'}
+                        aria-pressed={showEmail}
+                      >
+                        {showEmail ? <FaEyeSlash /> : <FaEye />}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -637,13 +675,13 @@ function ProfileSettings({ onClose }) {
                 <h4>Two-Factor Authentication (2FA)</h4>
                 <p>Secure your account by adding an additional security layer via SMS</p>
               </div>
-              <label className="toggle-switch">
+              <label className="settings-toggle">
                 <input
                   type="checkbox"
                   checked={profileData.twoFactorEnabled}
                   onChange={handleToggle2FA}
                 />
-                <span className="toggle-slider"></span>
+                <span className="settings-toggle-slider"></span>
               </label>
             </div>
           </div>
@@ -719,7 +757,7 @@ function ProfileSettings({ onClose }) {
 
           {/* Action Buttons */}
           <div className="settings-actions">
-            <button className="logout-btn-settings" onClick={onClose}>
+            <button className="logout-btn-settings" onClick={handleLogout}>
               Log Out
             </button>
             <button 

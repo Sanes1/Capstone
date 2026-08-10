@@ -1,0 +1,207 @@
+/* ==========================================================================
+   SHARED COMPONENT CLASSES — Academia De San Jose Student Portal
+   --------------------------------------------------------------------------
+   Reusable building blocks (breadcrumb, page header, data tables, status
+   badges, empty states) used across pages. Imported once in index.js AFTER
+   design-tokens.css and BEFORE page styles, so pages can override when
+   needed. This eliminates the duplicated blocks that previously lived in
+   every page stylesheet.
+   ========================================================================== */
+
+/* ---- Breadcrumb ---- */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-height: 29px;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-faint);
+}
+
+.breadcrumb-separator {
+  margin: 0 var(--space-1);
+  color: var(--gray-300);
+}
+
+.breadcrumb-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--color-text-faint);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+}
+
+.breadcrumb-link:hover {
+  color: var(--color-primary);
+}
+
+.breadcrumb-current {
+  color: var(--color-text-body);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Non-current, non-interactive breadcrumb segment (e.g. intermediate page) */
+.breadcrumb-text {
+  color: var(--color-text-faint);
+}
+
+/* ---- Page header (title row) ---- */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+
+.page-header h1 {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+/* ---- Data table ---- */
+.table-container {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table thead th {
+  text-align: left;
+  padding: var(--space-4);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--sage-ink);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-bottom: 1px solid var(--color-divider);
+  background-color: var(--sage-100);
+  white-space: nowrap;
+}
+
+.data-table tbody td {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--gray-100);
+  font-size: var(--font-size-base);
+  color: var(--color-text-body);
+  vertical-align: middle;
+}
+
+.data-table tbody tr {
+  transition: background-color var(--transition-fast);
+}
+
+.data-table tbody tr:hover {
+  background-color: var(--sage-50);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Row action (details) cell — real button inside the clickable row */
+.row-action {
+  text-align: center;
+  color: var(--color-text-faint);
+  font-size: var(--font-size-lg);
+  white-space: nowrap;
+}
+
+.row-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-lg);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.row-action-btn:hover {
+  color: var(--color-primary);
+  background: var(--gray-100);
+}
+
+.data-table tbody tr:hover .row-action,
+.data-table tbody tr:hover .row-action-btn {
+  color: var(--color-primary);
+}
+
+/* ---- Status badges (Figma status colors) ---- */
+.status {
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.status-pending {
+  background-color: var(--purple-100);
+  color: var(--purple-800);
+}
+
+.status-in-process {
+  background-color: var(--yellow-100);
+  color: var(--yellow-800);
+}
+
+.status-resolved {
+  background-color: var(--sage-100);
+  color: var(--color-primary);
+}
+
+.status-cancelled {
+  background-color: var(--red-100);
+  color: var(--red-700);
+}
+
+.status-returned {
+  background-color: var(--yellow-100);
+  color: var(--yellow-800);
+}
+
+.status-for-follow-up {
+  background-color: var(--yellow-100);
+  color: var(--yellow-800);
+}
+
+/* ---- Empty & error states ---- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-12) var(--space-5);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.empty-state .empty-state-icon {
+  font-size: 48px;
+  color: var(--gray-300);
+}
+
+.empty-state p {
+  font-size: var(--font-size-md);
+  margin: 0;
+}

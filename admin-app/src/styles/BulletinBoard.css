@@ -660,3 +660,94 @@
   margin-top: 10px;
   font-style: italic;
 }
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+/* Laptop */
+@media (max-width: 1365px) {
+  .bulletin-board-container {
+    padding: 24px 28px;
+  }
+}
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .bulletin-board-container {
+    padding: 20px;
+  }
+
+  .bulletin-header {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .bulletin-title {
+    font-size: 24px;
+  }
+
+  .bulletin-header-actions {
+    flex-wrap: wrap;
+  }
+
+  .hero-overlay {
+    padding: 24px;
+  }
+
+  .hero-title {
+    font-size: 26px;
+  }
+
+  .bulletin-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .announcement-card {
+    flex-direction: column;
+  }
+
+  .announcement-image {
+    width: 100%;
+    padding: 12px;
+  }
+
+  .announcement-content {
+    padding: 18px 20px;
+  }
+
+  /* Create/edit announcement modal — tabs go horizontal on tablets */
+  .modal-content {
+    flex-direction: column;
+  }
+
+  .modal-sidebar {
+    width: 100%;
+    flex-direction: row;
+    padding: 8px 0;
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+    overflow-x: auto;
+  }
+
+  .modal-tab {
+    padding: 12px 20px;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+  }
+
+  .modal-tab.active {
+    border-left-color: transparent;
+    border-bottom-color: #66bb6a;
+    background: #fff;
+  }
+
+  .modal-main {
+    padding: 24px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}

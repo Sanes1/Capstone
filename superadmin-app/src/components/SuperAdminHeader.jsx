@@ -6,7 +6,7 @@ const SuperAdminHeader = () => {
   return (
     <header className="superadmin-header">
       <div className="header-logo">
-        <img src="/school-logo.png" alt="School Logo" />
+        <img src="/school-logo.jpg" alt="School Logo" />
       </div>
       <div className="header-title">
         <h1>Dashboard</h1>

@@ -1,65 +1,112 @@
 .login-container-student {
-  width: 100vw;
-  height: 100vh;
+  /* Shared page padding so the card sizing formula stays in sync */
+  --login-page-pad: clamp(16px, 3vw, 40px);
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #e8e8e8;
+  padding: var(--login-page-pad);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: #101c0e;
+}
+
+/* Desaturated school-building photo from the Figma design, with a dark
+   overlay so the login card pops forward. The image URL is applied inline
+   (from the public folder) so the grayscale filter never affects the card. */
+.login-bg-photo {
+  position: fixed;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: grayscale(100%) brightness(0.52) contrast(1.05);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.login-split-view {
+  position: relative;
+  z-index: 1;
 }
 
 .login-split-view {
   display: flex;
-  width: 1000px;
-  height: 650px;
-  background-color: white;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  /* Keep the card at the Figma's 3:2 proportion on every screen: the
+     width is capped by the viewport width AND by what still leaves room
+     for the full height plus the page padding, so the card never forces
+     unwanted vertical scrolling (height = width / 1.5 fits the viewport). */
+  width: min(1040px, 92vw, calc((100vh - 2 * var(--login-page-pad)) * 1.5));
+  min-height: 560px;
+  background-color: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
   overflow: hidden;
 }
 
+/* Browsers without aspect-ratio support keep a sensible capped height */
+@supports not (aspect-ratio: 3 / 2) {
+  .login-split-view {
+    height: min(690px, calc(100vh - 2 * var(--login-page-pad)));
+  }
+}
+
+@supports (aspect-ratio: 3 / 2) {
+  .login-split-view {
+    height: auto;
+    aspect-ratio: 3 / 2;
+  }
+}
+
 .login-left-section {
-  flex: 1;
-  background: linear-gradient(135deg, #1a6b0f 0%, #105E06 100%);
+  flex: 0 0 50%;
+  background-color: #1b5e20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  position: relative;
 }
 
-.school-background-overlay {
+.login-school-logo {
   width: 100%;
-  height: 100%;
-}
-
-.overlay-pattern {
-  width: 100%;
-  height: 100%;
+  max-width: 360px;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  border-radius: 50%;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  background-color: #ffffff;
 }
 
 .login-right-section {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 70px;
-  background-color: #fafafa;
+  padding: clamp(48px, 10vh, 100px) clamp(28px, 6vw, 66px) clamp(24px, 4vh, 36px);
+  background-color: #ffffff;
 }
 
 .login-form-card {
   width: 100%;
-  max-width: 380px;
+  max-width: 430px;
 }
 
 .login-welcome-title {
-  font-size: 32px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin: 0 0 8px 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #111827;
+  margin: 0 0 10px 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.15;
 }
 
 .login-subtitle {
   font-size: 14px;
-  color: #999;
-  margin: 0 0 32px 0;
+  color: #6b7280;
+  margin: 0 0 28px 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .login-form-student {
@@ -68,11 +115,11 @@
 }
 
 .error-message-student {
-  padding: 12px;
-  background-color: #ffebee;
-  border: 1px solid #ef5350;
-  border-radius: 6px;
-  color: #c62828;
+  padding: 12px 14px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #b91c1c;
   font-size: 13px;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   margin-bottom: 20px;
@@ -80,57 +127,65 @@
 }
 
 .form-group-student {
-  margin-bottom: 20px;
+  margin-bottom: 11px;
 }
 
 .label-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 
 .form-label-student {
-  font-size: 14px;
-  font-weight: 500;
-  color: #1a1a1a;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 
 .forgot-password-link {
   font-size: 13px;
-  color: #999;
+  color: #2e7d32;
   text-decoration: none;
+  font-weight: 500;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .forgot-password-link:hover {
-  color: #105E06;
+  color: #1b5e20;
+  text-decoration: underline;
 }
 
 .form-input-student {
   width: 100%;
-  padding: 12px 14px;
-  padding-right: 45px; /* Add space for eye icon */
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
+  padding: 11px 14px;
+  padding-right: 46px; /* Add space for eye icon */
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
   font-size: 14px;
   color: #1a1a1a;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background-color: white;
+  background-color: #fafafa;
   box-sizing: border-box;
+}
+
+.form-input-student:hover {
+  border-color: #c9c9c9;
 }
 
 .form-input-student:focus {
   outline: none;
-  border-color: #105E06;
+  border-color: #2e7d32;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.14);
 }
 
 .form-input-student::placeholder {
-  color: #ccc;
+  color: #b3b3b3;
 }
 
 .password-input-wrapper {
@@ -144,7 +199,7 @@
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: #999;
+  color: #9ca3af;
   cursor: pointer;
   padding: 4px;
   display: flex;
@@ -155,7 +210,7 @@
 }
 
 .password-toggle-btn:hover {
-  color: #105E06;
+  color: #2e7d32;
 }
 
 .password-toggle-btn:focus {
@@ -166,68 +221,83 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
 .remember-checkbox {
   width: 16px;
   height: 16px;
+  accent-color: #2e7d32;
   cursor: pointer;
 }
 
 .remember-label {
   font-size: 13px;
-  color: #666;
+  color: #6b7280;
   cursor: pointer;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .sign-in-btn-student {
   width: 100%;
-  padding: 12px;
+  padding: 13px;
   border: none;
-  border-radius: 6px;
-  background-color: #105E06;
+  border-radius: 10px;
+  background-color: #2e7d32;
   color: white;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  margin-bottom: 24px;
+  transition: background-color 0.2s, transform 0.15s, box-shadow 0.2s;
+  font-family: var(--font-family);
+  margin-bottom: 16px;
+  box-shadow: 0 6px 16px rgba(46, 125, 50, 0.3);
 }
 
-.sign-in-btn-student:hover {
-  background-color: #0d4a05;
+.sign-in-btn-student:hover:not(:disabled) {
+  background-color: #256d29;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(46, 125, 50, 0.38);
 }
 
+.sign-in-btn-student:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.sign-in-btn-student:disabled {
+  background-color: #8fba91;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Figma "or" divider: a single rule line with the centered "or" text just below it */
 .divider-student {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  margin: 0 0 20px 0;
+  margin: 0 0 7px 0;
 }
 
-.divider-student::before,
-.divider-student::after {
+.divider-student::before {
   content: '';
-  flex: 1;
-  border-bottom: 1px solid #e0e0e0;
+  width: 100%;
+  border-top: 1.5px solid #e5e7eb;
 }
 
 .divider-student span {
-  padding: 0 16px;
-  color: #999;
+  padding-top: 5px;
+  color: #9ca3af;
   font-size: 13px;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .alt-login-btn {
   width: 100%;
-  padding: 11px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  background-color: white;
-  color: #666;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background-color: #ffffff;
+  color: #374151;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -237,29 +307,35 @@
   justify-content: center;
   gap: 10px;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  margin-bottom: 12px;
+  margin-bottom: 5px;
+}
+
+.alt-login-btn:last-of-type {
+  margin-bottom: 30px;
 }
 
 .alt-login-btn:hover {
-  background-color: #fafafa;
+  background-color: #f7f9f7;
+  border-color: #2e7d32;
 }
 
 .alt-login-btn svg {
   font-size: 16px;
+  color: #2e7d32;
 }
 
 .contact-admissions {
   text-align: center;
   font-size: 13px;
-  color: #999;
-  margin: 20px 0 16px 0;
+  color: #6b7280;
+  margin: 0 0 7px 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .contact-link {
-  color: #105E06;
+  color: #2e7d32;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .contact-link:hover {
@@ -271,31 +347,97 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 8px 24px;
   background-color: #e8f5e9;
-  border-radius: 6px;
+  border: 1px solid #c8e6c9;
+  border-radius: 999px;
 }
 
 .shield-icon {
-  color: #105E06;
+  color: #1b5e20;
   font-size: 14px;
 }
 
 .secure-badge span {
   font-size: 12px;
-  color: #105E06;
-  font-weight: 500;
+  color: #1b5e20;
+  font-weight: 600;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-@media (max-width: 900px) {
+/* Short viewports (e.g. 720p laptops): tighten the spacing so the whole
+   form including the badge stays visible inside the card without clipping */
+@media (max-height: 750px) and (min-width: 961px) {
+  .login-right-section {
+    padding: 40px 48px 20px;
+  }
+
+  .login-subtitle {
+    margin-bottom: 18px;
+  }
+
+  .sign-in-btn-student {
+    margin-bottom: 10px;
+  }
+
+  .alt-login-btn:last-of-type {
+    margin-bottom: 18px;
+  }
+}
+
+/* Responsive: collapse to a single centered form column on tablets/mobile */
+@media (max-width: 960px) {
+  .login-container-student {
+    padding: 16px;
+  }
+
   .login-split-view {
-    width: 95%;
     flex-direction: column;
+    width: min(480px, 100%);
+    aspect-ratio: auto;
+    height: auto;
+    min-height: 0;
+    border-radius: 16px;
+  }
+
+  /* Keep the green branding as a slim header band instead of hiding it */
+  .login-left-section {
+    flex: none;
+    width: 100%;
+    padding: 32px;
+  }
+
+  .login-school-logo {
+    max-width: 120px;
+  }
+
+  .login-right-section {
+    padding: 40px 24px 32px;
+  }
+
+  /* 16px inputs prevent iOS Safari auto-zoom on focus */
+  .form-input-student {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-welcome-title {
+    font-size: 24px;
+  }
+
+  .login-subtitle {
+    font-size: 13px;
+  }
+
+  .login-right-section {
+    padding: 32px 20px 24px;
   }
 
   .login-left-section {
-    display: none;
+    padding: 24px;
   }
 }
 
@@ -371,7 +513,7 @@
 }
 
 .scanning-status.initializing {
-  background-color: #f5f5f5;
+  background-color: var(--gray-100);
 }
 
 .scanning-status.ready {
@@ -441,7 +583,7 @@
 .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid #f3f3f3;
+  border: 3px solid var(--gray-100);
   border-top: 3px solid #105E06;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -551,7 +693,7 @@
 .qr-scanner-footer {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--gray-300);
   text-align: center;
 }
 

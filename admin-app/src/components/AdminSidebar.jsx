@@ -42,10 +42,18 @@ const AdminSidebar = ({ activePage, onNavigate, department, onOpenProfile }) => 
   
   return (
     <aside className="admin-sidebar">
+      {/* School crest at the very top — like the student portal's logo, but without the school name */}
       <div className="sidebar-logo">
-        <img src="/school-logo.png" alt="School Logo" onError={(e) => { e.target.style.display = 'none'; }} />
+        <div className="sidebar-logo-crest">
+          <img
+            src="/school-logo.jpg"
+            alt="Academia De San Jose"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+          <span className="sidebar-logo-fallback" aria-hidden="true">ASJ</span>
+        </div>
       </div>
-      
+
       <nav className="sidebar-menu">
         <div
           className={`sidebar-item ${activePage === 'dashboard' ? 'active' : ''}`}

@@ -851,3 +851,48 @@
   margin-bottom: 0;
   font-weight: 500;
 }
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+/* Laptop */
+@media (max-width: 1365px) {
+  .ticket-details-container {
+    padding: 24px 28px;
+  }
+}
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .ticket-details-container {
+    padding: 20px;
+  }
+
+  .page-header {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .page-title {
+    font-size: 24px;
+  }
+
+  .ticket-details-content {
+    grid-template-columns: 1fr;
+  }
+
+  .ticket-card,
+  .submission-section {
+    padding: 20px;
+  }
+
+  .ticket-card-header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .attachments {
+    flex-wrap: wrap;
+  }
+}

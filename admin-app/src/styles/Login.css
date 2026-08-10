@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 * {
   margin: 0;
@@ -11,69 +11,127 @@ body {
 }
 
 .login-page {
+  /* Shared page padding so the card sizing formula stays in sync */
+  --login-page-pad: clamp(16px, 3vw, 40px);
+  position: relative;
+  width: 100%;
   display: flex;
-  height: 100vh;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--login-page-pad);
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: #101c0e;
+}
+
+/* Desaturated school-building photo (Figma background) with a dark overlay.
+   The image URL is applied inline (from the public folder) so the grayscale
+   filter never affects the card itself. */
+.login-bg-photo {
+  position: fixed;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: grayscale(100%) brightness(0.52) contrast(1.05);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.login-card {
+  position: relative;
+  z-index: 1;
+}
+
+.login-card {
+  display: flex;
+  /* Keep the card at the Figma's 3:2 proportion on every screen: the
+     width is capped by the viewport width AND by what still leaves room
+     for the full height plus the page padding, so the card never forces
+     unwanted vertical scrolling (height = width / 1.5 fits the viewport). */
+  width: min(1040px, 92vw, calc((100vh - 2 * var(--login-page-pad)) * 1.5));
+  min-height: 560px;
+  background-color: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
   overflow: hidden;
-  font-family: 'Inter', sans-serif;
+}
+
+/* Browsers without aspect-ratio support keep a sensible capped height */
+@supports not (aspect-ratio: 3 / 2) {
+  .login-card {
+    height: min(660px, calc(100vh - 2 * var(--login-page-pad)));
+  }
+}
+
+@supports (aspect-ratio: 3 / 2) {
+  .login-card {
+    height: auto;
+    aspect-ratio: 3 / 2;
+  }
 }
 
 .login-left {
-  width: 50%;
-  background: linear-gradient(180deg, #1d5e20 0%, #2d7a2f 100%);
-  position: relative;
+  flex: 0 0 50%;
+  background-color: #1b5e20;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.login-bg-image {
-  display: none;
+  padding: clamp(24px, 4vw, 40px);
 }
 
 .school-logo-large {
-  display: none;
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  border-radius: 50%;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  background-color: #ffffff;
 }
 
 .login-right {
-  width: 50%;
-  background-color: #e8e8e8;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 60px 80px;
+  padding: clamp(36px, 5vw, 64px);
+  background-color: #ffffff;
 }
 
 .login-form-container {
   width: 100%;
-  max-width: 420px;
+  max-width: 400px;
 }
 
 .login-header {
-  margin-bottom: 30px;
+  margin-bottom: 28px;
 }
 
 .login-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #000;
-  margin: 0 0 10px 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #111827;
+  margin: 0 0 8px 0;
 }
 
 .login-subtitle {
-  font-size: 13px;
-  color: #888;
+  font-size: 14px;
+  color: #6b7280;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .department-section {
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .section-label {
   font-size: 13px;
   font-weight: 600;
-  color: #000;
+  color: #374151;
   margin-bottom: 12px;
   display: block;
 }
@@ -87,47 +145,50 @@ body {
 .department-button {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  padding: 12px 16px;
-  border: 2px solid #c0c0c0;
-  border-radius: 6px;
-  background-color: white;
+  padding: 12px 14px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
+  background-color: #fafafa;
   cursor: pointer;
   transition: all 0.2s;
   font-size: 14px;
-  color: #333;
+  color: #374151;
   font-weight: 500;
+  font-family: inherit;
 }
 
-.department-button:hover {
-  border-color: #4a7c4e;
-  background-color: #f5f9f5;
+.department-button:hover:not(:disabled) {
+  border-color: #2e7d32;
+  background-color: #f0f7f0;
 }
 
 .department-button.selected {
-  border-color: #4a7c4e;
+  border-color: #2e7d32;
   background-color: #e8f5e9;
-  color: #2d5e1f;
+  color: #1b5e20;
+  font-weight: 600;
 }
 
 .department-icon {
   font-size: 18px;
-  color: #666;
+  color: #6b7280;
 }
 
 .department-button.selected .department-icon {
-  color: #2d5e1f;
+  color: #2e7d32;
 }
 
-.form-group {
-  margin-bottom: 20px;
+.login-card .form-group {
+  margin-bottom: 18px;
 }
 
-.form-label {
+.login-card .form-label {
   font-size: 13px;
   font-weight: 600;
-  color: #000;
-  margin-bottom: 6px;
+  color: #374151;
+  margin-bottom: 8px;
   display: block;
 }
 
@@ -135,44 +196,56 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .forgot-password {
-  font-size: 12px;
-  color: #999;
+  font-size: 13px;
+  color: #2e7d32;
   cursor: pointer;
   text-decoration: none;
+  font-weight: 500;
 }
 
 .forgot-password:hover {
   text-decoration: underline;
-  color: #666;
+  color: #1b5e20;
 }
 
-.form-input {
+.login-card .form-input {
   width: 100%;
-  padding: 12px 14px;
-  padding-right: 45px; /* Add space for eye icon */
-  border: 1px solid #d0d0d0;
-  border-radius: 5px;
+  padding: 13px 14px;
+  padding-right: 46px; /* Add space for eye icon */
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
   font-size: 14px;
-  color: #333;
-  transition: border-color 0.2s;
+  color: #1a1a1a;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
   box-sizing: border-box;
-  background-color: white;
+  background-color: #fafafa;
 }
 
-.form-input:focus {
+.login-card .form-input:hover {
+  border-color: #c9c9c9;
+}
+
+.login-card .form-input:focus {
   outline: none;
-  border-color: #4a7c4e;
+  border-color: #2e7d32;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.14);
 }
 
-.form-input::placeholder {
-  color: #ccc;
+.login-card .form-input::placeholder {
+  color: #b3b3b3;
 }
 
-.password-input-wrapper {
+.login-card .form-input:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+}
+
+.login-card .password-input-wrapper {
   position: relative;
 }
 
@@ -183,7 +256,7 @@ body {
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: #999;
+  color: #9ca3af;
   cursor: pointer;
   padding: 4px;
   display: flex;
@@ -194,7 +267,7 @@ body {
 }
 
 .password-toggle-btn:hover {
-  color: #4a7c4e;
+  color: #2e7d32;
 }
 
 .password-toggle-btn:focus {
@@ -205,44 +278,51 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .remember-checkbox {
   width: 16px;
   height: 16px;
+  accent-color: #2e7d32;
   cursor: pointer;
 }
 
 .remember-label {
-  font-size: 12px;
-  color: #666;
+  font-size: 13px;
+  color: #6b7280;
   cursor: pointer;
 }
 
 .sign-in-button {
   width: 100%;
-  padding: 13px;
+  padding: 14px;
   border: none;
-  border-radius: 6px;
-  background-color: #2d7a2f;
+  border-radius: 10px;
+  background-color: #2e7d32;
   color: white;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 20px;
+  transition: background-color 0.2s, transform 0.15s, box-shadow 0.2s;
+  margin-bottom: 18px;
+  box-shadow: 0 6px 16px rgba(46, 125, 50, 0.3);
 }
 
-.sign-in-button:hover {
-  background-color: #1d5e20;
+.sign-in-button:hover:not(:disabled) {
+  background-color: #256d29;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(46, 125, 50, 0.38);
+}
+
+.sign-in-button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .sign-in-button:disabled {
-  background-color: #9db99e;
+  background-color: #8fba91;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .support-section {
@@ -251,13 +331,13 @@ body {
 }
 
 .support-text {
-  font-size: 12px;
-  color: #999;
+  font-size: 13px;
+  color: #6b7280;
   margin: 0;
 }
 
 .support-link {
-  color: #2d7a2f;
+  color: #2e7d32;
   text-decoration: none;
   font-weight: 600;
 }
@@ -272,28 +352,122 @@ body {
   justify-content: center;
   gap: 8px;
   padding: 10px 18px;
-  background-color: #d8ecd9;
-  border-radius: 18px;
+  background-color: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 999px;
 }
 
 .secure-icon {
-  font-size: 12px;
-  color: #2d5e1f;
+  font-size: 13px;
+  color: #1b5e20;
 }
 
 .secure-text {
-  font-size: 11px;
-  color: #2d5e1f;
-  font-weight: 500;
+  font-size: 12px;
+  color: #1b5e20;
+  font-weight: 600;
   margin: 0;
 }
 
-.error-message {
-  background-color: #fee;
-  border: 1px solid #fcc;
-  color: #c33;
-  padding: 12px 16px;
-  border-radius: 6px;
-  margin-bottom: 20px;
-  font-size: 13px;
+/* Error state is styled inline in Login.jsx; no stylesheet rule needed */
+
+/* Responsive: collapse to a single centered form column on tablets/mobile */
+/* Short desktop viewports: tighten vertical rhythm so the whole form
+   stays inside the card without clipping or unwanted page scrolling */
+@media (max-height: 750px) and (min-width: 961px) {
+  .login-right {
+    padding: 28px 44px;
+  }
+
+  .login-header {
+    margin-bottom: 18px;
+  }
+
+  .department-section {
+    margin-bottom: 14px;
+  }
+
+  .department-grid {
+    gap: 8px;
+  }
+
+  .department-button {
+    padding: 9px 12px;
+  }
+
+  .login-card .form-group {
+    margin-bottom: 12px;
+  }
+
+  .remember-section {
+    margin-bottom: 14px;
+  }
+
+  .sign-in-button {
+    margin-bottom: 12px;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 960px) {
+  .login-page {
+    padding: 16px;
+  }
+
+  .login-card {
+    flex-direction: column;
+    width: min(480px, 100%);
+    aspect-ratio: auto;
+    height: auto;
+    min-height: 0;
+    border-radius: 16px;
+  }
+
+  /* Keep the green branding as a slim header band instead of hiding it */
+  .login-left {
+    flex: none;
+    width: 100%;
+    padding: 32px;
+  }
+
+  .school-logo-large {
+    max-width: 120px;
+  }
+
+  .login-right {
+    padding: 36px 24px;
+  }
+
+  /* 16px inputs prevent iOS Safari auto-zoom on focus */
+  .login-card .form-input {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-title {
+    font-size: 24px;
+  }
+
+  .login-subtitle {
+    font-size: 13px;
+  }
+
+  .login-right {
+    padding: 28px 20px;
+  }
+
+  .login-left {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-title {
+    font-size: 26px;
+  }
+
+  .login-right {
+    padding: 36px 20px;
+  }
 }

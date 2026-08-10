@@ -1,0 +1,263 @@
+/* ==========================================================================
+   DESIGN TOKENS — Academia De San Jose Super Admin
+   --------------------------------------------------------------------------
+   Single source of truth for colors, spacing, radius, shadows, typography,
+   and motion. Values derived from the Figma exports in /Capstone Figma/Admin
+   (the same brand system used across the student and staff apps).
+   ========================================================================== */
+
+:root {
+  /* ---- Brand palette (Figma: forest green + sage) ---- */
+  --green-950: #083a03;
+  --green-900: #0d4a05; /* primary hover / pressed */
+  --green-800: #105e06; /* primary */
+  --green-700: #1a7a0e;
+  --green-600: #2d8a1f;
+  --green-500: #3f9c31;
+  --sage-500:  #8cb986; /* accent */
+  --sage-400:  #a3c99e;
+  --sage-300:  #c2d9be;
+  --sage-200:  #dce9da;
+  --sage-100:  #e1e7df; /* soft accent background */
+  --sage-50:   #f0f7f0; /* hover tint */
+
+  /* ---- Neutrals (warm-tinted to match Figma canvas) ---- */
+  --gray-50:   #f0eeee; /* warm page background (Figma canvas) */
+  --gray-45:   #e8e8e8; /* warm panel fill */
+  --gray-100:  #f4f2f0; /* warm hover / row fill */
+  --gray-200:  #eeebea; /* warm soft fill */
+  --gray-300:  #e0dcd9; /* warm borders */
+  --gray-400:  #cfcac6;
+  --gray-500:  #999999; /* faint text */
+  --gray-600:  #666666; /* muted text */
+  --gray-700:  #444444;
+  --gray-800:  #333333; /* body text */
+  --gray-900:  #1a1a1a; /* headings */
+
+  /* ---- Status colors (Figma status badges) ---- */
+  --red-500:   #dc3545; /* danger */
+  --red-400:   #ef5350; /* light danger / badge dot */
+  --red-100:   #ffebee;
+  --red-700:   #c62828;
+  --yellow-500:#ffc107;
+  --yellow-100:#fff3cd; /* in-process badge bg */
+  --yellow-800:#856404; /* in-process badge text */
+  --yellow-50: #fff9e6;
+  --yellow-600: #d4a106;
+  --purple-100:#e8e8f5; /* pending badge bg */
+  --purple-800:#4a4a9e; /* pending badge text */
+  --green-success: #28a745;
+
+  /* ---- Figma-specific greens ---- */
+  --green-btn:      #3c7735; /* primary action buttons */
+  --green-btn-hover:#336b2e;
+  --green-bright:   #0f9100;
+  --sage-hero:      #9dbb9a;
+  --sage-hero-deep: #7b9979;
+  --sage-hero-text: #2e4b2a;
+  --sage-ink:       #3c4f38;
+  --faq-accent:     #ace0a4;
+
+  /* ---- Semantic aliases ---- */
+  --color-primary: var(--green-800);
+  --color-primary-hover: var(--green-900);
+  --color-accent: var(--sage-500);
+  --color-accent-hover: #7aa876;
+  --color-accent-soft: var(--sage-100);
+  --color-bg: var(--gray-50);
+  --color-surface: #ffffff;
+  --color-surface-warm: #fbfaf9;
+  --color-text: var(--gray-900);
+  --color-text-body: var(--gray-800);
+  --color-text-muted: var(--gray-600);
+  --color-text-faint: var(--gray-500);
+  --color-border: var(--gray-300);
+  --color-border-soft: var(--gray-200);
+  --color-divider: #dedede; /* Figma panel divider */
+  --color-danger: var(--red-500);
+  --color-danger-hover: #c82333;
+  --color-star-empty: #b3b3b3;
+
+  /* ---- Chart palette (Figma Super Admin analytics) ---- */
+  --chart-green:     #80d080;
+  --chart-green-2:   #90d090;
+  --chart-green-3:   #a0d0a0;
+  --chart-sage:      #c0e0b0;
+  --chart-track:     #e0dcd9;
+
+  /* ---- Typography ---- */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 24px;
+  --font-size-2xl: 28px;
+  --font-size-3xl: 32px;
+  --font-size-4xl: 42px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ---- Spacing (4px scale) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---- Radius ---- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* ---- Shadows ---- */
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.15);
+
+  /* ---- Motion ---- */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+  --transition-slow: 0.3s ease;
+
+  /* ---- Layout shell (Figma: sidebar ~280px @1440) ---- */
+  --sidebar-width: 280px;
+  --content-padding: clamp(20px, 3vw, 40px);
+
+  /* ---- Breakpoints ---- */
+  --bp-sm: 640px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+}
+
+/* ==========================================================================
+   RESET & BASE
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--color-text-body);
+  background-color: var(--color-bg);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden; /* app shell manages its own scrolling */
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+a {
+  color: var(--color-primary);
+}
+
+/* ==========================================================================
+   ACCESSIBILITY
+   ========================================================================== */
+
+/* Visible keyboard focus everywhere (no focus rings on mouse clicks) */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Screen-reader-only helper */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   SCROLLBARS
+   ========================================================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-400);
+}
+
+/* ==========================================================================
+   MOTION SAFETY
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

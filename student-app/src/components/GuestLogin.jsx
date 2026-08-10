@@ -39,7 +39,7 @@ const GuestLogin = ({ onLogin }) => {
     {
       id: 'guidance',
       name: 'Guidance',
-      description: 'Provides counseling, emotional support, academic guidance, and handles student behavior concerns, personal problems, stress management, and disciplinary cases.'
+      description: 'Handles student behavior concerns, incidents, and disciplinary cases to maintain order and safety in school.'
     }
   ];
 
@@ -63,7 +63,7 @@ const GuestLogin = ({ onLogin }) => {
     <div className="guest-login-container">
       <div className="guest-header">
         <div className="guest-header-content">
-          <img src="/logo.png" alt="Academia De San Jose" className="guest-logo" onError={(e) => e.target.style.display = 'none'} />
+          <img src="/logo.jpg" alt="Academia De San Jose" className="guest-logo" onError={(e) => e.target.style.display = 'none'} />
           <h1 className="guest-school-name">Academia De San Jose</h1>
         </div>
         <div className="guest-header-right">

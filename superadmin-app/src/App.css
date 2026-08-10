@@ -1,26 +1,77 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+/* ==========================================================================
+   SUPER ADMIN APP SHELL — sidebar rail + scrollable main content.
+   Sidebar is a static rail on desktop (>=1024px) and an off-canvas drawer
+   below that (see SuperAdminSidebar.css).
+   ========================================================================== */
 
 .superadmin-app {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
+  background-color: var(--color-bg);
 }
 
 .superadmin-main {
   flex: 1;
+  min-width: 0; /* prevent tables/cards from blowing out the layout */
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Page container shared by every Super Admin page */
+.superadmin-page {
+  flex: 1;
+  background-color: var(--color-bg);
+  padding: var(--content-padding);
+  overflow-y: auto;
+}
+
+/* Mobile top bar — hamburger to open the drawer on small screens */
+.mobile-topbar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  flex-shrink: 0;
+  padding: 0 var(--space-4);
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-divider);
+  z-index: 20;
+}
+
+.mobile-topbar .mobile-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.mobile-menu-toggle {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  font-size: 22px;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.mobile-menu-toggle:hover {
+  background: var(--gray-100);
+}
+
+@media (max-width: 1023px) {
+  .mobile-topbar {
+    display: flex;
+  }
+
+  .superadmin-main {
+    height: 100%;
+  }
 }

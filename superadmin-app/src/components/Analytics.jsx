@@ -1,9 +1,62 @@
-import React, { useState, useEffect } from 'react';
-import { FaBell, FaDownload, FaFilter, FaChevronDown, FaInbox, FaClock, FaBan, FaUsers } from 'react-icons/fa';
-import { collection, query, getDocs, where } from 'firebase/firestore';
+import React, { useState, useEffect, useRef } from 'react';
+import { FaDownload, FaCalendarAlt, FaChevronDown, FaInbox, FaClock, FaBan, FaUsers } from 'react-icons/fa';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
+import NotificationBell from './NotificationBell';
+import DateRangeFilterDropdown from './DateRangeFilterDropdown';
 import '../styles/Analytics.css';
+
+const EMPTY_FILTER = { from: '', to: '' };
+
+// Pick a "nice" step (1, 2, 5, 10, 20, …) so the gridlines land on clean
+// values (0, 5, 10, …) regardless of the data range
+const getNiceTickStep = (max) => {
+  if (max <= 0) return 1;
+  const rough = max / 6; // aim for ~6 gridlines
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / magnitude;
+  let step;
+  if (norm >= 5) step = 10;
+  else if (norm >= 2) step = 5;
+  else if (norm >= 1) step = 2;
+  else step = 1;
+  return Math.max(1, Math.round(step * magnitude));
+};
+
+const SATISFACTION_OFFICES = [
+  { id: 'all', name: 'All Offices' },
+  { id: 'finance', name: 'Finance' },
+  { id: 'library', name: 'Library' },
+  { id: 'registrar', name: 'Registrar' },
+  { id: 'guidance', name: 'Guidance' }
+];
+
+// Semester filter for the Ticket Volume Trends chart — each semester shows a
+// different set of months (1ST SEM = Jun–Dec, 2ND SEM = Jan–Apr)
+const SEMESTER_CONFIG = {
+  firstSem: {
+    label: '1ST SEM',
+    months: [
+      { name: 'JUNE', index: 5 },
+      { name: 'JULY', index: 6 },
+      { name: 'AUG', index: 7 },
+      { name: 'SEP', index: 8 },
+      { name: 'OCT', index: 9 },
+      { name: 'NOV', index: 10 },
+      { name: 'DEC', index: 11 }
+    ]
+  },
+  secondSem: {
+    label: '2ND SEM',
+    months: [
+      { name: 'JAN', index: 0 },
+      { name: 'FEB', index: 1 },
+      { name: 'MAR', index: 2 },
+      { name: 'APR', index: 3 }
+    ]
+  }
+};
 
 const Analytics = () => {
   const [loading, setLoading] = useState(true);
@@ -14,43 +67,99 @@ const Analytics = () => {
   const [ticketData, setTicketData] = useState([]);
   const [departmentData, setDepartmentData] = useState([]);
   const [satisfactionData, setSatisfactionData] = useState({ fiveStars: 0, fourStars: 0, percentage: 0 });
+  const [satisfactionOffice, setSatisfactionOffice] = useState('all');
+  const [officeFilterOpen, setOfficeFilterOpen] = useState(false);
+  const [dateFilter, setDateFilter] = useState(EMPTY_FILTER);
+  const [appliedFilter, setAppliedFilter] = useState(EMPTY_FILTER);
+  const [selectedSemester, setSelectedSemester] = useState('firstSem');
+
+  // Keep fetched data in refs so filters can be applied without refetching
+  const requestsRef = useRef([]);
+  const feedbacksRef = useRef([]);
+  const officeFilterRef = useRef(null);
 
   useEffect(() => {
     fetchAnalyticsData();
   }, []);
 
+  // Close the office filter dropdown when clicking/tapping outside or pressing Escape
+  useEffect(() => {
+    if (!officeFilterOpen) return undefined;
+
+    const handleClickOutside = (e) => {
+      if (officeFilterRef.current && !officeFilterRef.current.contains(e.target)) {
+        setOfficeFilterOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setOfficeFilterOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [officeFilterOpen]);
+
+  const getRequestDate = (value) => {
+    if (!value) return null;
+    const date = value?.toDate ? value.toDate() : new Date(value);
+    return date instanceof Date && !isNaN(date.getTime()) ? date : null;
+  };
+
+  const filterRequestsByDate = (requests, filter) => {
+    if (!filter.from && !filter.to) return requests;
+
+    return requests.filter(req => {
+      const created = getRequestDate(req.createdAt);
+      if (!created) return false;
+
+      const from = filter.from ? new Date(`${filter.from}T00:00:00`) : null;
+      const to = filter.to ? new Date(`${filter.to}T23:59:59.999`) : null;
+
+      if (from && created < from) return false;
+      if (to && created > to) return false;
+      return true;
+    });
+  };
+
+  // Feedback docs reference their office via officeId (lowercase id) or office (display name)
+  const filterFeedbacksByOffice = (feedbacks, officeId) => {
+    if (!officeId || officeId === 'all') return feedbacks;
+
+    const officeNames = {
+      finance: 'Finance',
+      library: 'Library',
+      registrar: 'Registrar',
+      guidance: 'Guidance'
+    };
+    const displayName = officeNames[officeId];
+
+    return feedbacks.filter(f => {
+      const id = String(f.officeId || '').toLowerCase();
+      const name = String(f.office || '').toLowerCase();
+      // Match by id (finance) OR by display name (Finance / Finance Office)
+      return id === officeId || name.includes(displayName.toLowerCase());
+    });
+  };
+
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch all requests
-      const requestsRef = collection(db, 'requests');
-      const requestsSnapshot = await getDocs(requestsRef);
+      const requestsCollection = collection(db, 'requests');
+      const requestsSnapshot = await getDocs(requestsCollection);
       const requests = requestsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-
-      // Total requests
-      setTotalRequests(requests.length);
-
-      // Calculate cancelled rate
-      const cancelledCount = requests.filter(r => r.status === 'Cancelled').length;
-      const cancelledPercentage = requests.length > 0 ? Math.round((cancelledCount / requests.length) * 100) : 0;
-      setCancelledRate(`${cancelledPercentage}%`);
-
-      // Calculate average resolution time (for resolved tickets)
-      const resolvedRequests = requests.filter(r => r.status === 'Resolved' && r.resolvedAt && r.createdAt);
-      if (resolvedRequests.length > 0) {
-        const totalResolutionTime = resolvedRequests.reduce((sum, req) => {
-          const created = req.createdAt?.toDate?.() || new Date(req.createdAt);
-          const resolved = req.resolvedAt?.toDate?.() || new Date(req.resolvedAt);
-          const diff = resolved - created;
-          return sum + diff;
-        }, 0);
-        const avgTime = totalResolutionTime / resolvedRequests.length;
-        setAvgResolution(formatDuration(avgTime));
-      }
+      requestsRef.current = requests;
 
       // Fetch active users (students + staff)
       const studentsRef = collection(db, 'students');
@@ -59,33 +168,17 @@ const Analytics = () => {
         getDocs(studentsRef),
         getDocs(staffRef)
       ]);
-      setActiveUsers(studentsSnapshot.size + staffSnapshot.size);
-
-      // Calculate ticket volume trends by month
-      const monthlyData = calculateMonthlyTrends(requests);
-      setTicketData(monthlyData);
-
-      // Calculate department efficiency
-      const deptData = calculateDepartmentEfficiency(requests);
-      setDepartmentData(deptData);
+      const activeUsers = studentsSnapshot.size + staffSnapshot.size;
+      setActiveUsers(activeUsers);
 
       // Fetch feedback for satisfaction ratings
       const feedbackRef = collection(db, 'feedback');
       const feedbackSnapshot = await getDocs(feedbackRef);
       const feedbacks = feedbackSnapshot.docs.map(doc => doc.data());
-      
-      const fiveStarsCount = feedbacks.filter(f => f.rating === 5).length;
-      const fourStarsCount = feedbacks.filter(f => f.rating === 4).length;
-      const totalFeedback = feedbacks.length;
-      const satisfactionPercentage = totalFeedback > 0 
-        ? Math.round((fiveStarsCount / totalFeedback) * 100) 
-        : 0;
-      
-      setSatisfactionData({
-        fiveStars: fiveStarsCount,
-        fourStars: fourStarsCount,
-        percentage: satisfactionPercentage
-      });
+      feedbacksRef.current = feedbacks;
+
+      // Compute everything (respects any previously applied date filter)
+      computeAnalytics(requests, feedbacks, appliedFilter);
 
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -93,6 +186,98 @@ const Analytics = () => {
       setLoading(false);
     }
   };
+
+  const computeAnalytics = (requests, feedbacks, filter, officeId = satisfactionOffice, semesterId = selectedSemester) => {
+    // Apply date filter to requests
+    const filteredRequests = filterRequestsByDate(requests, filter);
+
+    // Total requests (filtered)
+    setTotalRequests(filteredRequests.length);
+
+    // Calculate cancelled rate (filtered)
+    const cancelledCount = filteredRequests.filter(r => r.status === 'Cancelled').length;
+    const cancelledPercentage = filteredRequests.length > 0 ? Math.round((cancelledCount / filteredRequests.length) * 100) : 0;
+    setCancelledRate(`${cancelledPercentage}%`);
+
+    // Calculate average resolution time (for resolved tickets within the range)
+    const resolvedRequests = filteredRequests.filter(r => r.status === 'Resolved' && r.resolvedAt && r.createdAt);
+    if (resolvedRequests.length > 0) {
+      const totalResolutionTime = resolvedRequests.reduce((sum, req) => {
+        const created = req.createdAt?.toDate?.() || new Date(req.createdAt);
+        const resolved = req.resolvedAt?.toDate?.() || new Date(req.resolvedAt);
+        const diff = resolved - created;
+        return sum + diff;
+      }, 0);
+      const avgTime = totalResolutionTime / resolvedRequests.length;
+      setAvgResolution(formatDuration(avgTime));
+    } else {
+      setAvgResolution('0hrs');
+    }
+
+    // Ticket volume trends (filtered by date AND selected semester)
+    const monthlyData = calculateMonthlyTrends(filteredRequests, semesterId);
+    setTicketData(monthlyData);
+
+    // Department efficiency (filtered)
+    const deptData = calculateDepartmentEfficiency(filteredRequests);
+    setDepartmentData(deptData);
+
+    // Satisfaction ratings (filtered by date AND selected office)
+    const filteredFeedbacks = filterRequestsByDate(feedbacks, filter);
+    const officeFeedbacks = filterFeedbacksByOffice(filteredFeedbacks, officeId);
+    const fiveStarsCount = officeFeedbacks.filter(f => f.rating === 5).length;
+    const fourStarsCount = officeFeedbacks.filter(f => f.rating === 4).length;
+    const totalFeedback = officeFeedbacks.length;
+    const satisfactionPercentage = totalFeedback > 0
+      ? Math.round((fiveStarsCount / totalFeedback) * 100)
+      : 0;
+
+    setSatisfactionData({
+      fiveStars: fiveStarsCount,
+      fourStars: fourStarsCount,
+      percentage: satisfactionPercentage
+    });
+  };
+
+  const applyOfficeFilter = (officeId) => {
+    setSatisfactionOffice(officeId);
+    setOfficeFilterOpen(false);
+    // Recompute satisfaction with the selected office, keeping the date filter
+    computeAnalytics(requestsRef.current, feedbacksRef.current, appliedFilter, officeId);
+  };
+
+  const applySemesterFilter = (semesterId) => {
+    setSelectedSemester(semesterId);
+    // Recompute the volume chart with the chosen semester, keeping any date/office filters
+    computeAnalytics(requestsRef.current, feedbacksRef.current, appliedFilter, satisfactionOffice, semesterId);
+  };
+
+  const selectedOfficeName = SATISFACTION_OFFICES.find(o => o.id === satisfactionOffice)?.name || 'All Offices';
+
+  const applyDateFilter = () => {
+    if (dateFilter.from && dateFilter.to && dateFilter.from > dateFilter.to) {
+      alert('The "From" date cannot be later than the "To" date.');
+      return false;
+    }
+    setAppliedFilter(dateFilter);
+    computeAnalytics(requestsRef.current, feedbacksRef.current, dateFilter);
+    return true;
+  };
+
+  const clearDateFilter = () => {
+    setDateFilter(EMPTY_FILTER);
+    setAppliedFilter(EMPTY_FILTER);
+    computeAnalytics(requestsRef.current, feedbacksRef.current, EMPTY_FILTER);
+  };
+
+  const formatFilterDate = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const isFilterActive = Boolean(appliedFilter.from || appliedFilter.to);
 
   const formatDuration = (milliseconds) => {
     const hours = Math.floor(milliseconds / (1000 * 60 * 60));
@@ -105,35 +290,26 @@ const Analytics = () => {
     return `${hours}hrs`;
   };
 
-  const calculateMonthlyTrends = (requests) => {
-    const months = ['JUNE', 'JULY', 'AUG', 'SEP', 'OCT', 'NOV'];
+  const calculateMonthlyTrends = (requests, semesterId) => {
+    const config = SEMESTER_CONFIG[semesterId];
     const monthlyCount = {};
 
-    // Initialize all months
-    months.forEach(month => {
-      monthlyCount[month] = { secondSem: 0, firstSem: 0 };
+    // Initialize all months of the selected semester
+    config.months.forEach(month => {
+      monthlyCount[month.name] = 0;
     });
 
     // Count requests by month
     requests.forEach(req => {
       const createdAt = req.createdAt?.toDate?.() || new Date(req.createdAt);
       const monthIndex = createdAt.getMonth(); // 0-11
-      const monthName = months[monthIndex - 5]; // Adjust index (June = 5)
-      
-      if (monthName && monthlyCount[monthName]) {
-        // Determine semester based on month (June-Oct = 2nd sem, Nov onwards = 1st sem)
-        if (monthIndex >= 5 && monthIndex <= 9) {
-          monthlyCount[monthName].secondSem++;
-        } else {
-          monthlyCount[monthName].firstSem++;
-        }
-      }
+      const month = config.months.find(m => m.index === monthIndex);
+      if (month) monthlyCount[month.name]++;
     });
 
-    return months.map(month => ({
-      month,
-      secondSem: monthlyCount[month].secondSem,
-      firstSem: monthlyCount[month].firstSem
+    return config.months.map(month => ({
+      month: month.name,
+      count: monthlyCount[month.name]
     }));
   };
 
@@ -189,24 +365,51 @@ const Analytics = () => {
     return <LoadingSpinner message="Loading analytics..." fullScreen={true} />;
   }
 
+  // Ticket Volume Trends — ticks from 0 up to a clean top value (0 at the bottom)
+  const chartMax = Math.max(...ticketData.map(d => d.count), 1);
+  const tickStep = getNiceTickStep(chartMax);
+  const topTick = Math.ceil(chartMax / tickStep) * tickStep;
+  const yTicks = [];
+  for (let v = 0; v <= topTick; v += tickStep) yTicks.push(v);
+  const yTicksDesc = [...yTicks].reverse(); // biggest on top, 0 on the baseline
+
   return (
-    <div className="analytics-container">
-      <div className="analytics-header">
-        <h1 className="analytics-title">Analytics</h1>
-        <div className="analytics-actions">
-          <button className="export-button" onClick={exportToCSV}>
-            <FaDownload className="export-icon" />
-            Export CSV
-          </button>
-          <button className="filter-by-button" onClick={fetchAnalyticsData}>
-            Filter by
-            <FaFilter className="filter-icon" />
-          </button>
-          <div className="form-notification">
-            <FaBell className="notification-icon" />
+    <div className="superadmin-page analytics-container">
+      <div className="page-header">
+        <div>
+          <h1 className="analytics-title">Analytics</h1>
+          <p className="page-subtitle">Track request volume, satisfaction, and department performance</p>
+        </div>
+        <div className="page-header-right">
+          <div className="analytics-actions">
+            <DateRangeFilterDropdown
+              filter={dateFilter}
+              onFilterChange={setDateFilter}
+              isActive={isFilterActive}
+              onApply={applyDateFilter}
+              onClear={clearDateFilter}
+              idPrefix="analytics"
+            />
+            <button className="btn-primary export-button" onClick={exportToCSV}>
+              <FaDownload className="export-icon" aria-hidden="true" />
+              Export CSV
+            </button>
           </div>
+          <NotificationBell />
         </div>
       </div>
+
+      {isFilterActive && (
+        <div className="filter-summary">
+          <FaCalendarAlt className="filter-summary-icon" aria-hidden="true" />
+          <span>
+            Showing <strong>{totalRequests.toLocaleString()}</strong> request{totalRequests === 1 ? '' : 's'}
+            {appliedFilter.from && <> from <strong>{formatFilterDate(appliedFilter.from)}</strong></>}
+            {appliedFilter.from && appliedFilter.to && <> to </>}
+            {appliedFilter.to && <><strong>{formatFilterDate(appliedFilter.to)}</strong></>}
+          </span>
+        </div>
+      )}
 
       <div className="analytics-stats">
         <div className="stat-card">
@@ -258,48 +461,93 @@ const Analytics = () => {
         <div className="chart-card">
           <div className="chart-card-header">
             <h2 className="chart-card-title">Ticket Volume Trends</h2>
-            <div className="chart-legend">
-              <div className="legend-item">
-                <span className="legend-dot second-sem"></span>
-                <span>2ND SEM</span>
-              </div>
-              <div className="legend-item">
-                <span className="legend-dot first-sem"></span>
-                <span>1ST SEM</span>
-              </div>
+            <div className="sem-filter" role="group" aria-label="Filter by semester">
+              {Object.entries(SEMESTER_CONFIG).map(([id, config]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`sem-btn ${selectedSemester === id ? 'active' : ''}`}
+                  onClick={() => applySemesterFilter(id)}
+                  aria-pressed={selectedSemester === id}
+                >
+                  <span className={`sem-swatch sem-swatch--${id}`} aria-hidden="true"></span>
+                  {config.label}
+                </button>
+              ))}
             </div>
           </div>
           
-          <div className="bar-chart">
-            {ticketData.map((data, index) => {
-              const maxValue = Math.max(...ticketData.map(d => Math.max(d.secondSem, d.firstSem)), 1);
-              return (
-                <div key={index} className="bar-group">
-                  <div className="bars-container">
-                    <div 
-                      className="bar second-sem" 
-                      style={{ height: `${(data.secondSem / maxValue) * 100}%` }}
-                    ></div>
-                    {data.firstSem > 0 && (
-                      <div 
-                        className="bar first-sem" 
-                        style={{ height: `${(data.firstSem / maxValue) * 100}%` }}
+          <div className="volume-chart">
+            {/* Y-axis with numeric labels aligned to the gridlines */}
+            <div className="volume-y-axis" aria-hidden="true">
+              {yTicksDesc.map((label, i) => (
+                <span key={i} className="volume-y-label">{label}</span>
+              ))}
+            </div>
+
+            <div className="volume-plot">
+              {/* Horizontal gridlines at each tick (0, 5, 10, …); the 0 baseline is emphasized */}
+              <div className="volume-gridlines" aria-hidden="true">
+                {yTicksDesc.map((tick, i) => (
+                  <div key={i} className={`volume-gridline${tick === 0 ? ' volume-gridline--zero' : ''}`} />
+                ))}
+              </div>
+
+              <div className="volume-bars">
+                {ticketData.map((data, index) => (
+                  <div key={index} className="volume-bar-group">
+                    <div
+                      className="volume-bar-track"
+                      data-tip={data.count > 0
+                        ? `${data.month} — ${data.count.toLocaleString()} request${data.count === 1 ? '' : 's'}`
+                        : `${data.month} — No requests yet`}
+                    >
+                      <div
+                        className={`volume-bar ${data.count > 0
+                          ? (selectedSemester === 'firstSem' ? 'volume-bar--first-sem' : 'volume-bar--second-sem')
+                          : 'volume-bar--placeholder'}`}
+                        style={data.count > 0
+                          ? { height: `${(data.count / topTick) * 100}%`, animationDelay: `${index * 0.07}s` }
+                          : undefined}
                       ></div>
-                    )}
+                    </div>
+                    <span className="volume-month-label">{data.month}</span>
                   </div>
-                  <div className="month-label">{data.month}</div>
-                </div>
-              );
-            })}
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="satisfaction-card">
           <div className="satisfaction-header">
             <h2 className="satisfaction-title">Student Satisfaction</h2>
-            <div className="satisfaction-filter">
-              <span>Filter by</span>
-              <FaChevronDown />
+            <div className="office-filter-wrap" ref={officeFilterRef}>
+              <button
+                type="button"
+                className={`satisfaction-filter ${satisfactionOffice !== 'all' ? 'active' : ''}`}
+                onClick={() => setOfficeFilterOpen(prev => !prev)}
+                aria-haspopup="true"
+                aria-expanded={officeFilterOpen}
+              >
+                <span>{satisfactionOffice === 'all' ? 'Filter by' : selectedOfficeName}</span>
+                <FaChevronDown aria-hidden="true" />
+              </button>
+
+              {officeFilterOpen && (
+                <div className="office-filter-menu">
+                  {SATISFACTION_OFFICES.map(office => (
+                    <button
+                      key={office.id}
+                      type="button"
+                      className={`office-filter-option ${satisfactionOffice === office.id ? 'selected' : ''}`}
+                      onClick={() => applyOfficeFilter(office.id)}
+                    >
+                      {office.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           

@@ -5,7 +5,6 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Html5Qrcode } from 'html5-qrcode';
 import { decryptCredentials } from '../utils/qrEncryption';
-import ForgotPassword from './ForgotPassword';
 import '../styles/Login.css';
 
 const Login = ({ onLogin, onGuestLogin }) => {
@@ -16,7 +15,6 @@ const Login = ({ onLogin, onGuestLogin }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [qrScanner, setQrScanner] = useState(null);
   const [scanningStatus, setScanningStatus] = useState('initializing'); // 'initializing', 'ready', 'scanning', 'success', 'error'
 
@@ -420,11 +418,19 @@ const Login = ({ onLogin, onGuestLogin }) => {
 
   return (
     <div className="login-container-student">
+      <div
+        className="login-bg-photo"
+        style={{ backgroundImage: "url('/school-cover.jpg')" }}
+        aria-hidden="true"
+      ></div>
       <div className="login-split-view">
         <div className="login-left-section">
-          <div className="school-background-overlay">
-            <div className="overlay-pattern"></div>
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="Academia De San Jose school logo"
+            className="login-school-logo"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
         </div>
 
         <div className="login-right-section">
@@ -440,39 +446,36 @@ const Login = ({ onLogin, onGuestLogin }) => {
               )}
 
               <div className="form-group-student">
-                <label className="form-label-student">Student ID</label>
+                <label className="form-label-student" htmlFor="studentId">Student ID</label>
                 <input
                   type="text"
+                  id="studentId"
+                  name="studentId"
                   className="form-input-student"
                   value={studentId}
                   onChange={handleStudentIdChange}
                   placeholder="Enter your 4-digit student ID"
                   maxLength="4"
                   pattern="\d{4}"
+                  autoComplete="username"
                 />
               </div>
 
               <div className="form-group-student">
                 <div className="label-row">
-                  <label className="form-label-student">Password</label>
-                  <a 
-                    href="#" 
-                    className="forgot-password-link"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setShowForgotPassword(true);
-                    }}
-                  >
-                    Forget Password?
-                  </a>
+                  <label className="form-label-student" htmlFor="password">Password</label>
+                  <a href="#" className="forgot-password-link">Forget Password?</a>
                 </div>
                 <div className="password-input-wrapper">
                   <input
                     type={showPassword ? "text" : "password"}
+                    id="password"
+                    name="password"
                     className="form-input-student"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
@@ -601,11 +604,6 @@ const Login = ({ onLogin, onGuestLogin }) => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Forgot Password Modal */}
-      {showForgotPassword && (
-        <ForgotPassword onClose={() => setShowForgotPassword(false)} />
       )}
     </div>
   );

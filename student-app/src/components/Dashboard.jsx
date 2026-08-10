@@ -1,12 +1,53 @@
 import { useState, useEffect } from 'react';
-import { MdAdd, MdConfirmationNumber } from 'react-icons/md';
-import { HiOutlineDocumentAdd, HiOutlineDocumentText, HiOutlineCheckCircle } from 'react-icons/hi';
+import {
+  MdAdd,
+  MdConfirmationNumber,
+  MdKeyboardArrowRight,
+  MdInbox
+} from 'react-icons/md';
+import {
+  HiOutlineDocumentAdd,
+  HiOutlineDocumentText,
+  HiOutlineCheckCircle
+} from 'react-icons/hi';
 import { db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import LoadingSpinner from './LoadingSpinner';
+import StatusBadge from './StatusBadge';
 import '../styles/Dashboard.css';
 
-function Dashboard({ onNavigate }) {
+const STAT_CARDS = [
+  {
+    id: 'total',
+    top: 'TOTAL',
+    title: 'All Request',
+    icon: <MdConfirmationNumber aria-hidden="true" />,
+    getValue: (s) => s.total
+  },
+  {
+    id: 'submitted',
+    top: 'SUBMITTED',
+    title: 'Pending Request',
+    icon: <HiOutlineDocumentAdd aria-hidden="true" />,
+    getValue: (s) => s.pending
+  },
+  {
+    id: 'active',
+    top: 'ACTIVE',
+    title: 'In Progress',
+    icon: <HiOutlineDocumentText aria-hidden="true" />,
+    getValue: (s) => s.inProgress
+  },
+  {
+    id: 'complete',
+    top: 'COMPLETE',
+    title: 'Resolved',
+    icon: <HiOutlineCheckCircle aria-hidden="true" />,
+    getValue: (s) => s.resolved
+  }
+];
+
+function Dashboard({ onNavigate, onViewDetails }) {
   const [studentName, setStudentName] = useState('');
   const [requests, setRequests] = useState([]);
   const [stats, setStats] = useState({
@@ -16,17 +57,18 @@ function Dashboard({ onNavigate }) {
     resolved: 0
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     // Get student info from localStorage
     const studentData = localStorage.getItem('studentData');
     if (studentData) {
       const student = JSON.parse(studentData);
-      const fullName = student.firstName && student.lastName 
+      const fullName = student.firstName && student.lastName
         ? `${student.firstName} ${student.lastName}`
         : student.name || 'Student';
       setStudentName(fullName);
-      
+
       // Use studentId, fallback to id or uid
       const identifier = student.studentId || student.id || student.uid;
       loadRequests(identifier, student.uid);
@@ -36,16 +78,17 @@ function Dashboard({ onNavigate }) {
   const loadRequests = async (studentId, studentUid) => {
     try {
       setLoading(true);
-      
+      setError('');
+
       // Query all requests for this student
       const requestsRef = collection(db, 'requests');
       let q = query(
         requestsRef,
         where('studentId', '==', studentId)
       );
-      
+
       let querySnapshot = await getDocs(q);
-      
+
       // If no results, try with studentUid
       if (querySnapshot.empty && studentUid) {
         q = query(
@@ -54,7 +97,7 @@ function Dashboard({ onNavigate }) {
         );
         querySnapshot = await getDocs(q);
       }
-      
+
       const allRequests = querySnapshot.docs.map(doc => {
         const data = doc.data();
         return {
@@ -62,10 +105,10 @@ function Dashboard({ onNavigate }) {
           id: data.requestId,
           office: data.office,
           subject: data.subject,
-          date: data.createdAt?.toDate().toLocaleDateString('en-US', { 
-            month: 'long', 
-            day: 'numeric', 
-            year: 'numeric' 
+          date: data.createdAt?.toDate().toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
           }) || 'N/A',
           status: data.status,
           createdAtTimestamp: data.createdAt?.toDate().getTime() || 0,
@@ -85,13 +128,12 @@ function Dashboard({ onNavigate }) {
       };
 
       setStats(newStats);
-      
+
       // Get recent 5 requests
       setRequests(allRequests.slice(0, 5));
-      
-      console.log('✅ Dashboard loaded:', newStats.total, 'total requests');
-    } catch (error) {
-      console.error('❌ Error loading dashboard:', error);
+    } catch (loadError) {
+      console.error('❌ Error loading dashboard:', loadError);
+      setError('Unable to load your requests. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -99,78 +141,83 @@ function Dashboard({ onNavigate }) {
 
   return (
     <div className="dashboard">
-      <div className="breadcrumb-placeholder"></div>
-      
-      <div className="content-header">
+      <div className="page-header">
         <h1>Welcome back, {studentName}</h1>
-        <div className="header-actions">
-          <button className="create-btn" onClick={() => onNavigate('new-request')}>
-            <MdAdd /> CREATE NEW REQUEST
+        <button type="button" className="create-btn" onClick={() => onNavigate('new-request')}>
+          <MdAdd aria-hidden="true" />
+          CREATE NEW REQUEST
+        </button>
+      </div>
+
+      <div className="stats" role="group" aria-label="Request summary">
+        {STAT_CARDS.map((card) => (
+          <div key={card.id} className={`stat-card ${card.id}`}>
+            <span className="stat-card-label">{card.top}</span>
+            <div className="icon">{card.icon}</div>
+            <h2>{card.title}</h2>
+            <div className="number">{card.getValue(stats)}</div>
+          </div>
+        ))}
+      </div>
+
+      <section className="recent-requests" aria-labelledby="recent-requests-title">
+        <div className="section-header">
+          <h2 id="recent-requests-title">Recent Request</h2>
+          <button type="button" className="view-all-btn" onClick={() => onNavigate('request')}>
+            View all My Request
+            <MdKeyboardArrowRight aria-hidden="true" />
           </button>
         </div>
-      </div>
 
-      <div className="stats">
-        <div className="stat-card total">
-          <span>TOTAL</span>
-          <div className="icon"><MdConfirmationNumber /></div>
-          <h2>All Request</h2>
-          <div className="number">{stats.total}</div>
-        </div>
-        <div className="stat-card submitted">
-          <span>SUBMITTED</span>
-          <div className="icon"><HiOutlineDocumentAdd /></div>
-          <h2>Pending Request</h2>
-          <div className="number">{stats.pending}</div>
-        </div>
-        <div className="stat-card active">
-          <span>ACTIVE</span>
-          <div className="icon"><HiOutlineDocumentText /></div>
-          <h2>In Progress</h2>
-          <div className="number">{stats.inProgress}</div>
-        </div>
-        <div className="stat-card complete">
-          <span>COMPLETE</span>
-          <div className="icon"><HiOutlineCheckCircle /></div>
-          <h2>Resolved</h2>
-          <div className="number">{stats.resolved}</div>
-        </div>
-      </div>
-
-      <section className="recent-requests">
-        <div className="section-header">
-          <h2>Recent Request</h2>
-          <a href="#">View all My Request →</a>
-        </div>
-        
         <div className="table-container">
           {loading ? (
             <LoadingSpinner message="Loading requests..." fullScreen={false} />
+          ) : error ? (
+            <div className="empty-state">
+              <MdInbox className="empty-state-icon" aria-hidden="true" />
+              <p>{error}</p>
+            </div>
           ) : requests.length === 0 ? (
             <div className="empty-state">
+              <MdInbox className="empty-state-icon" aria-hidden="true" />
               <p>No requests yet. Create your first request to get started!</p>
             </div>
           ) : (
-            <table>
+            <table className="data-table">
+              <caption className="sr-only">Your recent requests</caption>
               <thead>
                 <tr>
-                  <th>REQUEST ID</th>
-                  <th>OFFICE</th>
-                  <th>SUBJECT</th>
-                  <th>DATE SUBMITTED</th>
-                  <th>STATUS</th>
-                  <th></th>
+                  <th scope="col">REQUEST ID</th>
+                  <th scope="col">OFFICE</th>
+                  <th scope="col">SUBJECT</th>
+                  <th scope="col">DATE SUBMITTED</th>
+                  <th scope="col">STATUS</th>
+                  <th scope="col">
+                    <span className="sr-only">Details</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {requests.map((req, index) => (
-                  <tr key={req.firestoreId || index}>
+                  <tr key={req.firestoreId || index} onClick={() => onViewDetails?.(req)}>
                     <td>#{req.id}</td>
                     <td>{req.office}</td>
                     <td>{req.subject}</td>
                     <td>{req.date}</td>
-                    <td><span className={`status ${req.status.toLowerCase().replace(' ', '-')}`}>{req.status}</span></td>
-                    <td>›</td>
+                    <td><StatusBadge status={req.status} /></td>
+                    <td className="row-action">
+                      <button
+                        type="button"
+                        className="row-action-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewDetails?.(req);
+                        }}
+                        aria-label={`View details for request ${req.id || req.subject || index + 1}`}
+                      >
+                        <MdKeyboardArrowRight aria-hidden="true" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

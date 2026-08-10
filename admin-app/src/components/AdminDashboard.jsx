@@ -204,45 +204,49 @@ const AdminDashboard = ({ department }) => {
 
       <div className="stats-cards">
         <div className="stat-card">
-          <div className="stat-header">
-            <div className="stat-icon-container">
+          <div className="stat-card-head">
+            <div className="stat-icon-box stat-icon-box--total">
               <FaInbox className="stat-icon" />
             </div>
-            <span className="stat-label">TOTAL</span>
+            <span className="stat-chip">New</span>
           </div>
+          <div className="stat-label">Total</div>
           <div className="stat-value">{stats.total}</div>
           <div className="stat-subtext">All Tickets</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-header">
-            <div className="stat-icon-container">
+          <div className="stat-card-head">
+            <div className="stat-icon-box stat-icon-box--unassigned">
               <FaTicketAlt className="stat-icon" />
             </div>
-            <span className="stat-label">UNASSIGNED</span>
+            <span className="stat-chip">Open</span>
           </div>
+          <div className="stat-label">Unassigned</div>
           <div className="stat-value">{stats.unassigned}</div>
           <div className="stat-subtext">Pending Tickets</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-header">
-            <div className="stat-icon-container">
+          <div className="stat-card-head">
+            <div className="stat-icon-box stat-icon-box--claimed">
               <FaClipboard className="stat-icon" />
             </div>
-            <span className="stat-label">CLAIMED</span>
+            <span className="stat-chip">In Progress</span>
           </div>
+          <div className="stat-label">Claimed</div>
           <div className="stat-value">{stats.claimed}</div>
           <div className="stat-subtext">In Progress</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-header">
-            <div className="stat-icon-container">
+          <div className="stat-card-head">
+            <div className="stat-icon-box stat-icon-box--complete">
               <FaCheckCircle className="stat-icon" />
             </div>
-            <span className="stat-label">COMPLETE</span>
+            <span className="stat-chip">Resolved</span>
           </div>
+          <div className="stat-label">Complete</div>
           <div className="stat-value">{stats.resolved}</div>
           <div className="stat-subtext">Resolved</div>
         </div>

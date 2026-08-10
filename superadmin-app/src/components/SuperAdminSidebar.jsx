@@ -1,8 +1,8 @@
 import React from 'react';
-import { FaThLarge, FaEdit, FaChartLine, FaUsers, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
+import { FaThLarge, FaEdit, FaChartLine, FaUsers, FaUserCircle, FaSignOutAlt, FaTimes } from 'react-icons/fa';
 import '../styles/SuperAdminSidebar.css';
 
-const SuperAdminSidebar = ({ activePage, onNavigate }) => {
+const SuperAdminSidebar = ({ activePage, onNavigate, isOpen = false, onClose, onLogout }) => {
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       // For superadmin, just clear any stored data and reload
@@ -10,58 +10,78 @@ const SuperAdminSidebar = ({ activePage, onNavigate }) => {
       window.location.reload();
     }
   };
+
+  const NAV_ITEMS = [
+    { key: 'dashboard', label: 'Dashboard', icon: FaThLarge },
+    { key: 'edit-request', label: 'Edit Request Form', icon: FaEdit },
+    { key: 'analytics', label: 'Analytics', icon: FaChartLine },
+    { key: 'user-management', label: 'User Management', icon: FaUsers }
+  ];
+
+  const handleNavigate = (page) => {
+    onNavigate(page);
+    onClose?.();
+  };
+
   return (
-    <aside className="superadmin-sidebar">
-      <div className="sidebar-logo">
-        <img src="/school-logo.png" alt="School Logo" />
-      </div>
-      
-      <nav className="sidebar-menu">
-        <div
-          className={`sidebar-item ${activePage === 'dashboard' ? 'active' : ''}`}
-          onClick={() => onNavigate('dashboard')}
+    <>
+      {/* Backdrop — only visible when the drawer is open on small screens */}
+      <div
+        className={`sidebar-backdrop ${isOpen ? 'sidebar-backdrop--show' : ''}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <aside
+        id="superadmin-sidebar"
+        className={`superadmin-sidebar ${isOpen ? 'sidebar--open' : ''}`}
+        aria-label="Super admin navigation"
+      >
+        {/* Close button — only visible on the mobile drawer */}
+        <button
+          type="button"
+          className="sidebar-close-btn"
+          onClick={onClose}
+          aria-label="Close navigation menu"
         >
-          <FaThLarge className="sidebar-icon" />
-          <span className="sidebar-label">Dashboard</span>
-        </div>
-        
-        <div
-          className={`sidebar-item ${activePage === 'edit-request' ? 'active' : ''}`}
-          onClick={() => onNavigate('edit-request')}
-        >
-          <FaEdit className="sidebar-icon" />
-          <span className="sidebar-label">Edit Request Form</span>
-        </div>
-        
-        <div
-          className={`sidebar-item ${activePage === 'analytics' ? 'active' : ''}`}
-          onClick={() => onNavigate('analytics')}
-        >
-          <FaChartLine className="sidebar-icon" />
-          <span className="sidebar-label">Analytics</span>
-        </div>
-        
-        <div
-          className={`sidebar-item ${activePage === 'user-management' ? 'active' : ''}`}
-          onClick={() => onNavigate('user-management')}
-        >
-          <FaUsers className="sidebar-icon" />
-          <span className="sidebar-label">User Management</span>
-        </div>
-      </nav>
-      
-      <div className="sidebar-footer">
-        <div className="sidebar-user">
-          <FaUserCircle className="user-icon" />
-          <span className="user-label">SUPER ADMIN</span>
-        </div>
-        
-        <button className="logout-button" onClick={handleLogout}>
-          <FaSignOutAlt className="logout-icon" />
-          <span>Logout</span>
+          <FaTimes aria-hidden="true" />
         </button>
-      </div>
-    </aside>
+
+        <div className="sidebar-logo">
+          <img src="/school-logo.jpg" alt="Academia De San Jose school logo" />
+        </div>
+
+        <nav className="sidebar-menu" aria-label="Main">
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                className={`sidebar-item ${activePage === item.key ? 'active' : ''}`}
+                onClick={() => handleNavigate(item.key)}
+                aria-current={activePage === item.key ? 'page' : undefined}
+              >
+                <Icon className="sidebar-icon" aria-hidden="true" />
+                <span className="sidebar-label">{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <FaUserCircle className="user-icon" aria-hidden="true" />
+            <span className="user-label">SUPER ADMIN</span>
+          </div>
+
+          <button className="logout-button" onClick={onLogout || handleLogout}>
+            <FaSignOutAlt className="logout-icon" aria-hidden="true" />
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+    </>
   );
 };
 

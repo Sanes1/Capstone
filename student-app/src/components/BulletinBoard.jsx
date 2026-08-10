@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
+import Breadcrumb from './Breadcrumb';
 import '../styles/BulletinBoard.css';
 
 function BulletinBoard() {
@@ -10,7 +11,52 @@ function BulletinBoard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadBulletinData();
+    let unsubscribeAnnouncements = null;
+    let unsubscribeDeadlines = null;
+
+    try {
+      // Load all announcements (from all offices)
+      const announcementsQuery = query(
+        collection(db, 'announcements'),
+        orderBy('createdAt', 'desc')
+      );
+
+      unsubscribeAnnouncements = onSnapshot(announcementsQuery, (querySnapshot) => {
+        const announcementsData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setAnnouncements(announcementsData);
+        setLoading(false);
+      }, (error) => {
+        console.error('❌ Error loading announcements:', error);
+        setLoading(false);
+      });
+
+      // Load all important dates (from all offices) - students see all deadlines
+      const deadlinesQuery = query(
+        collection(db, 'importantDates'),
+        orderBy('dateValue', 'asc')
+      );
+
+      unsubscribeDeadlines = onSnapshot(deadlinesQuery, (querySnapshot) => {
+        const deadlinesData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setDeadlines(deadlinesData);
+      }, (error) => {
+        console.error('❌ Error loading deadlines:', error);
+      });
+    } catch (error) {
+      console.error('❌ Error loading bulletin data:', error);
+      setLoading(false);
+    }
+
+    return () => {
+      if (unsubscribeAnnouncements) unsubscribeAnnouncements();
+      if (unsubscribeDeadlines) unsubscribeDeadlines();
+    };
   }, []);
 
   // Mark announcements as read when user views the bulletin board
@@ -21,50 +67,9 @@ function BulletinBoard() {
     }
   }, [announcements]);
 
-  const loadBulletinData = async () => {
-    try {
-      // Load all announcements (from all offices)
-      const announcementsQuery = query(
-        collection(db, 'announcements'),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const unsubscribeAnnouncements = onSnapshot(announcementsQuery, (querySnapshot) => {
-        const announcementsData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setAnnouncements(announcementsData);
-        setLoading(false);
-      });
-      
-      // Load all important dates (from all offices) - students see all deadlines
-      const deadlinesQuery = query(
-        collection(db, 'importantDates'),
-        orderBy('dateValue', 'asc')
-      );
-      
-      const unsubscribeDeadlines = onSnapshot(deadlinesQuery, (querySnapshot) => {
-        const deadlinesData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setDeadlines(deadlinesData);
-      });
-      
-      return () => {
-        unsubscribeAnnouncements();
-        unsubscribeDeadlines();
-      };
-    } catch (error) {
-      console.error('❌ Error loading bulletin data:', error);
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="bulletin-board-page">
-      <div className="breadcrumb-placeholder"></div>
+      <Breadcrumb items={[{ label: 'Bulletin Board', current: true }]} />
 
       <div className="page-header">
         <h1>Bulletin Board</h1>

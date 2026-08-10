@@ -425,3 +425,62 @@
   font-size: 14px;
   color: #666;
 }
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+/* Laptop */
+@media (max-width: 1365px) {
+  .analytics-container {
+    padding: 24px 28px;
+  }
+}
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .analytics-container {
+    padding: 20px;
+  }
+
+  .analytics-header {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .analytics-title {
+    font-size: 24px;
+  }
+
+  .analytics-header-actions {
+    flex-wrap: wrap;
+  }
+
+  .analytics-stats-grid {
+    gap: 14px;
+  }
+
+  .analytics-charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bar-chart {
+    height: 220px;
+  }
+
+  .pie-chart-container {
+    gap: 30px;
+  }
+
+  .pie-chart-wrapper {
+    width: 240px;
+    height: 240px;
+  }
+}
+
+/* Small tablets — roomy single-column stat cards */
+@media (max-width: 900px) {
+  .analytics-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}

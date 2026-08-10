@@ -1,31 +1,28 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  background-color: #f8f9fa;
-  overflow: hidden;
-}
+/* ==========================================================================
+   APP SHELL — header on top, sidebar + main content below.
+   Sidebar is a static rail on desktop (>=1024px) and an off-canvas drawer
+   below that (see Sidebar.css).
+   ========================================================================== */
 
 .app {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
 .app-body {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
 .main-content {
   flex: 1;
-  background-color: #f8f9fa;
+  min-width: 0; /* prevent tables/cards from blowing out the layout */
+  background-color: var(--color-bg);
   display: flex;
   flex-direction: column;
   overflow: hidden;

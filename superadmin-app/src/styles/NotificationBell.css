@@ -1,0 +1,256 @@
+/* ==========================================================================
+   SUPER ADMIN NOTIFICATION BELL — pinned bell + dropdown panel
+   --------------------------------------------------------------------------
+   The bell stays in a fixed spot in the page header (it never moves with
+   the filter/actions). Clicking it opens a dropdown that renders even when
+   there are no notifications (empty state).
+   ========================================================================== */
+
+.notification-bell-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+/* The bell button reuses .icon-button from shared.css */
+.notification-bell-btn {
+  cursor: pointer;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background-color: var(--red-500);
+  border: 2px solid var(--color-surface);
+  color: #fff;
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+}
+
+/* ---- Dropdown panel ---- */
+.notification-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 60;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  background-color: var(--color-surface);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: notification-pop 0.18s ease;
+}
+
+@keyframes notification-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.notification-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.notification-dropdown-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.notification-dropdown-bell {
+  color: var(--color-primary);
+  font-size: var(--font-size-md);
+}
+
+.notification-dropdown-title h3 {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin: 0;
+}
+
+.unread-count-chip {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background-color: var(--red-100);
+  color: var(--red-700);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+}
+
+.notification-dropdown-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.mark-all-read-btn,
+.close-notifications-btn {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.mark-all-read-btn:hover {
+  background-color: var(--sage-50);
+  color: var(--color-primary);
+}
+
+.close-notifications-btn:hover {
+  background-color: var(--gray-100);
+  color: var(--color-text);
+}
+
+/* ---- List ---- */
+.notification-dropdown-list {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.notification-dropdown-loading {
+  padding: var(--space-10) var(--space-5);
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--gray-100);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item:hover {
+  background-color: var(--gray-100);
+}
+
+.notification-item.unread {
+  background-color: var(--sage-50);
+}
+
+.notification-item.unread:hover {
+  background-color: var(--sage-100);
+}
+
+.notification-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  margin-bottom: var(--space-1);
+}
+
+.notification-message {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin-bottom: var(--space-1);
+  overflow-wrap: break-word;
+}
+
+.notification-time {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+}
+
+.notification-unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+/* ---- Empty state ---- */
+.notification-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-10) var(--space-5);
+  color: var(--color-text-muted);
+}
+
+.notification-empty-icon {
+  font-size: 42px;
+  color: var(--gray-300);
+  margin-bottom: var(--space-3);
+}
+
+.notification-empty p {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-body);
+  margin: 0 0 var(--space-1) 0;
+}
+
+.notification-empty-hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-faint);
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 639px) {
+  .notification-dropdown {
+    position: fixed;
+    top: 76px;
+    right: var(--space-3);
+    left: var(--space-3);
+    width: auto;
+    max-width: none;
+  }
+
+  .notification-dropdown-list {
+    max-height: calc(100vh - 200px);
+  }
+}

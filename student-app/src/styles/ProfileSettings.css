@@ -1,40 +1,56 @@
+/* Figma: the settings sheet sits BELOW the header — the header stays bright
+   and undimmed (pixel scan showed F0EEEE header at y0-186, dim starts y188+) */
 .profile-settings-overlay {
   position: fixed;
-  top: 0;
+  top: var(--header-height);
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: var(--space-6) var(--space-4);
   z-index: 1000;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
 }
 
+/* Figma: settings sheet is near full-screen (≈91% of canvas) with a warm
+   #F0EEEE surface and slightly darker #E9E9E9 section cards */
 .profile-settings-modal {
-  background-color: white;
+  background-color: var(--color-bg);
   width: 95%;
-  max-width: 1100px;
-  max-height: 90vh;
-  border-radius: 8px;
+  max-width: 1320px;
+  /* Fits within the space below the header, leaving equal padding above & below */
+  max-height: calc(100vh - var(--header-height) - var(--space-6) - var(--space-6));
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-divider);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  animation: modalSlideIn 0.25s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .profile-settings-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 30px;
-  border-bottom: 1px solid #e0e0e0;
-  background-color: #f9f9f9;
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--color-divider);
+  background-color: var(--color-bg);
 }
 
 .profile-settings-header h2 {
   margin: 0;
-  font-size: 24px;
-  color: #333;
+  font-size: var(--font-size-xl);
+  color: var(--color-text);
 }
 
 .close-btn {
@@ -63,17 +79,18 @@
 }
 
 .settings-section {
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  padding: 30px;
-  margin-bottom: 25px;
+  background-color: var(--gray-45);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  margin-bottom: var(--space-5);
 }
 
 .settings-section h3 {
-  margin: 0 0 25px 0;
-  font-size: 20px;
-  color: #555;
-  font-weight: 600;
+  margin: 0 0 var(--space-5) 0;
+  font-size: var(--font-size-lg);
+  color: var(--color-text);
+  font-weight: var(--font-weight-semibold);
 }
 
 .profile-info-grid {
@@ -99,16 +116,16 @@
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid #e0e0e0;
+  border: 3px solid var(--gray-300);
 }
 
 .profile-picture-placeholder {
-  background-color: #105E06;
+  background-color: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 48px;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: white;
 }
 
@@ -119,17 +136,17 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: #105E06;
+  background-color: var(--color-primary);
   border: 3px solid white;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color var(--transition-fast);
 }
 
 .upload-btn:hover {
-  background-color: #0d4a05;
+  background-color: var(--color-primary-hover);
 }
 
 .upload-btn svg {
@@ -163,10 +180,10 @@
 }
 
 .form-group label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-  margin-bottom: 8px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -177,7 +194,7 @@
 
 .form-group input {
   padding: 12px;
-  border: 1px solid #d0d0d0;
+  border: 1px solid var(--gray-400);
   border-radius: 6px;
   font-size: 14px;
   background-color: white;
@@ -190,7 +207,7 @@
 }
 
 .form-group input.readonly-field {
-  background-color: #f0f0f0;
+  background-color: var(--gray-200);
   cursor: not-allowed;
 }
 
@@ -200,22 +217,64 @@
 
 .input-with-icon input {
   width: 100%;
-  padding-right: 40px;
+  padding-right: 44px;
 }
 
+/* Static decorative icon used by other masked fields (e.g. phone number) */
 .eye-icon {
   position: absolute;
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
   color: #999;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+/* Toggle button that reveals/hides the masked email address */
+.eye-icon-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #999;
   cursor: pointer;
   font-size: 16px;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.eye-icon-btn:hover {
+  color: var(--color-primary);
+  background: var(--gray-100);
+}
+
+.eye-icon-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.eye-icon-btn svg {
+  pointer-events: none;
 }
 
 .masked-field {
   font-family: 'Courier New', monospace;
   letter-spacing: 2px;
+}
+
+/* Masked email text should read naturally (no monospace/letter-spacing)
+   while still clearly showing the privacy bullets */
+.masked-field.email-masked {
+  font-family: var(--font-family);
+  letter-spacing: 0.5px;
 }
 
 /* Account Security */
@@ -224,7 +283,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 0;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--gray-300);
 }
 
 .security-item:last-child {
@@ -261,21 +320,23 @@
   color: white;
 }
 
-/* Toggle Switch */
-.toggle-switch {
+/* Toggle Switch — scoped classes (settings-toggle-*) so this 2FA switch never
+   collides with the Feedback page's follow-up switch (both used the generic
+   .toggle-switch / .toggle-slider names in separate stylesheets) */
+.settings-toggle {
   position: relative;
   display: inline-block;
   width: 54px;
   height: 28px;
 }
 
-.toggle-switch input {
+.settings-toggle input {
   opacity: 0;
   width: 0;
   height: 0;
 }
 
-.toggle-slider {
+.settings-toggle-slider {
   position: absolute;
   cursor: pointer;
   top: 0;
@@ -287,7 +348,7 @@
   border-radius: 28px;
 }
 
-.toggle-slider:before {
+.settings-toggle-slider:before {
   position: absolute;
   content: "";
   height: 20px;
@@ -299,11 +360,11 @@
   border-radius: 50%;
 }
 
-.toggle-switch input:checked + .toggle-slider {
+.settings-toggle input:checked + .settings-toggle-slider {
   background-color: #8CB986;
 }
 
-.toggle-switch input:checked + .toggle-slider:before {
+.settings-toggle input:checked + .settings-toggle-slider:before {
   transform: translateX(26px);
 }
 
@@ -332,18 +393,18 @@
 
 .update-btn {
   padding: 12px 40px;
-  background-color: #8CB986;
+  background-color: var(--green-btn);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: white;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
 
 .update-btn:hover {
-  background-color: #7aa876;
+  background-color: var(--green-btn-hover);
 }
 
 .update-btn:disabled {
@@ -387,7 +448,7 @@
   width: 100%;
   padding: 12px;
   padding-right: 45px;
-  border: 1px solid #d0d0d0;
+  border: 1px solid var(--gray-400);
   border-radius: 6px;
   font-size: 14px;
 }
@@ -431,12 +492,12 @@
 
 .cancel-btn {
   background-color: white;
-  border: 2px solid #d0d0d0;
+  border: 2px solid var(--gray-400);
   color: #666;
 }
 
 .cancel-btn:hover {
-  background-color: #f5f5f5;
+  background-color: var(--gray-100);
 }
 
 .confirm-btn {
@@ -499,10 +560,11 @@
 
 .qr-code-container {
   display: flex;
-  gap: 30px;
-  padding: 20px;
-  background-color: #f8f9fa;
-  border-radius: 10px;
+  gap: var(--space-6);
+  padding: var(--space-5);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
 }
 
 .qr-code-display {
