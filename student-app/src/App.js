@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Login from './components/Login';
+import ForgotPassword from './components/ForgotPassword';
 import GuestLogin from './components/GuestLogin';
 import ChangePasswordModal from './components/ChangePasswordModal';
 import Header from './components/Header';
@@ -22,6 +23,7 @@ function App() {
   const [isGuest, setIsGuest] = useState(() => {
     return localStorage.getItem('studentIsGuest') === 'true';
   });
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [activePage, setActivePage] = useState(() => {
     return localStorage.getItem('studentActivePage') || 'dashboard';
   });
@@ -166,7 +168,10 @@ function App() {
   };
 
   if (!isLoggedIn && !isGuest) {
-    return <Login onLogin={handleLogin} onGuestLogin={handleGuestLogin} />;
+    if (showForgotPassword) {
+      return <ForgotPassword onClose={() => setShowForgotPassword(false)} />;
+    }
+    return <Login onLogin={handleLogin} onGuestLogin={handleGuestLogin} onForgotPassword={() => setShowForgotPassword(true)} />;
   }
 
   if (isGuest) {

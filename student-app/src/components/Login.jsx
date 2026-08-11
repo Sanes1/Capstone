@@ -7,7 +7,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { decryptCredentials } from '../utils/qrEncryption';
 import '../styles/Login.css';
 
-const Login = ({ onLogin, onGuestLogin }) => {
+const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
   const [studentId, setStudentId] = useState('');
   const [password, setPassword] = useState('');
   const [rememberDevice, setRememberDevice] = useState(false);
@@ -464,7 +464,13 @@ const Login = ({ onLogin, onGuestLogin }) => {
               <div className="form-group-student">
                 <div className="label-row">
                   <label className="form-label-student" htmlFor="password">Password</label>
-                  <a href="#" className="forgot-password-link">Forget Password?</a>
+                  <button 
+                    type="button"
+                    className="forgot-password-link" 
+                    onClick={onForgotPassword}
+                  >
+                    Forget Password?
+                  </button>
                 </div>
                 <div className="password-input-wrapper">
                   <input
