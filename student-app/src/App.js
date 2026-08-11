@@ -28,6 +28,8 @@ function App() {
     return localStorage.getItem('studentActivePage') || 'dashboard';
   });
   const [selectedRequest, setSelectedRequest] = useState(null); // Store selected request
+  // Status filter pre-applied when opening Request History from the dashboard cards
+  const [requestStatusFilter, setRequestStatusFilter] = useState('All Status');
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [studentData, setStudentData] = useState(null);
   const [hasUnreadBulletin, setHasUnreadBulletin] = useState(false);
@@ -131,6 +133,19 @@ function App() {
     setActivePage('request-details');
   };
 
+  // Plain navigation to Request History (sidebar, breadcrumbs, "View all")
+  // always shows all requests — no status filter.
+  const handleNavigate = (page) => {
+    if (page === 'request') setRequestStatusFilter('All Status');
+    setActivePage(page);
+  };
+
+  // Dashboard stat cards: open Request History pre-filtered by status.
+  const handleViewRequests = (statusFilter) => {
+    setRequestStatusFilter(statusFilter || 'All Status');
+    setActivePage('request');
+  };
+
   // Clear unread bulletin indicator when navigating to bulletin board
   useEffect(() => {
     if (activePage === 'bulletin') {
@@ -141,13 +156,13 @@ function App() {
   const renderPage = () => {
     switch(activePage) {
       case 'dashboard':
-        return <Dashboard onNavigate={setActivePage} onViewDetails={handleViewRequestDetails} />;
+        return <Dashboard onNavigate={handleNavigate} onViewDetails={handleViewRequestDetails} onViewRequests={handleViewRequests} />;
       case 'request':
-        return <MyRequest onViewDetails={handleViewRequestDetails} onNavigate={setActivePage} />;
+        return <MyRequest onViewDetails={handleViewRequestDetails} onNavigate={handleNavigate} initialStatusFilter={requestStatusFilter} />;
       case 'request-details':
-        return <RequestDetails requestData={selectedRequest} onNavigate={setActivePage} />;
+        return <RequestDetails requestData={selectedRequest} onNavigate={handleNavigate} />;
       case 'new-request':
-        return <NewRequest onNavigate={setActivePage} />;
+        return <NewRequest onNavigate={handleNavigate} />;
       case 'bulletin':
         return <BulletinBoard />;
       case 'feedback':
@@ -163,7 +178,7 @@ function App() {
       case 'faq':
         return <FAQs />;
       default:
-        return <Dashboard onNavigate={setActivePage} />;
+        return <Dashboard onNavigate={handleNavigate} onViewDetails={handleViewRequestDetails} onViewRequests={handleViewRequests} />;
     }
   };
 
@@ -189,11 +204,12 @@ function App() {
       <Header
         onMenuToggle={() => setIsSidebarOpen(true)}
         isSidebarOpen={isSidebarOpen}
+        onViewRequest={handleViewRequestDetails}
       />
       <div className="app-body">
         <Sidebar
           activePage={activePage}
-          onNavigate={setActivePage}
+          onNavigate={handleNavigate}
           hasUnreadBulletin={hasUnreadBulletin}
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}

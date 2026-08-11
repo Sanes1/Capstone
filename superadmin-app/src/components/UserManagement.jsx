@@ -75,6 +75,22 @@ const UserManagement = () => {
   const visibleStudents = paginate(filterList(students));
   const visibleStaff = paginate(filterList(staffMembers));
 
+  // Create Account buttons stay grayed out until every required field is
+  // filled in (middle name and suffix are optional).
+  const isStudentFormValid =
+    studentId.length === 4 &&
+    studentFirstName.trim() !== '' &&
+    studentLastName.trim() !== '' &&
+    studentEmail.trim() !== '' &&
+    studentGradeLevel.trim() !== '' &&
+    studentSection.trim() !== '';
+
+  const isStaffFormValid =
+    staffFirstName.trim() !== '' &&
+    staffLastName.trim() !== '' &&
+    staffEmail.trim() !== '' &&
+    staffUsername.trim() !== '';
+
   const offices = [
     { id: 'finance', name: 'Finance' },
     { id: 'library', name: 'Library' },
@@ -825,7 +841,12 @@ const UserManagement = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="create-btn-super" disabled={loading}>
+                <button
+                  type="submit"
+                  className="create-btn-super"
+                  disabled={loading || !isStudentFormValid}
+                  title={!isStudentFormValid ? 'Fill in all required fields to create the account' : undefined}
+                >
                   <FaPlus />
                   {loading ? 'Creating...' : 'Create Account'}
                 </button>
@@ -953,7 +974,12 @@ const UserManagement = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="create-btn-super" disabled={loading}>
+                <button
+                  type="submit"
+                  className="create-btn-super"
+                  disabled={loading || !isStaffFormValid}
+                  title={!isStaffFormValid ? 'Fill in all required fields to create the account' : undefined}
+                >
                   <FaPlus />
                   {loading ? 'Creating...' : 'Create Account'}
                 </button>

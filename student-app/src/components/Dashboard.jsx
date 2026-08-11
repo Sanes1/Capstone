@@ -16,38 +16,44 @@ import LoadingSpinner from './LoadingSpinner';
 import StatusBadge from './StatusBadge';
 import '../styles/Dashboard.css';
 
+// Each card opens Request History pre-filtered to the matching status
+// ('All Status' = no filter). Values match the MyRequest dropdown options.
 const STAT_CARDS = [
   {
     id: 'total',
     top: 'TOTAL',
     title: 'All Request',
     icon: <MdConfirmationNumber aria-hidden="true" />,
-    getValue: (s) => s.total
+    getValue: (s) => s.total,
+    filter: 'All Status'
   },
   {
     id: 'submitted',
     top: 'SUBMITTED',
     title: 'Pending Request',
     icon: <HiOutlineDocumentAdd aria-hidden="true" />,
-    getValue: (s) => s.pending
+    getValue: (s) => s.pending,
+    filter: 'Pending'
   },
   {
     id: 'active',
     top: 'ACTIVE',
     title: 'In Progress',
     icon: <HiOutlineDocumentText aria-hidden="true" />,
-    getValue: (s) => s.inProgress
+    getValue: (s) => s.inProgress,
+    filter: 'In Process'
   },
   {
     id: 'complete',
     top: 'COMPLETE',
     title: 'Resolved',
     icon: <HiOutlineCheckCircle aria-hidden="true" />,
-    getValue: (s) => s.resolved
+    getValue: (s) => s.resolved,
+    filter: 'Resolved'
   }
 ];
 
-function Dashboard({ onNavigate, onViewDetails }) {
+function Dashboard({ onNavigate, onViewDetails, onViewRequests }) {
   const [studentName, setStudentName] = useState('');
   const [requests, setRequests] = useState([]);
   const [stats, setStats] = useState({
@@ -151,12 +157,18 @@ function Dashboard({ onNavigate, onViewDetails }) {
 
       <div className="stats" role="group" aria-label="Request summary">
         {STAT_CARDS.map((card) => (
-          <div key={card.id} className={`stat-card ${card.id}`}>
+          <button
+            key={card.id}
+            type="button"
+            className={`stat-card ${card.id}`}
+            onClick={() => onViewRequests?.(card.filter)}
+            aria-label={`View ${card.title} in Request History`}
+          >
             <span className="stat-card-label">{card.top}</span>
             <div className="icon">{card.icon}</div>
             <h2>{card.title}</h2>
             <div className="number">{card.getValue(stats)}</div>
-          </div>
+          </button>
         ))}
       </div>
 

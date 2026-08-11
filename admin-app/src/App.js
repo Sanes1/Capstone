@@ -29,7 +29,10 @@ function App() {
     return '';
   });
   const [activePage, setActivePage] = useState(() => {
-    return localStorage.getItem('adminActivePage') || 'dashboard';
+    const stored = localStorage.getItem('adminActivePage');
+    // Ticket Details needs the ticket object, which isn't persisted — restoring
+    // it after a refresh would trap the app on the loading screen.
+    return stored && stored !== 'ticket-details' ? stored : 'dashboard';
   });
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -53,6 +56,12 @@ function App() {
     }
   };
 
+  // Open a ticket straight from a notification click — same path as
+  // "View Ticket" buttons (sets the ticket + navigates to its details).
+  const handleViewTicket = (ticket) => {
+    handleNavigate('ticket-details', ticket);
+  };
+
   // Save active page to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('adminActivePage', activePage);
@@ -71,12 +80,12 @@ function App() {
         onOpenProfile={() => setShowProfileSettings(true)}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {activePage === 'dashboard' && <AdminDashboard department={selectedDepartment} />}
-        {activePage === 'my-tickets' && <MyTickets department={selectedDepartment} onNavigate={handleNavigate} />}
-        {activePage === 'ticket-details' && <TicketDetails ticketData={selectedTicket} department={selectedDepartment} onNavigate={handleNavigate} />}
-        {activePage === 'analytics' && <Analytics department={selectedDepartment} />}
-        {activePage === 'bulletin' && <BulletinBoard department={selectedDepartment} />}
-        {activePage === 'feedback' && <Feedback department={selectedDepartment} />}
+        {activePage === 'dashboard' && <AdminDashboard department={selectedDepartment} onNavigate={handleNavigate} onViewRequest={handleViewTicket} />}
+        {activePage === 'my-tickets' && <MyTickets department={selectedDepartment} onNavigate={handleNavigate} onViewRequest={handleViewTicket} />}
+        {activePage === 'ticket-details' && selectedTicket && <TicketDetails ticketData={selectedTicket} department={selectedDepartment} onNavigate={handleNavigate} onViewRequest={handleViewTicket} />}
+        {activePage === 'analytics' && <Analytics department={selectedDepartment} onViewRequest={handleViewTicket} />}
+        {activePage === 'bulletin' && <BulletinBoard department={selectedDepartment} onViewRequest={handleViewTicket} />}
+        {activePage === 'feedback' && <Feedback department={selectedDepartment} onViewRequest={handleViewTicket} />}
       </div>
       
       {showProfileSettings && (

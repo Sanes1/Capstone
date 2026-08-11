@@ -45,6 +45,12 @@
   margin: 0;
 }
 
+.page-subtitle {
+  font-size: 14px;
+  color: #8a8a8a;
+  margin: 4px 0 0 0;
+}
+
 .notification-bell {
   position: relative;
   width: 44px;
@@ -372,8 +378,14 @@
   transition: all 0.2s;
 }
 
-.send-message-btn:hover {
+.send-message-btn:hover:not(:disabled) {
   background-color: #4caf50;
+}
+
+.send-message-btn:disabled {
+  background-color: #9eaf9c;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .sidebar-section {
@@ -465,6 +477,28 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* Resolved/Cancelled tickets — the Management Control card is locked.
+   Dim the card, gray out the selects, and hide the Reassign affordance. */
+.management-card--locked {
+  opacity: 0.6;
+  cursor: not-allowed;
+  user-select: none;
+}
+
+.management-lock-note {
+  font-size: 12.5px;
+  color: #6b7280;
+  background-color: #f5f5f5;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 15px;
+  line-height: 1.4;
+  /* The parent card is dimmed when locked — keep the note fully readable */
+  opacity: 1;
+  user-select: text;
+}
+
 .management-title {
   font-size: 16px;
   font-weight: 600;
@@ -497,6 +531,12 @@
   font-size: 14px;
   color: #666;
   background-color: white;
+}
+
+.field-select:disabled {
+  background-color: #f0f0f0;
+  color: #999;
+  cursor: not-allowed;
 }
 
 .student-info-card {
@@ -696,7 +736,7 @@
   transition: all 0.2s;
 }
 
-.reassign-btn:hover {
+.reassign-btn:hover:not(:disabled) {
   background-color: #f57c00;
 }
 
@@ -895,4 +935,44 @@
   .attachments {
     flex-wrap: wrap;
   }
+}
+
+/* ---- Empty / fallback state (never block the app on a spinner) ---- */
+.ticket-details-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 80px 20px;
+  text-align: center;
+}
+
+.ticket-details-empty-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+.ticket-details-empty-text {
+  font-size: 14px;
+  color: #888;
+  margin: 0 0 12px 0;
+}
+
+.ticket-details-back-btn {
+  padding: 10px 22px;
+  border: none;
+  border-radius: 8px;
+  background-color: #105e06;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.ticket-details-back-btn:hover {
+  background-color: #0d4a05;
 }

@@ -1,4 +1,6 @@
-/* Notifications Overlay */
+/* Notifications Overlay — full-screen click catcher; the panel is
+   positioned absolutely via inline top/right measured from the bell,
+   so it drops consistently below the bell on every page. */
 .notifications-overlay {
   position: fixed;
   top: 0;
@@ -7,14 +9,12 @@
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.3);
   z-index: 999;
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-start;
-  padding-top: 70px;
-  padding-right: 90px;
 }
 
 .notifications-panel {
+  position: absolute;
+  top: 70px; /* fallback, overridden by inline style */
+  right: 90px; /* fallback, overridden by inline style */
   background: white;
   width: 420px;
   max-width: 90%;
@@ -23,6 +23,7 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* keep hover backgrounds inside the rounded corners */
   animation: slideDown 0.3s ease-out;
 }
 
@@ -152,8 +153,32 @@
   background-color: #fafafa;
 }
 
+.notification-item:focus-visible {
+  outline: 2px solid #2196F3;
+  outline-offset: -2px;
+}
+
 .notification-item:last-child {
   border-bottom: none;
+}
+
+/* Click affordance — an arrow that slides in on hover/focus */
+.notification-open-indicator {
+  display: flex;
+  align-items: center;
+  align-self: center;
+  flex-shrink: 0;
+  color: #cccccc;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease, color 0.18s ease;
+}
+
+.notification-item:hover .notification-open-indicator,
+.notification-item:focus-visible .notification-open-indicator {
+  opacity: 1;
+  transform: translateX(0);
+  color: #2196F3;
 }
 
 .notification-item.unread {
@@ -230,14 +255,12 @@
   background: #bbb;
 }
 
-/* Responsive Design */
+/* Responsive Design — mobile panel spans the viewport width with small
+   margins (inline left/right from the JS position override the width). */
 @media (max-width: 768px) {
-  .notifications-overlay {
-    padding-top: 60px;
-  }
-  
   .notifications-panel {
-    width: 95%;
+    width: auto;
+    max-width: none;
     max-height: 70vh;
   }
   

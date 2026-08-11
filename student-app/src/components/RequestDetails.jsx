@@ -72,8 +72,10 @@ function RequestDetails({ requestData, onNavigate }) {
   };
 
   const handleSendFollowUp = async () => {
-    if (!comment.trim() && followUpFiles.length === 0) {
-      alert('Please add a comment or attach files');
+    // The Send button is disabled without a message, but keep this guard as
+    // a safety net so a follow-up can never be sent with an empty comment.
+    if (!comment.trim()) {
+      alert('Please add a comment');
       return;
     }
 
@@ -510,7 +512,7 @@ function RequestDetails({ requestData, onNavigate }) {
                 <button 
                   className="send-btn"
                   onClick={handleSendFollowUp}
-                  disabled={sending || ((request.followUps?.filter(f => f.sentBy === 'student') || []).length >= 3)}
+                  disabled={sending || !comment.trim() || ((request.followUps?.filter(f => f.sentBy === 'student') || []).length >= 3)}
                 >
                   {sending ? 'Sending...' : 'Send Message'}
                 </button>

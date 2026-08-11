@@ -388,6 +388,7 @@ const Analytics = () => {
               isActive={isFilterActive}
               onApply={applyDateFilter}
               onClear={clearDateFilter}
+              appliedFilter={appliedFilter}
               idPrefix="analytics"
             />
             <button className="btn-primary export-button" onClick={exportToCSV}>

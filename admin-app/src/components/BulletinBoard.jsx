@@ -1,271 +1,511 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaBell, FaPlus, FaEllipsisV, FaCalendarAlt, FaTimes, FaUpload, FaTrash } from 'react-icons/fa';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, getDocs, orderBy } from 'firebase/firestore';
+import { FaBell, FaPlus, FaCalendarAlt, FaTimes, FaUpload, FaTrash, FaEllipsisV, FaEdit, FaInfoCircle } from 'react-icons/fa';
+import { collection, query, where, onSnapshot, addDoc, updateDoc, setDoc, serverTimestamp, deleteDoc, doc, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import Notifications from './Notifications';
-import LoadingSpinner from './LoadingSpinner';
 import '../styles/BulletinBoard.css';
 
-const BulletinBoard = ({ department }) => {
+const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+// Featured (semestral) announcement shown in the green hero card
+const DEFAULT_HERO_TITLE = 'Announcements & Deadlines';
+const DEFAULT_HERO_BODY = 'Keep students informed with the latest updates and important dates.';
+
+// Firestore caps documents at 1 MiB, so photos are compressed client-side to
+// stay comfortably under the limit (resize to 1280px, JPEG, adaptive quality).
+const MAX_IMAGE_DIMENSION = 1280;
+const MAX_BASE64_LENGTH = 900 * 1024 * 1.37; // ~0.9 MiB raw -> base64 ceiling
+
+const compressImage = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onerror = () => reject(new Error('Could not read the image file.'));
+  reader.onload = () => {
+    const img = new Image();
+    img.onerror = () => reject(new Error('That file is not a valid image.'));
+    img.onload = () => {
+      const encode = (maxDim) => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const width = Math.max(1, Math.round(img.width * scale));
+        const height = Math.max(1, Math.round(img.height * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+        let quality = 0.82;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while (dataUrl.length > MAX_BASE64_LENGTH && quality > 0.35) {
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        return dataUrl;
+      };
+
+      // Shrink the image progressively until it fits the 1 MiB doc limit
+      let result = encode(MAX_IMAGE_DIMENSION);
+      for (const dim of [1024, 800, 600]) {
+        if (result.length <= MAX_BASE64_LENGTH) break;
+        result = encode(dim);
+      }
+      resolve(result);
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+const formatPostedDate = (value) => {
+  if (!value) return '';
+  const date = value?.toDate ? value.toDate() : new Date(value);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const BulletinBoard = ({ department, onViewRequest }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
-  const [showImportantDateModal, setShowImportantDateModal] = useState(false);
-  const [modalTab, setModalTab] = useState('announcements'); // 'announcements' or 'importantDates'
-  
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [modalTab, setModalTab] = useState('announcements'); // 'announcements' | 'importantDates'
+  const [openMenuId, setOpenMenuId] = useState(null); // announcement id whose ⋮ menu is open
+  const [editingAnnouncement, setEditingAnnouncement] = useState(null);
+
   // Announcement form state
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementBody, setAnnouncementBody] = useState('');
-  const [announcementPhoto, setAnnouncementPhoto] = useState(null);
+  const [announcementPhoto, setAnnouncementPhoto] = useState(''); // compressed data URL
   const [photoPreview, setPhotoPreview] = useState('');
-  
+  const [photoError, setPhotoError] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+
   // Important Date form state
   const [dateTitle, setDateTitle] = useState('');
   const [dateMonth, setDateMonth] = useState('');
   const [dateDay, setDateDay] = useState('');
-  
+
   const [announcements, setAnnouncements] = useState([]);
   const [importantDates, setImportantDates] = useState([]);
-  const [loading, setLoading] = useState(false);
-  
+  const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState('');
+
+  // Featured (semestral) announcement — the big green hero card
+  const [hero, setHero] = useState({ title: DEFAULT_HERO_TITLE, body: DEFAULT_HERO_BODY });
+  const [showHeroModal, setShowHeroModal] = useState(false);
+  const [heroTitle, setHeroTitle] = useState('');
+  const [heroBody, setHeroBody] = useState('');
+  const [heroSaving, setHeroSaving] = useState(false);
+
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    loadAnnouncements();
-    loadImportantDates();
-    
-    // Listen for unread notifications
-    const staffData = JSON.parse(localStorage.getItem('staffData'));
-    if (staffData?.uid) {
-      const q = query(
-        collection(db, 'notifications'),
-        where('recipientId', '==', staffData.uid),
-        where('recipientType', '==', 'staff')
-      );
-
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const unread = querySnapshot.docs.filter(doc => !doc.data().isRead).length;
-        setUnreadCount(unread);
-      });
-
-      return () => unsubscribe();
-    }
-  }, [department]);
-  
-  const loadAnnouncements = async () => {
-    try {
-      // Load all announcements (not department-specific for student viewing)
-      const q = query(
-        collection(db, 'announcements'),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const announcementsData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setAnnouncements(announcementsData);
-      });
-      
-      return unsubscribe;
-    } catch (error) {
-      console.error('❌ Error loading announcements:', error);
-    }
-  };
-  
-  const loadImportantDates = async () => {
-    try {
-      // Load important dates for THIS department only
-      const q = query(
-        collection(db, 'importantDates'),
-        where('office', '==', department),
-        orderBy('dateValue', 'asc')
-      );
-      
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const datesData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setImportantDates(datesData);
-      });
-      
-      return unsubscribe;
-    } catch (error) {
-      console.error('❌ Error loading important dates:', error);
-    }
-  };
-  
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be less than 5MB');
-        return;
-      }
-      
-      setAnnouncementPhoto(file);
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-  
-  const handleRemovePhoto = () => {
-    setAnnouncementPhoto(null);
+  const resetAnnouncementForm = () => {
+    setAnnouncementTitle('');
+    setAnnouncementBody('');
+    setAnnouncementPhoto('');
     setPhotoPreview('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    setPhotoError('');
+    setEditingAnnouncement(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Every modal close path goes through this so a cancelled edit never
+  // leaves stale form/edit state behind.
+  const closeCreateModal = () => {
+    resetAnnouncementForm();
+    setShowCreateModal(false);
+    setOpenMenuId(null);
+  };
+
+  const openHeroModal = () => {
+    setHeroTitle(hero.title);
+    setHeroBody(hero.body);
+    setShowHeroModal(true);
+  };
+
+  const closeHeroModal = () => {
+    setShowHeroModal(false);
+    setHeroTitle('');
+    setHeroBody('');
+    setHeroSaving(false);
+  };
+
+  useEffect(() => {
+    // School-wide announcements (viewed by every department)
+    const annQ = query(collection(db, 'announcements'), orderBy('createdAt', 'desc'));
+    const annUnsub = onSnapshot(
+      annQ,
+      (snap) => {
+        setLoadError('');
+        setAnnouncements(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      },
+      (err) => {
+        console.error('❌ Error loading announcements:', err);
+        setLoadError('Could not load announcements.');
+      }
+    );
+
+    // Important dates for THIS department. No orderBy in the query so no
+    // composite index is required — sorted client-side instead.
+    const datesQ = query(collection(db, 'importantDates'), where('office', '==', department));
+    const datesUnsub = onSnapshot(
+      datesQ,
+      (snap) => {
+        setLoadError('');
+        const dates = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        dates.sort((a, b) => (a.dateValue || 0) - (b.dateValue || 0));
+        setImportantDates(dates);
+      },
+      (err) => {
+        console.error('❌ Error loading important dates:', err);
+        setLoadError('Could not load important dates.');
+      }
+    );
+
+    // Featured (semestral) announcement — one doc per office
+    let heroUnsub = null;
+    if (department) {
+      const heroRef = doc(db, 'bulletinHero', department);
+      heroUnsub = onSnapshot(
+        heroRef,
+        (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            setHero({
+              title: data.title || DEFAULT_HERO_TITLE,
+              body: data.body || DEFAULT_HERO_BODY
+            });
+          } else {
+            setHero({ title: DEFAULT_HERO_TITLE, body: DEFAULT_HERO_BODY });
+          }
+        },
+        (err) => {
+          console.error('❌ Error loading featured announcement:', err);
+          setHero({ title: DEFAULT_HERO_TITLE, body: DEFAULT_HERO_BODY });
+        }
+      );
+    }
+
+    // Unread notification count
+    let notifUnsub = null;
+    try {
+      const staffData = JSON.parse(localStorage.getItem('staffData'));
+      if (staffData?.uid) {
+        const nq = query(
+          collection(db, 'notifications'),
+          where('recipientId', '==', staffData.uid),
+          where('recipientType', '==', 'staff')
+        );
+        notifUnsub = onSnapshot(
+          nq,
+          (snap) => {
+            setUnreadCount(snap.docs.filter(doc => !doc.data().isRead).length);
+          },
+          (err) => console.error('❌ Error loading notifications:', err)
+        );
+      }
+    } catch (e) {
+      console.error('❌ Error reading staff data:', e);
+    }
+
+    return () => {
+      annUnsub();
+      datesUnsub();
+      if (heroUnsub) heroUnsub();
+      if (notifUnsub) notifUnsub();
+    };
+  }, [department]);
+
+  // Close modals / notifications with Escape
+  useEffect(() => {
+    if (!showCreateModal && !showNotifications && !showHeroModal) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      if (showCreateModal) closeCreateModal();
+      if (showHeroModal) closeHeroModal();
+      if (showNotifications) setShowNotifications(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showCreateModal, showNotifications, showHeroModal]);
+
+  // Close the ⋮ action menu on outside click / Escape
+  useEffect(() => {
+    if (!openMenuId) return undefined;
+    const handlePointer = (e) => {
+      if (!e.target.closest('.announcement-menu')) setOpenMenuId(null);
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setOpenMenuId(null);
+    };
+    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('touchstart', handlePointer);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('touchstart', handlePointer);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openMenuId]);
+
+  /* ---------- Photo upload ---------- */
+
+  const processImageFile = async (file) => {
+    setPhotoError('');
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('Please choose an image file (JPG or PNG).');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setPhotoError('Image is too large. Please choose one under 10 MB.');
+      return;
+    }
+    try {
+      const dataUrl = await compressImage(file);
+      setAnnouncementPhoto(dataUrl);
+      setPhotoPreview(dataUrl);
+    } catch (err) {
+      console.error('❌ Error processing image:', err);
+      setPhotoError(err.message || 'Could not process this image.');
     }
   };
-  
+
+  const handleFileSelect = (e) => {
+    processImageFile(e.target.files && e.target.files[0]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    processImageFile(e.dataTransfer.files && e.dataTransfer.files[0]);
+  };
+
+  const handleRemovePhoto = () => {
+    setAnnouncementPhoto('');
+    setPhotoPreview('');
+    setPhotoError('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  /* ---------- Featured (hero) announcement ---------- */
+
+  const handleSaveHero = async () => {
+    if (!heroTitle.trim()) {
+      alert('Please enter an announcement title.');
+      return;
+    }
+    if (!heroBody.trim()) {
+      alert('Please enter announcement content.');
+      return;
+    }
+    if (!department) return;
+
+    try {
+      setHeroSaving(true);
+      const staffData = JSON.parse(localStorage.getItem('staffData'));
+      await setDoc(doc(db, 'bulletinHero', department), {
+        office: department,
+        title: heroTitle.trim(),
+        body: heroBody.trim(),
+        updatedBy: staffData?.name || 'Staff',
+        updatedAt: serverTimestamp()
+      });
+      closeHeroModal();
+    } catch (error) {
+      console.error('❌ Error saving featured announcement:', error);
+      alert('Failed to save. Please try again.');
+    } finally {
+      setHeroSaving(false);
+    }
+  };
+
+  /* ---------- Create ---------- */
+
   const handleCreateAnnouncement = async () => {
     if (!announcementTitle.trim()) {
-      alert('Please enter an announcement title');
+      alert('Please enter an announcement title.');
       return;
     }
-    
     if (!announcementBody.trim()) {
-      alert('Please enter announcement content');
+      alert('Please enter announcement content.');
       return;
     }
-    
-    if (announcementTitle.length > 30) {
-      alert('Title must be 30 characters or less');
-      return;
-    }
-    
+
     try {
-      setLoading(true);
+      setSubmitting(true);
       const staffData = JSON.parse(localStorage.getItem('staffData'));
-      
-      let photoBase64 = null;
-      if (announcementPhoto) {
-        photoBase64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(announcementPhoto);
+
+      if (editingAnnouncement) {
+        // Update the existing announcement (keep original author + created date)
+        await updateDoc(doc(db, 'announcements', editingAnnouncement.id), {
+          department,
+          title: announcementTitle.trim(),
+          body: announcementBody.trim(),
+          photo: announcementPhoto || null,
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        await addDoc(collection(db, 'announcements'), {
+          department,
+          title: announcementTitle.trim(),
+          body: announcementBody.trim(),
+          photo: announcementPhoto || null,
+          createdBy: staffData?.name || 'Staff',
+          createdAt: serverTimestamp()
         });
       }
-      
-      await addDoc(collection(db, 'announcements'), {
-        department: department,
-        title: announcementTitle.trim(),
-        body: announcementBody.trim(),
-        photo: photoBase64,
-        createdBy: staffData.name,
-        createdAt: serverTimestamp()
-      });
-      
-      alert('Announcement created successfully!');
-      setShowAnnouncementModal(false);
-      resetAnnouncementForm();
+
+      closeCreateModal();
     } catch (error) {
-      console.error('❌ Error creating announcement:', error);
-      alert('Failed to create announcement');
+      console.error('❌ Error saving announcement:', error);
+      alert(editingAnnouncement
+        ? 'Failed to update announcement. Please try again.'
+        : 'Failed to create announcement. Please try again.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
-  
+
+  const handleEditAnnouncement = (announcement) => {
+    setEditingAnnouncement(announcement);
+    setAnnouncementTitle(announcement.title || '');
+    setAnnouncementBody(announcement.body || '');
+    setAnnouncementPhoto(announcement.photo || '');
+    setPhotoPreview(announcement.photo || '');
+    setPhotoError('');
+    setModalTab('announcements');
+    setOpenMenuId(null);
+    setShowCreateModal(true);
+  };
+
   const handleCreateImportantDate = async () => {
     if (!dateTitle.trim()) {
-      alert('Please enter a title');
+      alert('Please enter a title.');
       return;
     }
-    
-    if (!dateMonth || !dateDay) {
-      alert('Please select both month and day');
+    if (!dateMonth) {
+      alert('Please select a month.');
       return;
     }
-    
+
+    const dayNum = parseInt(dateDay, 10);
+    if (isNaN(dayNum) || dayNum < 1 || dayNum > 31) {
+      alert('Please enter a valid day (1–31).');
+      return;
+    }
+    const monthNum = MONTHS.indexOf(dateMonth) + 1;
+    const daysInMonth = new Date(2000, monthNum, 0).getDate();
+    if (dayNum > daysInMonth) {
+      alert(`Please enter a valid day for ${dateMonth} (1–${daysInMonth}).`);
+      return;
+    }
+
     try {
-      setLoading(true);
+      setSubmitting(true);
       const staffData = JSON.parse(localStorage.getItem('staffData'));
-      
-      // Create a sortable date value (MMDD format)
-      const monthNum = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'].indexOf(dateMonth) + 1;
-      const dateValue = parseInt(`${monthNum.toString().padStart(2, '0')}${dateDay.padStart(2, '0')}`);
-      
+      const dateValue = parseInt(
+        `${String(monthNum).padStart(2, '0')}${String(dayNum).padStart(2, '0')}`,
+        10
+      );
+
       await addDoc(collection(db, 'importantDates'), {
         office: department,
         title: dateTitle.trim(),
         month: dateMonth,
-        day: dateDay,
-        dateValue: dateValue, // For sorting
-        createdBy: staffData.name,
+        day: String(dayNum).padStart(2, '0'),
+        dateValue,
+        createdBy: staffData?.name || 'Staff',
         createdAt: serverTimestamp()
       });
-      
-      alert('Important date added successfully!');
-      setShowImportantDateModal(false);
+
+      closeCreateModal();
       resetImportantDateForm();
     } catch (error) {
       console.error('❌ Error creating important date:', error);
-      alert('Failed to create important date');
+      alert('Failed to create important date. Please try again.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
-  
+
+  /* ---------- Delete ---------- */
+
   const handleDeleteAnnouncement = async (announcementId) => {
-    if (!window.confirm('Are you sure you want to delete this announcement?')) {
-      return;
-    }
-    
+    if (!window.confirm('Are you sure you want to delete this announcement?')) return;
     try {
       await deleteDoc(doc(db, 'announcements', announcementId));
-      alert('Announcement deleted successfully');
     } catch (error) {
       console.error('❌ Error deleting announcement:', error);
-      alert('Failed to delete announcement');
+      alert('Failed to delete announcement.');
     }
   };
-  
+
   const handleDeleteImportantDate = async (dateId) => {
-    if (!window.confirm('Are you sure you want to delete this important date?')) {
-      return;
-    }
-    
+    if (!window.confirm('Are you sure you want to delete this important date?')) return;
     try {
       await deleteDoc(doc(db, 'importantDates', dateId));
-      alert('Important date deleted successfully');
     } catch (error) {
       console.error('❌ Error deleting important date:', error);
-      alert('Failed to delete important date');
+      alert('Failed to delete important date.');
     }
   };
-  
-  const resetAnnouncementForm = () => {
-    setAnnouncementTitle('');
-    setAnnouncementBody('');
-    setAnnouncementPhoto(null);
-    setPhotoPreview('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-  
+
+  /* ---------- Form helpers ---------- */
+
   const resetImportantDateForm = () => {
     setDateTitle('');
     setDateMonth('');
     setDateDay('');
   };
-  
+
   const openCreateModal = () => {
+    resetAnnouncementForm();
     setModalTab('announcements');
-    setShowAnnouncementModal(true);
+    setShowCreateModal(true);
   };
+
+  const canDeleteAnnouncement = (announcement) =>
+    String(announcement.department || '').toLowerCase() === department.toLowerCase();
+
+  // Form validity — keeps the Confirm/Save buttons grayed out until every
+  // required field is filled in (photos are optional).
+  const isAnnouncementValid =
+    announcementTitle.trim() !== '' && announcementBody.trim() !== '';
+
+  // While editing, the Save Changes button also stays grayed out until
+  // something actually differs from the original announcement.
+  const hasAnnouncementChanges = !editingAnnouncement
+    ? true
+    : announcementTitle.trim() !== (editingAnnouncement.title || '').trim() ||
+      announcementBody.trim() !== (editingAnnouncement.body || '').trim() ||
+      announcementPhoto !== (editingAnnouncement.photo || '');
+
+  const parsedDay = parseInt(dateDay, 10);
+  const daysInSelectedMonth = dateMonth
+    ? new Date(2000, MONTHS.indexOf(dateMonth) + 1, 0).getDate()
+    : 0;
+  const isImportantDateValid =
+    dateTitle.trim() !== '' &&
+    dateMonth !== '' &&
+    !isNaN(parsedDay) &&
+    parsedDay >= 1 &&
+    parsedDay <= daysInSelectedMonth;
+
+  const isHeroValid = heroTitle.trim() !== '' && heroBody.trim() !== '';
+
+  // The hero Save button also stays grayed out until something actually
+  // differs from the currently published featured announcement.
+  const hasHeroChanges =
+    heroTitle.trim() !== (hero.title || '').trim() ||
+    heroBody.trim() !== (hero.body || '').trim();
+
   return (
     <div className="bulletin-board-container">
       <div className="bulletin-header">
-        <h1 className="bulletin-title">Bulletin Board</h1>
+        <div>
+          <h1 className="bulletin-title">Bulletin Board</h1>
+          <p className="bulletin-subtitle">Announcements and updates for your students</p>
+        </div>
         <div className="bulletin-header-actions">
           <button className="create-announcement-btn" onClick={openCreateModal}>
             <FaPlus />
@@ -278,41 +518,95 @@ const BulletinBoard = ({ department }) => {
         </div>
       </div>
 
+      {loadError && (
+        <div className="bulletin-error-banner" role="alert">
+          {loadError} Check your connection and refresh.
+        </div>
+      )}
+
       <div className="hero-banner">
+        <button
+          type="button"
+          className="hero-edit-btn"
+          onClick={openHeroModal}
+          aria-label="Edit featured announcement"
+          title="Edit featured announcement"
+        >
+          <FaEdit />
+        </button>
         <div className="hero-overlay">
-          <h2 className="hero-title">FINAL LISTING FOR 2026 GRADUATION</h2>
-          <p className="hero-subtitle">
-            Ensure all academic record is clear and all departments requirements are met by March 25.
-          </p>
+          <span className="hero-kicker">{department} OFFICE</span>
+          <h2 className="hero-title">{hero.title}</h2>
+          <p className="hero-subtitle">{hero.body}</p>
         </div>
       </div>
 
       <div className="bulletin-content-grid">
         <div className="announcements-section">
           <h3 className="section-title">Announcements</h3>
-          
+
           {announcements.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#999', padding: '40px' }}>No announcements yet</p>
+            <div className="bulletin-empty">
+              <p className="bulletin-empty-title">No announcements yet</p>
+              <p className="bulletin-empty-text">
+                Create the first announcement to keep students informed.
+              </p>
+              <button className="create-announcement-btn" onClick={openCreateModal}>
+                <FaPlus />
+                Create announcement
+              </button>
+            </div>
           ) : (
             announcements.map((announcement) => (
               <div key={announcement.id} className="announcement-card">
                 {announcement.photo && (
                   <div className="announcement-image">
-                    <img src={announcement.photo} alt={announcement.title} className="announcement-photo" />
+                    <img src={announcement.photo} alt="" className="announcement-photo" />
                   </div>
                 )}
                 <div className="announcement-content">
                   <div className="announcement-header-row">
                     <span className="announcement-department">{announcement.department}</span>
-                    <FaEllipsisV 
-                      className="announcement-menu-icon" 
-                      onClick={() => handleDeleteAnnouncement(announcement.id)}
-                      title="Delete announcement"
-                    />
+                    {canDeleteAnnouncement(announcement) && (
+                      <div className="announcement-menu">
+                        <button
+                          type="button"
+                          className="announcement-menu-trigger"
+                          onClick={() => setOpenMenuId(openMenuId === announcement.id ? null : announcement.id)}
+                          aria-label={`Actions for: ${announcement.title}`}
+                          aria-haspopup="true"
+                          aria-expanded={openMenuId === announcement.id}
+                        >
+                          <FaEllipsisV />
+                        </button>
+                        {openMenuId === announcement.id && (
+                          <div className="announcement-menu-dropdown" role="menu">
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => handleEditAnnouncement(announcement)}
+                            >
+                              <FaEdit /> Edit
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="danger"
+                              onClick={() => handleDeleteAnnouncement(announcement.id)}
+                            >
+                              <FaTrash /> Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <h4 className="announcement-title">{announcement.title}</h4>
                   <p className="announcement-description">{announcement.body}</p>
-                  <p className="announcement-author">By {announcement.createdBy}</p>
+                  <p className="announcement-meta">
+                    <span>Posted {formatPostedDate(announcement.createdAt) || 'recently'}</span>
+                    <span className="announcement-author">By {announcement.createdBy}</span>
+                  </p>
                 </div>
               </div>
             ))
@@ -323,74 +617,85 @@ const BulletinBoard = ({ department }) => {
           <div className="deadlines-header">
             <FaCalendarAlt className="calendar-icon" />
             <h3 className="deadlines-title">Important Deadlines</h3>
-            <button 
-              className="add-deadline-btn" 
-              onClick={() => setShowImportantDateModal(true)}
-              title="Add important date"
-            >
-              <FaPlus />
-            </button>
           </div>
-          
+
           <div className="deadlines-list">
             {importantDates.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#999', padding: '20px', fontSize: '14px' }}>
-                No important dates yet
-              </p>
+              <div className="bulletin-empty bulletin-empty--compact">
+                <p className="bulletin-empty-title">No important dates yet</p>
+                <p className="bulletin-empty-text">Add deadlines so students don't miss them.</p>
+              </div>
             ) : (
               importantDates.map((deadline) => (
                 <div key={deadline.id} className="deadline-item">
                   <div className="deadline-date">
                     <span className="deadline-month">{deadline.month}</span>
-                    <span className="deadline-day">{deadline.day}</span>
+                    <span className="deadline-day">{parseInt(deadline.day, 10) || deadline.day}</span>
                   </div>
                   <div className="deadline-info">
                     <p className="deadline-title">{deadline.title}</p>
                     <p className="deadline-office">{deadline.office}</p>
                   </div>
-                  <FaTrash 
-                    className="delete-deadline-icon" 
+                  <button
+                    type="button"
+                    className="delete-deadline-btn"
                     onClick={() => handleDeleteImportantDate(deadline.id)}
+                    aria-label={`Delete deadline: ${deadline.title}`}
                     title="Delete deadline"
-                  />
+                  >
+                    <FaTrash />
+                  </button>
                 </div>
               ))
             )}
           </div>
         </div>
       </div>
-      
-      {/* Announcement Modal */}
-      {showAnnouncementModal && (
-        <div className="modal-overlay" onClick={() => setShowAnnouncementModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+
+      {/* Unified Create modal */}
+      {showCreateModal && (
+        <div className="modal-overlay" onClick={closeCreateModal}>
+          <div
+            className="modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bulletin-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-sidebar">
-              <button 
+              <button
                 className={`modal-tab ${modalTab === 'announcements' ? 'active' : ''}`}
                 onClick={() => setModalTab('announcements')}
               >
                 Announcements
               </button>
-              <button 
+              <button
                 className={`modal-tab ${modalTab === 'importantDates' ? 'active' : ''}`}
                 onClick={() => setModalTab('importantDates')}
               >
                 Important Dates
               </button>
             </div>
-            
+
             <div className="modal-main">
-              <button className="modal-close-btn" onClick={() => setShowAnnouncementModal(false)}>
+              <button
+                className="modal-close-btn"
+                onClick={closeCreateModal}
+                aria-label="Close dialog"
+              >
                 <FaTimes />
               </button>
-              
+
               {modalTab === 'announcements' ? (
                 <div className="announcement-form">
-                  <h3 className="modal-title">Create Announcement</h3>
-                  
+                  <h3 className="modal-title" id="bulletin-modal-title">
+                    {editingAnnouncement ? 'Edit Announcement' : 'Create Announcement'}
+                  </h3>
+
                   <div className="form-group">
-                    <label>Announcement Title</label>
+                    <label htmlFor="announcement-title">Announcement Title</label>
                     <input
+                      id="announcement-title"
                       type="text"
                       placeholder="Max. of 30 characters"
                       value={announcementTitle}
@@ -400,18 +705,19 @@ const BulletinBoard = ({ department }) => {
                     />
                     <span className="char-count">{announcementTitle.length}/30</span>
                   </div>
-                  
+
                   <div className="form-group">
-                    <label>Announcement Body</label>
+                    <label htmlFor="announcement-body">Announcement Body</label>
                     <textarea
-                      placeholder="Type your announcement content here...."
+                      id="announcement-body"
+                      placeholder="Type your announcement content here..."
                       value={announcementBody}
                       onChange={(e) => setAnnouncementBody(e.target.value)}
                       rows={6}
                       className="form-textarea"
                     />
                   </div>
-                  
+
                   <div className="form-group">
                     <label>Attach Photo (Optional)</label>
                     <input
@@ -421,43 +727,69 @@ const BulletinBoard = ({ department }) => {
                       onChange={handleFileSelect}
                       style={{ display: 'none' }}
                     />
-                    
+
                     {photoPreview ? (
                       <div className="photo-preview-container">
-                        <img src={photoPreview} alt="Preview" className="photo-preview" />
+                        <img src={photoPreview} alt="Announcement preview" className="photo-preview" />
                         <button className="remove-photo-btn" onClick={handleRemovePhoto}>
                           <FaTrash /> Remove
                         </button>
                       </div>
                     ) : (
-                      <div className="file-upload-area" onClick={() => fileInputRef.current?.click()}>
+                      <div
+                        className={`file-upload-area${isDragOver ? ' dragging' : ''}`}
+                        onClick={() => fileInputRef.current?.click()}
+                        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                        onDragLeave={() => setIsDragOver(false)}
+                        onDrop={handleDrop}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            fileInputRef.current?.click();
+                          }
+                        }}
+                      >
                         <FaUpload className="upload-icon" />
                         <p>Click to upload or drag and drop</p>
+                        <span className="upload-hint">JPG or PNG, up to 10 MB — resized automatically</span>
                       </div>
                     )}
+                    {photoError && <p className="photo-error">{photoError}</p>}
                   </div>
-                  
+
                   <div className="modal-actions">
-                    <button className="cancel-btn" onClick={() => setShowAnnouncementModal(false)}>
+                    <button className="cancel-btn" onClick={closeCreateModal}>
                       Cancel
                     </button>
-                    <button 
-                      className="confirm-btn" 
+                    <button
+                      className="confirm-btn"
                       onClick={handleCreateAnnouncement}
-                      disabled={loading}
+                      disabled={submitting || !isAnnouncementValid || !hasAnnouncementChanges}
+                      title={
+                        !isAnnouncementValid
+                          ? 'Fill in the title and body to enable saving'
+                          : !hasAnnouncementChanges
+                            ? 'Make a change to enable saving'
+                            : undefined
+                      }
                     >
-                      {loading && <span className="btn-spinner"></span>}
-                      {loading ? 'Creating...' : 'Confirm'}
+                      {submitting && <span className="btn-spinner"></span>}
+                      {submitting
+                        ? (editingAnnouncement ? 'Saving...' : 'Creating...')
+                        : (editingAnnouncement ? 'Save Changes' : 'Confirm')}
                     </button>
                   </div>
                 </div>
               ) : (
                 <div className="important-date-form">
-                  <h3 className="modal-title">Add Important Date</h3>
-                  
+                  <h3 className="modal-title" id="bulletin-modal-title">Add Important Date</h3>
+
                   <div className="form-group">
-                    <label>Title</label>
+                    <label htmlFor="date-title">Title</label>
                     <input
+                      id="date-title"
                       type="text"
                       placeholder="e.g., Graduation Fee Payment"
                       value={dateTitle}
@@ -465,25 +797,27 @@ const BulletinBoard = ({ department }) => {
                       className="form-input"
                     />
                   </div>
-                  
+
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Month</label>
-                      <select 
-                        value={dateMonth} 
+                      <label htmlFor="date-month">Month</label>
+                      <select
+                        id="date-month"
+                        value={dateMonth}
                         onChange={(e) => setDateMonth(e.target.value)}
                         className="form-select"
                       >
                         <option value="">Select month</option>
-                        {['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'].map(month => (
+                        {MONTHS.map(month => (
                           <option key={month} value={month}>{month}</option>
                         ))}
                       </select>
                     </div>
-                    
+
                     <div className="form-group">
-                      <label>Day</label>
+                      <label htmlFor="date-day">Day</label>
                       <input
+                        id="date-day"
                         type="number"
                         min="1"
                         max="31"
@@ -494,18 +828,19 @@ const BulletinBoard = ({ department }) => {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="modal-actions">
-                    <button className="cancel-btn" onClick={() => setShowAnnouncementModal(false)}>
+                    <button className="cancel-btn" onClick={closeCreateModal}>
                       Cancel
                     </button>
-                    <button 
-                      className="confirm-btn" 
+                    <button
+                      className="confirm-btn"
                       onClick={handleCreateImportantDate}
-                      disabled={loading}
+                      disabled={submitting || !isImportantDateValid}
+                      title={!isImportantDateValid ? 'Fill in the title, month, and day to enable saving' : undefined}
                     >
-                      {loading && <span className="btn-spinner"></span>}
-                      {loading ? 'Adding...' : 'Confirm'}
+                      {submitting && <span className="btn-spinner"></span>}
+                      {submitting ? 'Adding...' : 'Confirm'}
                     </button>
                   </div>
                 </div>
@@ -514,77 +849,81 @@ const BulletinBoard = ({ department }) => {
           </div>
         </div>
       )}
-      
-      {/* Important Date Modal */}
-      {showImportantDateModal && (
-        <div className="modal-overlay" onClick={() => setShowImportantDateModal(false)}>
-          <div className="modal-content-small" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close-btn" onClick={() => setShowImportantDateModal(false)}>
+
+      {/* Featured announcement edit modal */}
+      {showHeroModal && (
+        <div className="modal-overlay" onClick={closeHeroModal}>
+          <div
+            className="hero-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="hero-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button className="modal-close-btn" onClick={closeHeroModal} aria-label="Close dialog">
               <FaTimes />
             </button>
-            
-            <h3 className="modal-title">Add Important Date</h3>
-            
+
+            <h3 className="modal-title" id="hero-modal-title">Edit Featured Announcement</h3>
+
+            <div className="hero-disclaimer" role="note">
+              <FaInfoCircle className="hero-disclaimer-icon" aria-hidden="true" />
+              <p>
+                Only <strong>semestral announcements</strong> should be placed in this featured
+                card. Use the regular announcements below for short-lived notices.
+              </p>
+            </div>
+
             <div className="form-group">
-              <label>Title</label>
+              <label htmlFor="hero-title">Announcement Title</label>
               <input
+                id="hero-title"
                 type="text"
-                placeholder="e.g., Graduation Fee Payment"
-                value={dateTitle}
-                onChange={(e) => setDateTitle(e.target.value)}
+                value={heroTitle}
+                onChange={(e) => setHeroTitle(e.target.value)}
+                maxLength={60}
+                placeholder="e.g., Final Listing for 2nd Semester"
                 className="form-input"
               />
             </div>
-            
-            <div className="form-row">
-              <div className="form-group">
-                <label>Month</label>
-                <select 
-                  value={dateMonth} 
-                  onChange={(e) => setDateMonth(e.target.value)}
-                  className="form-select"
-                >
-                  <option value="">Select month</option>
-                  {['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'].map(month => (
-                    <option key={month} value={month}>{month}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label>Day</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="31"
-                  placeholder="Day"
-                  value={dateDay}
-                  onChange={(e) => setDateDay(e.target.value)}
-                  className="form-input"
-                />
-              </div>
+
+            <div className="form-group">
+              <label htmlFor="hero-body">Announcement Body</label>
+              <textarea
+                id="hero-body"
+                value={heroBody}
+                onChange={(e) => setHeroBody(e.target.value)}
+                rows={5}
+                placeholder="Describe the semestral announcement..."
+                className="form-textarea"
+              />
             </div>
-            
+
             <div className="modal-actions">
-              <button className="cancel-btn" onClick={() => setShowImportantDateModal(false)}>
+              <button className="cancel-btn" onClick={closeHeroModal}>
                 Cancel
               </button>
-              <button 
-                className="confirm-btn" 
-                onClick={handleCreateImportantDate}
-                disabled={loading}
+              <button
+                className="confirm-btn"
+                onClick={handleSaveHero}
+                disabled={heroSaving || !isHeroValid || !hasHeroChanges}
+                title={
+                  !isHeroValid
+                    ? 'Fill in the title and body to enable saving'
+                    : !hasHeroChanges
+                      ? 'Make a change to enable saving'
+                      : undefined
+                }
               >
-                {loading && <span className="btn-spinner"></span>}
-                {loading ? 'Adding...' : 'Confirm'}
+                {heroSaving && <span className="btn-spinner"></span>}
+                {heroSaving ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>
         </div>
       )}
-      
-      {loading && <LoadingSpinner message="Processing..." fullScreen={true} />}
-      
-      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
+
+      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} onViewRequest={onViewRequest} />
     </div>
   );
 };

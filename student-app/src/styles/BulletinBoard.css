@@ -28,47 +28,59 @@
   line-height: 1.2;
 }
 
-/* ---- Hero banner (Figma: light sage with dark green text) ---- */
+/* ---- Hero banner (synced with the admin-app's featured announcement card) ---- */
 .hero-banner {
-  background: linear-gradient(135deg, var(--sage-hero) 0%, #aecbab 60%, var(--sage-hero-deep) 100%);
-  border: 1px solid var(--sage-300);
-  border-radius: var(--radius-lg);
-  padding: clamp(28px, 5vw, 56px) clamp(24px, 5vw, 50px);
+  width: 100%;
+  min-height: 160px;
+  background: linear-gradient(135deg, var(--sage-500) 0%, var(--sage-600) 100%);
+  border-radius: 12px;
   margin-bottom: var(--space-6);
   position: relative;
   overflow: hidden;
+  display: flex;
+  background-image:
+    linear-gradient(135deg, rgba(140, 185, 134, 0.95) 0%, rgba(90, 138, 82, 0.95) 100%),
+    url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300"><g opacity="0.3"><path d="M100 150 Q 150 100 200 150 T 300 150" fill="none" stroke="white" stroke-width="3"/><circle cx="150" cy="80" r="30" fill="white"/><circle cx="250" cy="120" r="25" fill="white"/><path d="M 350 180 L 350 120 L 380 120 L 380 180" fill="white"/><path d="M 450 180 L 450 120 L 480 140 L 480 180" fill="white"/><ellipse cx="550" cy="150" rx="40" ry="60" fill="white"/><circle cx="650" cy="100" r="35" fill="white"/><path d="M 750 180 L 780 120 L 810 180" fill="white"/><circle cx="900" cy="130" r="28" fill="white"/><path d="M 950 180 L 950 140 M 930 160 L 970 160" stroke="white" stroke-width="8"/></g></svg>');
+  background-size: cover;
+  background-position: center;
 }
 
-.hero-banner::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 50%;
-  height: 100%;
-  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><g opacity="0.12" fill="%232e4b2a"><circle cx="350" cy="50" r="30"/><circle cx="320" cy="150" r="40"/><circle cx="380" cy="200" r="25"/><path d="M300 100 L310 80 L320 100 L330 90 L340 110"/></g></svg>');
-  background-repeat: no-repeat;
-  background-position: center right;
-  background-size: contain;
+.hero-overlay {
+  flex: 1;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-.hero-content {
-  position: relative;
-  z-index: 1;
+.hero-kicker {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
 }
 
-.hero-content h2 {
-  font-size: clamp(24px, 3vw, 40px);
-  font-weight: var(--font-weight-bold);
-  color: var(--sage-hero-text);
-  margin-bottom: var(--space-3);
-  line-height: 1.2;
+.hero-title {
+  font-size: 34px;
+  font-weight: 800;
+  color: white;
+  margin: 0 0 10px 0;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.hero-content p {
-  font-size: var(--font-size-md);
-  color: var(--sage-hero-text);
-  opacity: 0.85;
+.hero-subtitle {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0;
   max-width: 600px;
 }
 
@@ -168,15 +180,19 @@
 }
 
 .announcement-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
   margin-top: var(--space-3);
   padding-top: var(--space-3);
   border-top: 1px solid var(--color-divider);
 }
 
-.announcement-author {
+.announcement-date {
   font-size: var(--font-size-xs);
-  color: var(--color-text-faint);
-  font-style: italic;
+  color: var(--color-text-muted);
 }
 
 /* ---- Deadlines panel ---- */
@@ -273,6 +289,14 @@
   .bulletin-content {
     grid-template-columns: 1fr;
   }
+
+  .hero-overlay {
+    padding: 24px;
+  }
+
+  .hero-title {
+    font-size: 26px;
+  }
 }
 
 @media (max-width: 639px) {
@@ -284,5 +308,17 @@
   .placeholder-image {
     width: 100%;
     height: 180px;
+  }
+
+  .hero-overlay {
+    padding: 20px;
+  }
+
+  .hero-title {
+    font-size: 22px;
+  }
+
+  .hero-subtitle {
+    font-size: 13px;
   }
 }

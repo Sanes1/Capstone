@@ -56,9 +56,22 @@
 .faq-section-title {
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
-  color: var(--color-text);
+  color: var(--green-900);
   line-height: 1.3;
   margin: 0 0 var(--space-4) 0;
+  position: relative;
+  padding-bottom: 10px;
+}
+
+.faq-section-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 44px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--sage-500) 0%, var(--green-700) 100%);
 }
 
 .faq-section-list {
@@ -70,21 +83,41 @@
 /* ---- Accordion items ---- */
 
 .faq-item {
-  background-color: var(--faq-accent);
+  position: relative;
+  isolation: isolate;
+  background-color: var(--sage-50);
   border: 1px solid var(--sage-300);
   border-radius: var(--radius-md);
   overflow: hidden;
-  transition: all var(--transition-base);
+  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+}
+
+/* The open answer "lights up" in the school's forest-green gradient */
+.faq-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  /* Starts at green-700 so white text clears WCAG AA (4.5:1) even at the lightest corner */
+  background: linear-gradient(135deg, var(--green-700) 0%, var(--green-900) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .faq-item:hover {
   border-color: var(--sage-500);
   box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
 }
 
 .faq-item.active {
-  border-color: var(--color-primary);
-  box-shadow: 0 4px 16px rgba(16, 94, 6, 0.12);
+  border-color: var(--green-700);
+  box-shadow: 0 8px 24px rgba(13, 74, 5, 0.22);
+  transform: translateY(-2px);
+}
+
+.faq-item.active::before {
+  opacity: 1;
 }
 
 .faq-question {
@@ -92,6 +125,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--space-4);
   padding: var(--space-5) var(--space-6);
   background-color: transparent;
   border: none;
@@ -101,31 +135,49 @@
 }
 
 .faq-question:hover {
-  background-color: rgba(255, 255, 255, 0.35);
+  background-color: rgba(255, 255, 255, 0.45);
 }
 
 .faq-item.active .faq-question {
-  background-color: rgba(255, 255, 255, 0.5);
+  background-color: transparent;
+}
+
+.faq-item.active .faq-question:hover {
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 .question-text {
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
-  color: var(--sage-hero-text);
+  color: var(--green-900);
   flex: 1;
   line-height: 1.5;
-  padding-right: var(--space-5);
+  padding-right: var(--space-2);
+  transition: color 0.3s ease;
+}
+
+.faq-item.active .question-text {
+  color: #ffffff;
 }
 
 .question-icon {
-  font-size: 18px;
-  color: var(--color-primary);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #ffffff;
+  background-color: var(--green-700);
   flex-shrink: 0;
-  transition: transform var(--transition-base);
+  transition: transform var(--transition-base), background-color var(--transition-base), color var(--transition-base);
 }
 
 .faq-item.active .question-icon {
   transform: rotate(180deg);
+  background-color: #ffffff;
+  color: var(--green-800);
 }
 
 .faq-answer {
@@ -142,13 +194,23 @@
 .answer-content {
   padding-top: var(--space-3);
   border-top: 1px solid var(--sage-300);
+  transition: border-color var(--transition-base);
+}
+
+.faq-item.active .answer-content {
+  border-top-color: rgba(255, 255, 255, 0.28);
 }
 
 .answer-content p {
   font-size: var(--font-size-base);
-  color: var(--sage-hero-text);
+  color: var(--green-800);
   line-height: 1.7;
   margin: 0 0 var(--space-3) 0;
+  transition: color 0.3s ease;
+}
+
+.faq-item.active .answer-content p {
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .answer-content p:last-child {
@@ -159,8 +221,8 @@
   text-align: center;
   margin-top: var(--space-12);
   padding: var(--space-6);
-  background-color: var(--sage-100);
-  border: 1px solid var(--sage-200);
+  background: linear-gradient(135deg, var(--sage-50) 0%, var(--sage-200) 100%);
+  border: 1px solid var(--sage-300);
   border-radius: var(--radius-md);
 }
 
@@ -171,9 +233,9 @@
 }
 
 .faqs-footer p:first-child {
-  font-weight: var(--font-weight-semibold);
-  font-size: var(--font-size-md);
-  color: var(--color-primary);
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-lg);
+  color: var(--green-800);
 }
 
 .faqs-footer p:last-child {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -6,6 +6,10 @@ import { db, auth, storage } from '../firebase';
 import { FaCamera, FaEye, FaEyeSlash } from 'react-icons/fa';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/ProfileSettings.css';
+
+// Only the fields the user can actually edit count toward "changed"
+// (read-only fields like email/office/staff ID and the derived M.I. don't).
+const EDITABLE_KEYS = ['lastName', 'firstName', 'middleName', 'suffix', 'phoneNumber', 'twoFactorEnabled'];
 
 function ProfileSettings({ onClose }) {
   const [loading, setLoading] = useState(true);
@@ -28,6 +32,8 @@ function ProfileSettings({ onClose }) {
 
   const [profilePicture, setProfilePicture] = useState(null);
   const [profilePicturePreview, setProfilePicturePreview] = useState('');
+  // Snapshot of the values loaded from Firestore — used to detect unsaved changes
+  const [originalProfileData, setOriginalProfileData] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -41,7 +47,16 @@ function ProfileSettings({ onClose }) {
   });
 
   useEffect(() => {
+    let active = true;
+    // Safety net: a stalled fetch must not leave the modal stuck on a spinner
+    const timer = setTimeout(() => {
+      if (active) setLoading(false);
+    }, 12000);
     loadProfileData();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, []);
 
   const loadProfileData = async () => {
@@ -121,7 +136,7 @@ function ProfileSettings({ onClose }) {
           }
         }
         
-        setProfileData({
+        const loadedProfile = {
           lastName: lastName,
           firstName: firstName,
           middleName: data.middleName || '',
@@ -135,7 +150,9 @@ function ProfileSettings({ onClose }) {
           profilePicture: data.profilePicture || '',
           twoFactorEnabled: data.twoFactorEnabled || false,
           lastPasswordUpdate: data.lastPasswordUpdate || null
-        });
+        };
+        setProfileData(loadedProfile);
+        setOriginalProfileData(loadedProfile);
         setProfilePicturePreview(data.profilePicture || '');
       } else {
         console.error('❌ Staff document not found');
@@ -183,6 +200,12 @@ function ProfileSettings({ onClose }) {
       twoFactorEnabled: !prev.twoFactorEnabled
     }));
   };
+
+  const hasChanges = useMemo(() => {
+    if (!originalProfileData) return false;
+    if (profilePicture) return true;
+    return EDITABLE_KEYS.some(key => profileData[key] !== originalProfileData[key]);
+  }, [profileData, originalProfileData, profilePicture]);
 
   const handleUpdateProfile = async () => {
     try {
@@ -501,13 +524,18 @@ function ProfileSettings({ onClose }) {
 
           {/* Action Buttons */}
           <div className="settings-actions">
-            <button className="cancel-btn-settings" onClick={onClose}>
+            <button
+              className="cancel-btn-settings"
+              onClick={onClose}
+              title="Discard changes and close"
+            >
               Cancel
             </button>
-            <button 
-              className="update-btn" 
+            <button
+              className="update-btn"
               onClick={handleUpdateProfile}
-              disabled={saving}
+              disabled={saving || !hasChanges}
+              title={!hasChanges ? 'Make a change to enable saving' : undefined}
             >
               {saving ? 'Updating...' : 'Update Profile'}
             </button>

@@ -1,13 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, signOut } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../firebase';
-import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload } from 'react-icons/fa';
+import { FaCamera, FaEye, FaEyeSlash, FaQrcode, FaDownload, FaSignOutAlt } from 'react-icons/fa';
+import { MdClose } from 'react-icons/md';
 import QRCode from 'qrcode';
 import { encryptCredentials } from '../utils/qrEncryption';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/ProfileSettings.css';
+
+// Only the fields the user can actually edit count toward "changed"
+// (read-only fields like grade level, section, email, school ID and the
+// derived M.I. don't).
+const EDITABLE_KEYS = ['lastName', 'firstName', 'middleName', 'suffix', 'phoneNumber', 'twoFactorEnabled'];
 
 function ProfileSettings({ onClose }) {
   const [loading, setLoading] = useState(true);
@@ -31,6 +37,8 @@ function ProfileSettings({ onClose }) {
 
   const [profilePicture, setProfilePicture] = useState(null);
   const [profilePicturePreview, setProfilePicturePreview] = useState('');
+  // Snapshot of the values loaded from Firestore — used to detect unsaved changes
+  const [originalProfileData, setOriginalProfileData] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [qrCodeDataURL, setQrCodeDataURL] = useState('');
   const [showQRPasswordPrompt, setShowQRPasswordPrompt] = useState(false);
@@ -268,7 +276,7 @@ function ProfileSettings({ onClose }) {
         
         console.log('🆔 Extracted 4-digit ID:', fourDigitId, 'from raw ID:', rawId);
         
-        setProfileData({
+        const loadedProfile = {
           lastName: data.lastName || '',
           firstName: data.firstName || '',
           middleName: data.middleName || '',
@@ -283,7 +291,9 @@ function ProfileSettings({ onClose }) {
           twoFactorEnabled: data.twoFactorEnabled || false,
           lastPasswordUpdate: data.lastPasswordUpdate || null,
           qrCodeData: data.qrCodeData || '' // Load existing QR data
-        });
+        };
+        setProfileData(loadedProfile);
+        setOriginalProfileData(loadedProfile);
         setProfilePicturePreview(data.profilePicture || '');
       } else {
         console.error('❌ Student document not found');
@@ -331,6 +341,12 @@ function ProfileSettings({ onClose }) {
       twoFactorEnabled: !prev.twoFactorEnabled
     }));
   };
+
+  const hasChanges = useMemo(() => {
+    if (!originalProfileData) return false;
+    if (profilePicture) return true;
+    return EDITABLE_KEYS.some(key => profileData[key] !== originalProfileData[key]);
+  }, [profileData, originalProfileData, profilePicture]);
 
   const handleUpdateProfile = async () => {
     try {
@@ -489,7 +505,13 @@ function ProfileSettings({ onClose }) {
       <div className="profile-settings-modal" onClick={(e) => e.stopPropagation()}>
         <div className="profile-settings-header">
           <h2>Settings</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button
+            className="close-btn"
+            onClick={onClose}
+            aria-label="Close settings"
+          >
+            <MdClose />
+          </button>
         </div>
 
         <div className="profile-settings-content">
@@ -704,10 +726,6 @@ function ProfileSettings({ onClose }) {
                   <div className="qr-code-placeholder">
                     <FaQrcode className="qr-placeholder-icon" />
                     <p>No QR code generated yet</p>
-                    <button className="generate-qr-btn" onClick={handleGenerateQRCode}>
-                      <FaQrcode />
-                      Generate QR Code
-                    </button>
                   </div>
                 )}
                 {qrCodeDataURL && <p className="qr-code-id">Student ID: {profileData.schoolId}</p>}
@@ -736,6 +754,12 @@ function ProfileSettings({ onClose }) {
                     <p style={{ color: '#ef5350', marginTop: '10px', fontWeight: 600 }}>
                       ⚠ Keep your QR code secure - it contains your login credentials!
                     </p>
+                    {!qrCodeDataURL && (
+                      <button className="generate-qr-btn" onClick={handleGenerateQRCode}>
+                        <FaQrcode />
+                        Generate QR Code
+                      </button>
+                    )}
                   </div>
                 </div>
                 
@@ -757,13 +781,19 @@ function ProfileSettings({ onClose }) {
 
           {/* Action Buttons */}
           <div className="settings-actions">
-            <button className="logout-btn-settings" onClick={handleLogout}>
+            <button
+              className="logout-btn-settings"
+              onClick={handleLogout}
+              aria-label="Log out of your account"
+            >
+              <FaSignOutAlt aria-hidden="true" />
               Log Out
             </button>
             <button 
               className="update-btn" 
               onClick={handleUpdateProfile}
-              disabled={saving}
+              disabled={saving || !hasChanges}
+              title={!hasChanges ? 'Make a change to enable saving' : undefined}
             >
               {saving ? 'Updating...' : 'Update Profile'}
             </button>

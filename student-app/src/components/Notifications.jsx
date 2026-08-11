@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaBell, FaCheck, FaCheckDouble, FaTimes } from 'react-icons/fa';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { FaBell, FaCheck, FaCheckDouble, FaTimes, FaArrowRight } from 'react-icons/fa';
+import { collection, query, where, onSnapshot, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { markAsRead, markAllAsRead } from '../utils/notificationHelper';
 import LoadingSpinner from './LoadingSpinner';
@@ -8,7 +8,30 @@ import '../styles/Notifications.css';
 
 const CLOSE_ANIMATION_MS = 180;
 
-const Notifications = ({ isOpen, onClose, bellRef }) => {
+// Look up the request a notification refers to (by its human-readable request
+// ID) so the app can open it. Tickets that were reassigned get a NEW requestId
+// while the notification keeps the old one, so fall back to previousRequestId.
+const fetchRequestByNotification = async (notif) => {
+  const requestId = notif.metadata?.requestId;
+  if (!requestId) return null;
+
+  const requestsRef = collection(db, 'requests');
+  const queries = [
+    query(requestsRef, where('requestId', '==', requestId), limit(1)),
+    query(requestsRef, where('previousRequestId', '==', requestId), limit(1))
+  ];
+
+  for (const q of queries) {
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      const doc = snapshot.docs[0];
+      return { firestoreId: doc.id, ...doc.data() };
+    }
+  }
+  return null;
+};
+
+const Notifications = ({ isOpen, onClose, bellRef, onViewRequest }) => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -121,6 +144,26 @@ const Notifications = ({ isOpen, onClose, bellRef }) => {
     await markAsRead(notificationId);
   };
 
+  // Clicking a notification marks it read and, when it references a request,
+  // opens that request's details page (closing the dropdown on the way).
+  const handleNotificationClick = async (notif) => {
+    try {
+      if (!notif.isRead) {
+        await handleMarkAsRead(notif.id);
+      }
+
+      const request = await fetchRequestByNotification(notif);
+      if (request && onViewRequest) {
+        onViewRequest(request);
+        onClose();
+        // Return focus to the bell, per the disclosure/dialog pattern
+        bellRef?.current?.focus();
+      }
+    } catch (error) {
+      console.error('❌ Error opening request from notification:', error);
+    }
+  };
+
   const handleMarkAllAsRead = async () => {
     const studentData = JSON.parse(localStorage.getItem('studentData'));
     await markAllAsRead(studentData.uid, 'student');
@@ -181,14 +224,28 @@ const Notifications = ({ isOpen, onClose, bellRef }) => {
           notifications.map((notif) => (
             <div
               key={notif.id}
+              role="button"
+              tabIndex={0}
               className={`notification-item ${!notif.isRead ? 'unread' : ''}`}
-              onClick={() => !notif.isRead && handleMarkAsRead(notif.id)}
+              onClick={() => handleNotificationClick(notif)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleNotificationClick(notif);
+                }
+              }}
+              title={notif.metadata?.requestId ? 'Open request' : undefined}
             >
               <div className="notification-content">
                 <div className="notification-title">{notif.title}</div>
                 <div className="notification-message">{notif.message}</div>
                 <div className="notification-time">{getTimeAgo(notif.createdAt)}</div>
               </div>
+              {notif.metadata?.requestId && (
+                <div className="notification-open-indicator" aria-hidden="true">
+                  <FaArrowRight />
+                </div>
+              )}
               {!notif.isRead && (
                 <div className="notification-unread-indicator">
                   <FaCheck className="mark-read-icon" />

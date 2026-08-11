@@ -45,6 +45,12 @@
   margin: 0;
 }
 
+.page-subtitle {
+  font-size: 14px;
+  color: #8a8a8a;
+  margin: 4px 0 0 0;
+}
+
 .header-right {
   display: flex;
   align-items: center;
@@ -129,55 +135,248 @@
   margin-bottom: 30px;
 }
 
+/* ==========================================================================
+   SUMMARY CARDS — same anatomy as the Admin Dashboard stat cards (white
+   card, icon chip + label row, big value, subtext), color-coded per ticket
+   status so each card reads as a stage of the workflow at a glance. Colors
+   match the status badges in the table directly below.
+   ========================================================================== */
 .summary-card {
-  padding: 25px;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
+  width: 100%;
+  background-color: #ffffff;
+  border: 1px solid #eeebea;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  overflow: hidden; /* clip the stage rail to the rounded corners */
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  /* Gentle staggered entrance; 'backwards' fill so delayed cards don't
+     flash before their animation starts, and hover transforms still work
+     once it completes. */
+  animation: summary-card-in 0.4s ease-out backwards;
+}
+
+.summary-card:focus-visible {
+  outline: 2px solid #2e7d32;
+  outline-offset: 2px;
+}
+
+.summary-card:nth-child(2) {
+  animation-delay: 0.06s;
+}
+
+.summary-card:nth-child(3) {
+  animation-delay: 0.12s;
+}
+
+@keyframes summary-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .summary-card {
+    animation: none;
+  }
+}
+
+/* Stage rail — a colored edge that marks which workflow stage this card is */
+.summary-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 18px;
+  bottom: 18px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.summary-header {
+  display: flex;
   align-items: center;
-}
-
-.summary-card.new {
-  background-color: #e3d5f7;
-}
-
-.summary-card.progress {
-  background-color: #fff3cd;
-}
-
-.summary-card.resolved {
-  background-color: #c8e6c9;
-}
-
-.summary-content h3 {
-  font-size: 14px;
-  font-weight: 600;
-  color: #666;
-  margin: 0 0 10px 0;
-  text-transform: uppercase;
-}
-
-.summary-count {
-  font-size: 36px;
-  font-weight: bold;
-  color: #333;
-  margin: 0;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .summary-icon-container {
-  width: 50px;
-  height: 50px;
-  background-color: white;
+  width: 46px;
+  height: 46px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background-color 0.2s ease;
 }
 
 .summary-icon {
-  font-size: 24px;
-  color: #666;
+  font-size: 20px;
+  transition: transform 0.2s ease;
+}
+
+.summary-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #999999;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
+}
+
+.summary-count {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0;
+}
+
+.summary-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.summary-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.summary-subtext {
+  font-size: 13px;
+  color: #666666;
+  margin: 0;
+}
+
+/* ---- New Tickets (indigo, matches the Pending badge) ---- */
+.summary-card.new::before {
+  background-color: #3730a3;
+}
+
+.summary-card.new .summary-icon-container {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+.summary-card.new .summary-count {
+  color: #3730a3;
+}
+
+.summary-card.new .summary-dot {
+  background-color: #3730a3;
+}
+
+.summary-card.new:hover {
+  border-color: #c7d2fe;
+}
+
+.summary-card.new:hover .summary-icon-container {
+  background-color: #d3dcf9;
+}
+
+/* ---- In Process (amber, matches the In Progress badge) ---- */
+.summary-card.progress::before {
+  background-color: #92400e;
+}
+
+.summary-card.progress .summary-icon-container {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.summary-card.progress .summary-count {
+  color: #92400e;
+}
+
+.summary-card.progress .summary-dot {
+  background-color: #92400e;
+}
+
+.summary-card.progress:hover {
+  border-color: #fde68a;
+}
+
+.summary-card.progress:hover .summary-icon-container {
+  background-color: #fbe7a9;
+}
+
+/* ---- Resolved (emerald, matches the Resolved badge) ---- */
+.summary-card.resolved::before {
+  background-color: #065f46;
+}
+
+.summary-card.resolved .summary-icon-container {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.summary-card.resolved .summary-count {
+  color: #065f46;
+}
+
+.summary-card.resolved .summary-dot {
+  background-color: #065f46;
+}
+
+.summary-card.resolved:hover {
+  border-color: #a7f3d0;
+}
+
+.summary-card.resolved:hover .summary-icon-container {
+  background-color: #b7efd3;
+}
+
+/* Icon nudge on hover — same micro-interaction for every card */
+.summary-card:hover .summary-icon {
+  transform: scale(1.08);
+}
+
+/* ---- Active state — this card's filter is applied to the table ---- */
+.summary-card.new.active {
+  border-color: #3730a3;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 0 2px rgba(55, 48, 163, 0.18);
+}
+
+.summary-card.progress.active {
+  border-color: #92400e;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 0 2px rgba(146, 64, 14, 0.18);
+}
+
+.summary-card.resolved.active {
+  border-color: #065f46;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 0 2px rgba(6, 95, 70, 0.18);
+}
+
+/* Active + hover: keep the ring while showing the lifted shadow */
+.summary-card.new.active:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(55, 48, 163, 0.18);
+}
+
+.summary-card.progress.active:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(146, 64, 14, 0.18);
+}
+
+.summary-card.resolved.active:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(6, 95, 70, 0.18);
 }
 
 .filters-section {
@@ -214,37 +413,179 @@
   border-color: #66bb6a;
 }
 
-.filter-dropdown {
-  padding: 12px 20px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 14px;
-  background-color: white;
-  cursor: pointer;
-  color: #666;
-  min-width: 150px;
+/* ---- Status filter dropdown (matches Super Admin filter trigger) ---- */
+.status-filter-wrap {
+  position: relative;
 }
 
-.reset-filter-btn {
-  padding: 12px 24px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  background-color: white;
-  color: #666;
+.filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 1px solid #e0dcd9;
+  border-radius: 10px;
+  background-color: #ffffff;
+  cursor: pointer;
   font-size: 14px;
+  color: #666666;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.filter-trigger:hover {
+  background-color: #f4f2f0;
+  color: #1a1a1a;
+}
+
+.filter-trigger.active {
+  border-color: #105e06;
+  color: #105e06;
+  background-color: #f0f7f0;
+}
+
+.filter-icon {
+  font-size: 14px;
+  color: #999999;
+}
+
+.filter-trigger.active .filter-icon {
+  color: #105e06;
+}
+
+.filter-active-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #105e06;
+  flex-shrink: 0;
+}
+
+.filter-chevron {
+  font-size: 12px;
+  color: #999999;
+  transition: transform 0.2s ease;
+}
+
+.filter-chevron.open {
+  transform: rotate(180deg);
+}
+
+.filter-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  /* Right-anchored so the panel never spills past the viewport — the
+     trigger hugs the container's right edge on desktop (search box is
+     flex:1), so left:0 would push the 240px panel off-screen. */
+  right: 0;
+  z-index: 60;
+  width: 240px;
+  max-width: calc(100vw - 32px);
+  background-color: #ffffff;
+  border: 1px solid #eeebea;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  padding: 12px;
+  animation: filter-dropdown-pop 0.18s ease;
+}
+
+@keyframes filter-dropdown-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.filter-dropdown-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #999999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px 10px;
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 8px;
+  border: none;
+  border-radius: 8px;
+  background-color: transparent;
+  color: #444444;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.status-option:hover {
+  background-color: #f4f2f0;
+}
+
+.status-option.selected {
+  background-color: #f0f7f0;
+  color: #105e06;
+  font-weight: 600;
+}
+
+.status-option-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  font-size: 10px;
+  color: #ffffff;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.status-option.selected .status-option-check {
+  background-color: #105e06;
+  border-color: #105e06;
+}
+
+.filter-dropdown-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 8px 4px;
+  border-top: 1px solid #f0eeee;
+  margin-top: 8px;
+}
+
+.filter-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid #e0dcd9;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #666666;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
-.reset-filter-btn:hover {
-  background-color: #f5f5f5;
+.filter-clear-btn:hover {
+  background-color: #f4f2f0;
+  color: #1a1a1a;
 }
 
 .tickets-list-section {
   background-color: white;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   overflow: hidden;
 }
 
@@ -254,105 +595,148 @@
 }
 
 .tickets-list-table thead {
-  background-color: #fafafa;
+  background-color: transparent;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .tickets-list-table th {
-  padding: 15px 25px;
+  padding: 16px 24px;
   text-align: left;
-  font-size: 12px;
-  font-weight: 600;
-  color: #999;
+  font-size: 11px;
+  font-weight: 700;
+  color: #9ca3af;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.tickets-list-table th:first-child {
-  width: 40px;
+  letter-spacing: 0.8px;
 }
 
 .tickets-list-table td {
-  padding: 20px 25px;
+  padding: 20px 24px;
   font-size: 14px;
-  color: #666;
-  border-bottom: 1px solid #f0f0f0;
+  color: #374151;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
 }
 
 .tickets-list-table tbody tr {
-  cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s ease;
 }
 
 .tickets-list-table tbody tr:hover {
-  background-color: #fafafa;
+  background-color: #f9fafb;
 }
 
-.checkbox-cell {
-  width: 40px;
-}
-
-.ticket-checkbox {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.student-cell {
-  font-weight: 600;
-  color: #333;
-}
-
-.student-id-text {
-  font-size: 12px;
-  color: #999;
-  display: block;
-  margin-top: 3px;
+.tickets-list-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .ticket-info-text {
   font-weight: 600;
-  color: #333;
+  color: #111827;
+  line-height: 1.4;
 }
 
 .ticket-number {
   font-size: 12px;
-  color: #999;
+  color: #9ca3af;
+  font-weight: 400;
   display: block;
-  margin-top: 3px;
+  margin-top: 4px;
+}
+
+.student-cell {
+  font-weight: 500;
+  color: #374151;
+  line-height: 1.4;
+}
+
+.student-id-text {
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 400;
+  display: block;
+  margin-top: 4px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.status-badge.status-inprocess,
+.status-badge.status-inprogress {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.status-pending,
+.status-badge.status-newticket {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+.status-badge.status-resolved {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.status-cancelled {
+  background-color: #fde8e8;
+  color: #b91c1c;
+}
+
+.status-badge.status-rejected {
+  background-color: #fde8e8;
+  color: #b91c1c;
+}
+
+.assigned-to-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-icon {
+  font-size: 20px;
+  color: #6b7280;
+  flex-shrink: 0;
 }
 
 .assigned-name {
   font-weight: 500;
-  color: #333;
+  color: #374151;
 }
 
-.status-text {
+.unassigned-text {
+  color: #10b981;
+  font-style: italic;
+  font-size: 13px;
   font-weight: 500;
 }
 
-.status-text.inprogress {
-  color: #856404;
+.view-ticket-btn {
+  padding: 8px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background-color: white;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
-.status-text.rejected {
-  color: #dc3545;
+.view-ticket-btn:hover {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
 }
 
-.status-text.resolved {
-  color: #155724;
-}
-
-.status-text.cancelled {
-  color: #721c24;
-}
-
-.status-text.pending {
-  color: #6c2eb9;
-}
-
-.arrow-icon {
-  color: #ccc;
-  font-size: 16px;
+.view-ticket-btn:active {
+  transform: scale(0.98);
 }
 
 .pagination-tickets {
@@ -436,6 +820,23 @@
     padding: 18px;
   }
 
+  .summary-icon-container {
+    width: 42px;
+    height: 42px;
+  }
+
+  .summary-icon {
+    font-size: 18px;
+  }
+
+  .summary-label {
+    font-size: 11px;
+  }
+
+  .summary-count {
+    font-size: 28px;
+  }
+
   .filters-section {
     flex-wrap: wrap;
   }
@@ -444,8 +845,11 @@
     flex: 1 1 100%;
   }
 
-  .filter-dropdown {
-    min-width: 130px;
+  /* Once the search box wraps to its own row (<=1024px), the filter
+     trigger moves to the LEFT side, so re-anchor the panel leftward. */
+  .filter-dropdown-panel {
+    left: 0;
+    right: auto;
   }
 
   .tickets-list-section {

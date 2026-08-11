@@ -265,7 +265,15 @@
 .pagination-info {
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
-  margin-right: auto;
+}
+
+/* Subtle divider + breathing room between the "Showing…" text and the page
+   buttons — only when buttons actually render (multi-page lists), so a
+   single-page list never shows a dangling divider on the right edge. */
+.pagination-info:has(~ button) {
+  padding-right: var(--space-3);
+  margin-right: var(--space-2);
+  border-right: 1px solid var(--gray-200);
 }
 
 .pagination button {
@@ -481,9 +489,16 @@
   transition: background-color var(--transition-base), transform var(--transition-fast);
 }
 
-.filter-apply-btn:hover {
+.filter-apply-btn:hover:not(:disabled) {
   background-color: var(--green-btn-hover);
   transform: translateY(-1px);
+}
+
+.filter-apply-btn:disabled {
+  background-color: #9eaf9c;
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
 }
 
 .filter-clear-btn {

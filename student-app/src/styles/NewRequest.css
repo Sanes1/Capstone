@@ -224,9 +224,14 @@
 }
 
 .upload-icon {
-  font-size: 48px;
-  color: var(--gray-400);
-  margin-bottom: var(--space-4);
+  /* Block + auto margins center the SVG cleanly; line-height: 1 removes the
+     inline baseline gap so the icon sits right above the text (matches the
+     flexbox-centered icon on the guest request form). */
+  display: block;
+  margin: 0 auto var(--space-4);
+  line-height: 1;
+  font-size: 55px;
+  color: #8CB986; /* sage green — matches the attach-file icon used on the guest request form (Figma) */
 }
 
 .upload-text {
@@ -270,7 +275,10 @@
   cursor: not-allowed;
 }
 
-.submit-btn {
+/* Scoped class (.submit-btn-request) so this button can never pick up the
+   green-gradient .submit-btn styles from ForgotPassword.css — the class
+   collision made the disabled gray look green. */
+.submit-btn-request {
   padding: var(--space-3) var(--space-6);
   background-color: var(--green-btn);
   color: white;
@@ -282,12 +290,15 @@
   transition: background var(--transition-fast);
 }
 
-.submit-btn:hover:not(:disabled) {
+.submit-btn-request:hover:not(:disabled) {
   background-color: var(--green-btn-hover);
 }
 
-.submit-btn:disabled {
-  opacity: 0.6;
+.submit-btn-request:disabled {
+  /* Solid neutral gray — same gray-out treatment as the Update Profile button
+     in the admin-app settings. */
+  background-color: var(--gray-400);
+  color: #ffffff;
   cursor: not-allowed;
 }
 
@@ -464,7 +475,7 @@
   }
 
   .cancel-btn,
-  .submit-btn {
+  .submit-btn-request {
     width: 100%;
     justify-content: center;
   }

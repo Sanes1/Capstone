@@ -77,6 +77,15 @@
   gap: var(--space-3);
 }
 
+/* Pending requests only — stack the Cancel button below the status badge
+   (badge on the upper right, button beneath it). Claimed/resolved tickets
+   keep the side-by-side row above. */
+.request-actions:has(.cancel-btn) {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
 .status-badge {
   padding: 7px 16px;
   border-radius: var(--radius-pill);
@@ -209,40 +218,54 @@
   transform: translateY(0);
 }
 
-/* Cancel button (ticket details only) — matches the Figma export
-   (ticket details frame): solid red #D73030, ban icon, white uppercase
-   label, ~4px radius. Scoped under .request-actions so the shared global
-   .cancel-btn class on other pages is not affected. */
+/* Cancel button (ticket details only) — soft red / outlined destructive
+   style using the danger tokens: red-tinted fill, red text + border, and
+   the tint deepens on hover. Scoped under .request-actions so the shared
+   global .cancel-btn class on other pages is not affected. */
 .request-actions .cancel-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 22px;
-  background-color: #d73030;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
+  gap: 6px;
+  padding: 6px 14px;
+  background-color: var(--red-100);
+  color: var(--red-700);
+  border: 1px solid var(--red-500);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
   line-height: 1.2;
   font-weight: 600;
   letter-spacing: 0.3px;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background-color var(--transition-fast), transform var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast),
+    box-shadow var(--transition-fast), transform var(--transition-fast);
 }
 
 .request-actions .cancel-btn svg {
-  font-size: 16px;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
+/* Hover deepens the red tint and darkens the border while keeping the red
+   text — never flashes white. */
 .request-actions .cancel-btn:hover {
-  background-color: #c02b2b;
+  background-color: rgba(220, 53, 69, 0.14);
+  border-color: var(--red-700);
+  color: var(--red-700);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
 }
 
 .request-actions .cancel-btn:active {
+  background-color: rgba(220, 53, 69, 0.24);
+  border-color: var(--red-700);
   transform: translateY(1px);
+  box-shadow: none;
+}
+
+.request-actions .cancel-btn:focus-visible {
+  outline: 2px solid var(--red-500);
+  outline-offset: 2px;
 }
 
 .original-submission {
@@ -440,8 +463,18 @@
   transition: background var(--transition-fast);
 }
 
-.send-btn:hover {
+.send-btn:hover:not(:disabled) {
   background-color: var(--green-btn-hover);
+}
+
+.send-btn:disabled {
+  /* Solid neutral gray — same gray-out treatment as the New Request submit
+     button, the Feedback submit button, and the admin Update Profile button. */
+  background-color: var(--gray-400);
+  color: #ffffff;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 /* ---- Staff & student conversation bubbles ---- */
@@ -662,8 +695,8 @@
   }
 
   .request-actions {
-    flex-wrap: wrap;
     justify-content: flex-end;
+    align-items: flex-end;
   }
 
   .request-assigned {

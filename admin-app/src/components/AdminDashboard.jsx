@@ -1,136 +1,62 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { FaBell, FaInbox, FaTicketAlt, FaClipboard, FaCheckCircle, FaUserCircle } from 'react-icons/fa';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import Notifications from './Notifications';
 import { notifyStudentStatusChange } from '../utils/notificationHelper';
+import { useOfficeTickets } from '../hooks/useOfficeTickets';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/AdminDashboard.css';
 
-const AdminDashboard = ({ department }) => {
+const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
   const [activeTab, setActiveTab] = useState('all');
   const [timeFilter, setTimeFilter] = useState('month');
-  const [tickets, setTickets] = useState([]);
-  const [filteredTickets, setFilteredTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [stats, setStats] = useState({
-    total: 0,
-    unassigned: 0,
-    claimed: 0,
-    resolved: 0
-  });
+  const { tickets, loading } = useOfficeTickets(department);
   const [staffData, setStaffData] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const ticketsSectionRef = useRef(null);
 
   useEffect(() => {
     // Get staff data from localStorage
     const storedStaffData = localStorage.getItem('staffData');
     if (storedStaffData) {
-      const parsedData = JSON.parse(storedStaffData);
-      setStaffData(parsedData);
-      
-      // Temporarily disabled notification listener to fix ticket loading
-      // TODO: Re-enable after fixing index issue
-      /*
-      if (parsedData.uid) {
-        const q = query(
-          collection(db, 'notifications'),
-          where('recipientId', '==', parsedData.uid),
-          where('recipientType', '==', 'staff')
-        );
-
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-          const unread = querySnapshot.docs.filter(doc => !doc.data().isRead).length;
-          setUnreadCount(unread);
-        });
-
-        return () => unsubscribe();
-      }
-      */
+      setStaffData(JSON.parse(storedStaffData));
     }
-    loadTickets();
-  }, [department]);
+  }, []);
 
-  useEffect(() => {
-    filterTickets();
-  }, [activeTab, tickets, searchQuery]);
+  // Dashboard summary cards — derived straight from the shared live tickets
+  const stats = useMemo(() => ({
+    total: tickets.length,
+    // Cancelled tickets have no assignee but are NOT awaiting assignment
+    unassigned: tickets.filter(t => !t.assignedTo && t.status !== 'Cancelled').length,
+    claimed: tickets.filter(t => t.status === 'In Process').length,
+    resolved: tickets.filter(t => t.status === 'Resolved').length
+  }), [tickets]);
 
-  const loadTickets = async () => {
-    try {
-      setLoading(true);
-      
-      // Query tickets for this office
-      const requestsRef = collection(db, 'requests');
-      const q = query(
-        requestsRef,
-        where('office', '==', department)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      
-      const ticketsData = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          firestoreId: doc.id,
-          id: data.requestId,
-          title: data.subject,
-          student: data.studentName,
-          studentId: data.studentId,
-          status: data.status,
-          assignedTo: data.assignedTo || null,
-          assignedToStaff: data.assignedToStaff || null,
-          createdAtTimestamp: data.createdAt?.toDate().getTime() || 0,
-          ...data
-        };
-      });
-      
-      // Sort by date (newest first)
-      ticketsData.sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
-      
-      setTickets(ticketsData);
-      
-      // Calculate stats
-      const newStats = {
-        total: ticketsData.length,
-        unassigned: ticketsData.filter(t => !t.assignedTo).length,
-        claimed: ticketsData.filter(t => t.status === 'In Process').length,
-        resolved: ticketsData.filter(t => t.status === 'Resolved').length
-      };
-      setStats(newStats);
-      
-      console.log('✅ Loaded', ticketsData.length, 'tickets for', department);
-    } catch (error) {
-      console.error('❌ Error loading tickets:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterTickets = () => {
+  const filteredTickets = useMemo(() => {
     let filtered = [...tickets];
-    
+
     // Filter by tab
     if (activeTab === 'new') {
-      filtered = filtered.filter(t => t.status === 'Pending' || !t.assignedTo);
+      // Cancelled tickets aren't "new" — they only match because they have
+      // no assignee, so exclude them explicitly.
+      filtered = filtered.filter(t => t.status !== 'Cancelled' && (t.status === 'Pending' || !t.assignedTo));
     } else if (activeTab === 'progress') {
       filtered = filtered.filter(t => t.status === 'In Process');
     } else if (activeTab === 'resolved') {
       filtered = filtered.filter(t => t.status === 'Resolved');
     }
-    
-    // Filter by search
-    if (searchQuery) {
-      filtered = filtered.filter(t => 
-        t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.student.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (t.assignedTo && t.assignedTo.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-    }
-    
-    setFilteredTickets(filtered);
+
+    return filtered;
+  }, [activeTab, tickets]);
+
+  // Stat cards double as quick filters: clicking one switches the ticket
+  // table to the matching tab (All / New Tickets / In Progress / Resolved)
+  // and scrolls it into view. Clicking the already-active card resets to All.
+  const handleStatCardClick = (tab) => {
+    setActiveTab((prev) => (prev === tab ? 'all' : tab));
+    ticketsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const handleClaimTicket = async (ticket) => {
@@ -140,7 +66,7 @@ const AdminDashboard = ({ department }) => {
     }
 
     try {
-      // Update ticket in Firestore
+      // Update ticket in Firestore (the shared live listener refreshes the UI)
       const ticketRef = doc(db, 'requests', ticket.firestoreId);
       await updateDoc(ticketRef, {
         assignedTo: staffData.name,
@@ -151,7 +77,7 @@ const AdminDashboard = ({ department }) => {
       });
 
       console.log('✅ Ticket claimed by', staffData.name);
-      
+
       // Create notification for the student about status change
       if (ticket.studentUid) {
         await notifyStudentStatusChange(
@@ -165,10 +91,7 @@ const AdminDashboard = ({ department }) => {
       } else {
         console.warn('⚠️ Student UID not found in ticket, notification not sent');
       }
-      
-      // Reload tickets
-      await loadTickets();
-      
+
       alert(`Ticket ${ticket.id} has been assigned to you!`);
     } catch (error) {
       console.error('❌ Error claiming ticket:', error);
@@ -179,16 +102,19 @@ const AdminDashboard = ({ department }) => {
   return (
     <div className="admin-dashboard-container">
       <div className="dashboard-header">
-        <h1 className="dashboard-title">{department}'s Office</h1>
+        <div>
+          <h1 className="dashboard-title">{department}'s Office</h1>
+          <p className="dashboard-subtitle">Monitor and manage all student requests in your office</p>
+        </div>
         <div className="header-right">
           <div className="time-filter">
-            <button 
+            <button
               className={`filter-btn ${timeFilter === 'week' ? 'active' : ''}`}
               onClick={() => setTimeFilter('week')}
             >
               Week
             </button>
-            <button 
+            <button
               className={`filter-btn ${timeFilter === 'month' ? 'active' : ''}`}
               onClick={() => setTimeFilter('month')}
             >
@@ -203,56 +129,76 @@ const AdminDashboard = ({ department }) => {
       </div>
 
       <div className="stats-cards">
-        <div className="stat-card">
-          <div className="stat-card-head">
-            <div className="stat-icon-box stat-icon-box--total">
+        <button
+          type="button"
+          className={`stat-card ${activeTab === 'all' ? 'active' : ''}`}
+          onClick={() => handleStatCardClick('all')}
+          aria-pressed={activeTab === 'all'}
+          aria-label="Show all tickets in the dashboard table"
+        >
+          <span className="stat-header">
+            <span className="stat-icon-container">
               <FaInbox className="stat-icon" />
-            </div>
-            <span className="stat-chip">New</span>
-          </div>
-          <div className="stat-label">Total</div>
-          <div className="stat-value">{stats.total}</div>
-          <div className="stat-subtext">All Tickets</div>
-        </div>
+            </span>
+            <span className="stat-label">Total</span>
+          </span>
+          <span className="stat-value">{stats.total}</span>
+          <span className="stat-subtext">All Tickets</span>
+        </button>
 
-        <div className="stat-card">
-          <div className="stat-card-head">
-            <div className="stat-icon-box stat-icon-box--unassigned">
+        <button
+          type="button"
+          className={`stat-card ${activeTab === 'new' ? 'active' : ''}`}
+          onClick={() => handleStatCardClick('new')}
+          aria-pressed={activeTab === 'new'}
+          aria-label="Show new tickets awaiting assignment in the dashboard table"
+        >
+          <span className="stat-header">
+            <span className="stat-icon-container">
               <FaTicketAlt className="stat-icon" />
-            </div>
-            <span className="stat-chip">Open</span>
-          </div>
-          <div className="stat-label">Unassigned</div>
-          <div className="stat-value">{stats.unassigned}</div>
-          <div className="stat-subtext">Pending Tickets</div>
-        </div>
+            </span>
+            <span className="stat-label">Open</span>
+          </span>
+          <span className="stat-value">{stats.unassigned}</span>
+          <span className="stat-subtext">Awaiting Assignment</span>
+        </button>
 
-        <div className="stat-card">
-          <div className="stat-card-head">
-            <div className="stat-icon-box stat-icon-box--claimed">
+        <button
+          type="button"
+          className={`stat-card ${activeTab === 'progress' ? 'active' : ''}`}
+          onClick={() => handleStatCardClick('progress')}
+          aria-pressed={activeTab === 'progress'}
+          aria-label="Show in progress tickets in the dashboard table"
+        >
+          <span className="stat-header">
+            <span className="stat-icon-container">
               <FaClipboard className="stat-icon" />
-            </div>
-            <span className="stat-chip">In Progress</span>
-          </div>
-          <div className="stat-label">Claimed</div>
-          <div className="stat-value">{stats.claimed}</div>
-          <div className="stat-subtext">In Progress</div>
-        </div>
+            </span>
+            <span className="stat-label">In Progress</span>
+          </span>
+          <span className="stat-value">{stats.claimed}</span>
+          <span className="stat-subtext">Being Handled</span>
+        </button>
 
-        <div className="stat-card">
-          <div className="stat-card-head">
-            <div className="stat-icon-box stat-icon-box--complete">
+        <button
+          type="button"
+          className={`stat-card ${activeTab === 'resolved' ? 'active' : ''}`}
+          onClick={() => handleStatCardClick('resolved')}
+          aria-pressed={activeTab === 'resolved'}
+          aria-label="Show resolved tickets in the dashboard table"
+        >
+          <span className="stat-header">
+            <span className="stat-icon-container">
               <FaCheckCircle className="stat-icon" />
-            </div>
-            <span className="stat-chip">Resolved</span>
-          </div>
-          <div className="stat-label">Complete</div>
-          <div className="stat-value">{stats.resolved}</div>
-          <div className="stat-subtext">Resolved</div>
-        </div>
+            </span>
+            <span className="stat-label">Resolved</span>
+          </span>
+          <span className="stat-value">{stats.resolved}</span>
+          <span className="stat-subtext">Completed</span>
+        </button>
       </div>
 
-      <div className="tickets-section">
+      <div className="tickets-section" ref={ticketsSectionRef}>
         <div className="tickets-tabs">
           <div className={`tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>
             All
@@ -266,16 +212,6 @@ const AdminDashboard = ({ department }) => {
           <div className={`tab ${activeTab === 'resolved' ? 'active' : ''}`} onClick={() => setActiveTab('resolved')}>
             Resolved
           </div>
-        </div>
-
-        <div className="search-bar">
-          <input 
-            type="text" 
-            className="search-input" 
-            placeholder="Search by Ticket Info or Staff Name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
         </div>
 
         {loading ? (
@@ -335,9 +271,14 @@ const AdminDashboard = ({ department }) => {
                           Cancelled
                         </button>
                       ) : ticket.assignedTo ? (
-                        <button className="action-btn">View Ticket</button>
+                        <button
+                          className="action-btn"
+                          onClick={() => onNavigate('ticket-details', ticket)}
+                        >
+                          View Ticket
+                        </button>
                       ) : (
-                        <button 
+                        <button
                           className="action-btn claim"
                           onClick={() => handleClaimTicket(ticket)}
                         >
@@ -359,7 +300,7 @@ const AdminDashboard = ({ department }) => {
         )}
       </div>
 
-      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
+      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} onViewRequest={onViewRequest} />
     </div>
   );
 };

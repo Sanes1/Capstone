@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   MdSearch,
+  MdClose,
   MdKeyboardArrowLeft,
   MdKeyboardArrowRight,
   MdInbox
@@ -10,15 +11,21 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import LoadingSpinner from './LoadingSpinner';
 import Breadcrumb from './Breadcrumb';
 import StatusBadge from './StatusBadge';
+import FilterDropdown from './FilterDropdown';
 import '../styles/MyRequest.css';
 
-const STATUS_OPTIONS = ['All Status', 'In Process', 'Resolved', 'Pending'];
+// Same filter UI as the admin-app My Tickets page — status options cover every
+// state a student's own request can actually be in (staff can return requests,
+// so Returned / For Follow Up are included too).
+const STATUS_OPTIONS = ['All Status', 'Pending', 'In Process', 'Resolved', 'Cancelled', 'Returned', 'For Follow Up'];
 const OFFICE_OPTIONS = ['All Offices', 'Finance', 'Library', 'Registrar', 'Guidance'];
 const PAGE_SIZE = 8;
 
-function MyRequest({ onViewDetails, onNavigate }) {
+function MyRequest({ onViewDetails, onNavigate, initialStatusFilter = 'All Status' }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All Status');
+  // Seeded from the dashboard stat cards (Pending / In Process / Resolved),
+  // otherwise defaults to showing every request.
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter);
   const [officeFilter, setOfficeFilter] = useState('All Offices');
   const [currentPage, setCurrentPage] = useState(1);
   const [requests, setRequests] = useState([]);
@@ -141,12 +148,6 @@ function MyRequest({ onViewDetails, onNavigate }) {
     setCurrentPage(1);
   };
 
-  const handleResetFilters = () => {
-    setSearchQuery('');
-    setStatusFilter('All Status');
-    setOfficeFilter('All Offices');
-  };
-
   const hasActiveFilters = Boolean(searchQuery) || statusFilter !== 'All Status' || officeFilter !== 'All Offices';
 
   // Client-side pagination over the filtered results
@@ -183,33 +184,35 @@ function MyRequest({ onViewDetails, onNavigate }) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              className="search-clear-btn"
+              onClick={() => setSearchQuery('')}
+              aria-label="Clear search"
+            >
+              <MdClose aria-hidden="true" />
+            </button>
+          )}
         </div>
 
-        <label htmlFor="status-filter" className="sr-only">Filter by status</label>
-        <select
-          id="status-filter"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          {STATUS_OPTIONS.map((option) => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </select>
-
-        <label htmlFor="office-filter" className="sr-only">Filter by office</label>
-        <select
-          id="office-filter"
-          value={officeFilter}
-          onChange={(e) => setOfficeFilter(e.target.value)}
-        >
-          {OFFICE_OPTIONS.map((option) => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </select>
-
-        <button type="button" className="reset-btn" onClick={handleResetFilters}>
-          Reset Filters
-        </button>
+        <FilterDropdown
+          label="Filter"
+          sections={[
+            {
+              title: 'Status',
+              options: STATUS_OPTIONS,
+              value: statusFilter,
+              onChange: setStatusFilter
+            },
+            {
+              title: 'Office',
+              options: OFFICE_OPTIONS,
+              value: officeFilter,
+              onChange: setOfficeFilter
+            }
+          ]}
+        />
       </div>
 
       <div className="request-table">
@@ -231,8 +234,9 @@ function MyRequest({ onViewDetails, onNavigate }) {
             </p>
           </div>
         ) : (
-          <div className="table-scroll">
-            <table className="data-table">
+          <>
+            <div className="table-scroll">
+              <table className="data-table">
               <caption className="sr-only">Request history</caption>
               <thead>
                 <tr>
@@ -270,8 +274,17 @@ function MyRequest({ onViewDetails, onNavigate }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+              </table>
+            </div>
+
+            {/* Results count — bottom-right corner of the table card */}
+            <div className="table-footer">
+              <p className="results-count">
+                Showing <strong>{filteredRequests.length}</strong> of {requests.length} request
+                {requests.length === 1 ? '' : 's'}
+              </p>
+            </div>
+          </>
         )}
       </div>
 

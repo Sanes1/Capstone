@@ -15,7 +15,11 @@ const EditRequestForm = () => {
   const [editingCardOffice, setEditingCardOffice] = useState(null);
   const [cardDraft, setCardDraft] = useState('');
   const [editingSubject, setEditingSubject] = useState(null);
+  const [subjectDraft, setSubjectDraft] = useState('');
   const [newSubject, setNewSubject] = useState('');
+  // Snapshot of the config as loaded — the Save Changes button stays grayed
+  // out until something actually differs from this.
+  const [originalOffices, setOriginalOffices] = useState(null);
 
   const defaultOffices = [
     {
@@ -55,15 +59,19 @@ const EditRequestForm = () => {
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        setOffices(docSnap.data().offices || defaultOffices);
+        const loaded = docSnap.data().offices || defaultOffices;
+        setOffices(loaded);
+        setOriginalOffices(loaded);
       } else {
         // Initialize with default config
         setOffices(defaultOffices);
+        setOriginalOffices(defaultOffices);
         await setDoc(docRef, { offices: defaultOffices });
       }
     } catch (error) {
       console.error('Error loading form config:', error);
       setOffices(defaultOffices);
+      setOriginalOffices(defaultOffices);
     } finally {
       setLoading(false);
     }
@@ -74,6 +82,8 @@ const EditRequestForm = () => {
       setSaving(true);
       const docRef = doc(db, 'config', 'requestForm');
       await setDoc(docRef, { offices });
+      // Refresh the snapshot so the button re-grays until the next change
+      setOriginalOffices(offices);
       alert('Form configuration saved successfully!');
     } catch (error) {
       console.error('Error saving form config:', error);
@@ -159,7 +169,32 @@ const EditRequestForm = () => {
     ));
   };
 
+  // Switching offices dismisses any open subject editor — its key is tied
+  // to the previously selected office.
+  const handleSelectOffice = (officeId) => {
+    setSelectedOffice(officeId);
+    setEditingSubject(null);
+    setSubjectDraft('');
+  };
+
+  // Cancel a subject edit with Escape
+  useEffect(() => {
+    if (!editingSubject) return undefined;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setEditingSubject(null);
+        setSubjectDraft('');
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [editingSubject]);
+
   const selectedOfficeData = offices.find(o => o.id === selectedOffice);
+
+  // Save Changes stays grayed out until the form actually differs from the
+  // loaded configuration (description edits, subject adds/edits/deletes).
+  const hasConfigChanges = JSON.stringify(offices) !== JSON.stringify(originalOffices || []);
 
   if (loading) {
     return <LoadingSpinner message="Loading form configuration..." fullScreen={true} />;
@@ -173,7 +208,12 @@ const EditRequestForm = () => {
           <p className="page-subtitle">Manage the offices, descriptions, and subjects students can request</p>
         </div>
         <div className="form-actions-header">
-          <button className="btn-primary save-config-btn" onClick={saveFormConfig} disabled={saving}>
+          <button
+            className="btn-primary save-config-btn"
+            onClick={saveFormConfig}
+            disabled={saving || !hasConfigChanges}
+            title={!hasConfigChanges ? 'Make a change to enable saving' : undefined}
+          >
             <FaSave aria-hidden="true" /> {saving ? 'Saving...' : 'Save Changes'}
           </button>
           <NotificationBell />
@@ -190,7 +230,7 @@ const EditRequestForm = () => {
               <div
                 key={office.id}
                 className={`office-card ${selectedOffice === office.id ? 'selected' : ''} ${editingCardOffice === office.id ? 'editing' : ''}`}
-                onClick={() => setSelectedOffice(office.id)}
+                onClick={() => handleSelectOffice(office.id)}
               >
                 <div className="radio-circle"></div>
                 <div className="office-info">
@@ -283,31 +323,58 @@ const EditRequestForm = () => {
                 {(selectedOfficeData.subjects || []).map((subject, index) => (
                   <div key={index} className="subject-item">
                     {editingSubject === `${selectedOffice}-${index}` ? (
-                      <input
-                        type="text"
-                        className="subject-input-edit"
-                        defaultValue={subject}
-                        onBlur={(e) => handleEditSubject(selectedOffice, subject, e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            handleEditSubject(selectedOffice, subject, e.target.value);
-                          }
-                        }}
-                        autoFocus
-                      />
+                      <div className="subject-edit-row">
+                        <input
+                          type="text"
+                          className="subject-input-edit"
+                          value={subjectDraft}
+                          onChange={(e) => setSubjectDraft(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              handleEditSubject(selectedOffice, subject, subjectDraft);
+                            }
+                          }}
+                          aria-label={`Edit subject ${subject}`}
+                          autoFocus
+                        />
+                        <div className="subject-edit-actions">
+                          <button
+                            className="icon-btn-small save-btn"
+                            onClick={() => handleEditSubject(selectedOffice, subject, subjectDraft)}
+                            disabled={!subjectDraft.trim()}
+                            title={!subjectDraft.trim() ? 'Enter a subject to save' : 'Save changes'}
+                            aria-label="Save subject changes"
+                          >
+                            <FaSave />
+                          </button>
+                          <button
+                            className="icon-btn-small cancel-btn"
+                            onClick={() => setEditingSubject(null)}
+                            title="Cancel"
+                            aria-label="Cancel subject edit"
+                          >
+                            <FaTimes />
+                          </button>
+                        </div>
+                      </div>
                     ) : (
                       <>
                         <span className="subject-text">{subject}</span>
                         <div className="subject-actions">
-                          <button 
+                          <button
                             className="icon-btn-small edit-btn"
-                            onClick={() => setEditingSubject(`${selectedOffice}-${index}`)}
+                            onClick={() => {
+                              setEditingSubject(`${selectedOffice}-${index}`);
+                              setSubjectDraft(subject);
+                            }}
+                            aria-label={`Edit subject ${subject}`}
                           >
                             <FaEdit />
                           </button>
-                          <button 
+                          <button
                             className="icon-btn-small delete-btn"
                             onClick={() => handleDeleteSubject(selectedOffice, subject)}
+                            aria-label={`Delete subject ${subject}`}
                           >
                             <FaTrash />
                           </button>
@@ -331,9 +398,11 @@ const EditRequestForm = () => {
                     }
                   }}
                 />
-                <button 
+                <button
                   className="add-subject-btn"
                   onClick={() => handleAddSubject(selectedOffice)}
+                  disabled={!newSubject.trim()}
+                  title={!newSubject.trim() ? 'Enter a subject to add' : undefined}
                 >
                   <FaPlus /> Add Subject
                 </button>

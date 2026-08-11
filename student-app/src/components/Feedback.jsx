@@ -23,6 +23,10 @@ function Feedback({ selectedOffice: initialOffice, onNavigate }) {
   const [followUp, setFollowUp] = useState(false);
   const [offices, setOffices] = useState(DEFAULT_OFFICES);
 
+  // Frontend-only gating: Submit Feedback stays disabled until both required
+  // star ratings are given (Additional Comments and Follow-up are optional).
+  const isFormValid = responseTime > 0 && helpfulness > 0;
+
   // Update selectedOffice when prop changes
   useEffect(() => {
     setSelectedOffice(initialOffice || null);
@@ -285,8 +289,17 @@ function Feedback({ selectedOffice: initialOffice, onNavigate }) {
         </div>
 
         <div className="form-actions">
-          <button className="cancel-btn" onClick={goBackToOverview}>Cancel</button>
-          <button className="submit-feedback-btn" onClick={handleSubmitFeedback}>Submit Feedback</button>
+          <button className="cancel-btn-feedback" onClick={goBackToOverview}>
+            Cancel
+          </button>
+          <button
+            className="submit-feedback-btn"
+            onClick={handleSubmitFeedback}
+            disabled={!isFormValid}
+            title={!isFormValid ? 'Rate Response Time and Helpfulness to submit' : undefined}
+          >
+            Submit Feedback
+          </button>
         </div>
       </div>
     </div>

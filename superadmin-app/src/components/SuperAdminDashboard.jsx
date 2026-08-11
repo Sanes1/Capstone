@@ -238,6 +238,7 @@ const SuperAdminDashboard = () => {
                 isActive={isFilterActive}
                 onApply={applyDateFilter}
                 onClear={clearDateFilter}
+                appliedFilter={appliedFilter}
                 idPrefix="dashboard"
               />
             </div>

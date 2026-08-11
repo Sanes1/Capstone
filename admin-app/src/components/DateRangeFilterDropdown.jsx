@@ -1,23 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaFilter, FaCalendarAlt, FaTimes } from 'react-icons/fa';
+import { FaFilter, FaCalendarAlt, FaTimes, FaChevronDown } from 'react-icons/fa';
+import '../styles/DateRangeFilter.css';
 
 /**
- * Shared compact "Filter by" dropdown used on the Dashboard and Analytics pages.
- * Renders a single trigger button; clicking opens a small panel with From/To
- * date pickers plus Apply / Clear.
+ * Compact "Filter by date range" dropdown (from → to) used on the Analytics
+ * page. Renders a single trigger button; clicking opens a small panel with
+ * From/To date pickers plus Apply / Clear.
  *
  * Props:
- * - filter: current { from, to } draft values
- * - onFilterChange: (next) => void   — called as the user edits the dates
- * - isActive: boolean                — whether a filter is currently applied
- * - onApply: () => boolean | void    — called when Apply is clicked; return
- *                                    false to keep the panel open (e.g. when
- *                                    validation fails)
- * - onClear: () => void              — called when Clear is clicked
- * - idPrefix: string                 — unique prefix for the date input ids
- * - appliedFilter: { from, to }      — the currently APPLIED filter values;
- *                                      Apply stays disabled when the draft
- *                                      equals this (no change) or is empty
+ * - filter: { from, to } current draft values (YYYY-MM-DD)
+ * - onFilterChange: (next) => void — called as the user edits the dates
+ * - isActive: boolean — whether a filter is currently applied
+ * - onApply: () => boolean | void — called when Apply is clicked; return
+ *                                    false to keep the panel open (validation)
+ * - onClear: () => void — called when Clear is clicked
+ * - idPrefix: string — unique prefix for the date input ids
+ * - appliedFilter: { from, to } — the currently APPLIED filter values; Apply
+ *                                 stays disabled when the draft equals this
+ *                                 (no change) or both dates are empty
  */
 const DateRangeFilterDropdown = ({
   filter,
@@ -82,24 +82,25 @@ const DateRangeFilterDropdown = ({
   };
 
   return (
-    <div className="filter-dropdown" ref={wrapRef}>
+    <div className="daterange-filter-wrap" ref={wrapRef}>
       <button
         type="button"
-        className={`filter-trigger ${isActive ? 'active' : ''}`}
+        className={`daterange-trigger ${isActive ? 'active' : ''}`}
         onClick={() => setIsOpen(prev => !prev)}
         aria-haspopup="true"
         aria-expanded={isOpen}
       >
-        <FaFilter className="filter-icon" aria-hidden="true" />
-        Filter by
-        {isActive && <span className="filter-active-dot" aria-hidden="true" />}
+        <FaFilter className="daterange-icon" aria-hidden="true" />
+        By Date
+        {isActive && <span className="daterange-active-dot" aria-hidden="true" />}
+        <FaChevronDown className={`daterange-chevron ${isOpen ? 'open' : ''}`} aria-hidden="true" />
       </button>
 
       {isOpen && (
-        <div className="filter-dropdown-panel">
-          <div className="filter-dropdown-title">Filter by date range</div>
-          <div className="date-filter">
-            <div className="date-filter-field">
+        <div className="daterange-panel">
+          <div className="daterange-title">Filter by date range</div>
+          <div className="daterange-fields">
+            <div className="daterange-field">
               <label htmlFor={`${idPrefix}-from-date`}>From</label>
               <input
                 id={`${idPrefix}-from-date`}
@@ -109,7 +110,7 @@ const DateRangeFilterDropdown = ({
                 onChange={(e) => onFilterChange({ ...filter, from: e.target.value })}
               />
             </div>
-            <div className="date-filter-field">
+            <div className="daterange-field">
               <label htmlFor={`${idPrefix}-to-date`}>To</label>
               <input
                 id={`${idPrefix}-to-date`}
@@ -120,10 +121,10 @@ const DateRangeFilterDropdown = ({
               />
             </div>
           </div>
-          <div className="filter-dropdown-actions">
+          <div className="daterange-actions">
             <button
               type="button"
-              className="filter-apply-btn"
+              className="daterange-apply-btn"
               onClick={handleApply}
               disabled={!canApply}
               title={!canApply ? applyTooltip : undefined}
@@ -133,7 +134,7 @@ const DateRangeFilterDropdown = ({
             {isActive && (
               <button
                 type="button"
-                className="filter-clear-btn"
+                className="daterange-clear-btn"
                 onClick={handleClear}
                 aria-label="Clear date filter"
               >

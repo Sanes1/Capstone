@@ -5,14 +5,30 @@ import LoadingSpinner from './LoadingSpinner';
 import Breadcrumb from './Breadcrumb';
 import '../styles/BulletinBoard.css';
 
+// Default hero shown until an office saves a featured announcement
+const DEFAULT_HERO = {
+  office: '',
+  title: 'Welcome to the Bulletin Board',
+  body: 'Stay updated with the latest announcements and important deadlines'
+};
+
+const formatPostedDate = (value) => {
+  if (!value) return '';
+  const date = value?.toDate ? value.toDate() : new Date(value);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
 function BulletinBoard() {
   const [announcements, setAnnouncements] = useState([]);
   const [deadlines, setDeadlines] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hero, setHero] = useState(DEFAULT_HERO);
 
   useEffect(() => {
     let unsubscribeAnnouncements = null;
     let unsubscribeDeadlines = null;
+    let unsubscribeHero = null;
 
     try {
       // Load all announcements (from all offices)
@@ -33,10 +49,11 @@ function BulletinBoard() {
         setLoading(false);
       });
 
-      // Load all important dates (from all offices) - students see all deadlines
+      // Load all important dates (from all offices) - students see all deadlines.
+      // No orderBy in the query so no composite index is required — sorted
+      // client-side instead (matches the admin app).
       const deadlinesQuery = query(
-        collection(db, 'importantDates'),
-        orderBy('dateValue', 'asc')
+        collection(db, 'importantDates')
       );
 
       unsubscribeDeadlines = onSnapshot(deadlinesQuery, (querySnapshot) => {
@@ -44,9 +61,34 @@ function BulletinBoard() {
           id: doc.id,
           ...doc.data()
         }));
+        deadlinesData.sort((a, b) => (a.dateValue || 0) - (b.dateValue || 0));
         setDeadlines(deadlinesData);
       }, (error) => {
         console.error('❌ Error loading deadlines:', error);
+      });
+
+      // Featured (semestral) announcement — the most recently updated one
+      // across all offices, shown as the hero banner.
+      unsubscribeHero = onSnapshot(collection(db, 'bulletinHero'), (querySnapshot) => {
+        const heroes = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        heroes.sort((a, b) => {
+          const aTime = a.updatedAt?.toDate ? a.updatedAt.toDate().getTime() : 0;
+          const bTime = b.updatedAt?.toDate ? b.updatedAt.toDate().getTime() : 0;
+          return bTime - aTime;
+        });
+        const latest = heroes[0];
+        if (latest && (latest.title || latest.body)) {
+          setHero({
+            office: latest.office || '',
+            title: latest.title || DEFAULT_HERO.title,
+            body: latest.body || DEFAULT_HERO.body
+          });
+        } else {
+          setHero(DEFAULT_HERO);
+        }
+      }, (error) => {
+        console.error('❌ Error loading featured announcement:', error);
+        setHero(DEFAULT_HERO);
       });
     } catch (error) {
       console.error('❌ Error loading bulletin data:', error);
@@ -56,6 +98,7 @@ function BulletinBoard() {
     return () => {
       if (unsubscribeAnnouncements) unsubscribeAnnouncements();
       if (unsubscribeDeadlines) unsubscribeDeadlines();
+      if (unsubscribeHero) unsubscribeHero();
     };
   }, []);
 
@@ -76,9 +119,12 @@ function BulletinBoard() {
       </div>
 
       <div className="hero-banner">
-        <div className="hero-content">
-          <h2>Welcome to the Bulletin Board</h2>
-          <p>Stay updated with the latest announcements and important deadlines</p>
+        <div className="hero-overlay">
+          {hero.office && (
+            <span className="hero-kicker">{hero.office} OFFICE</span>
+          )}
+          <h2 className="hero-title">{hero.title}</h2>
+          <p className="hero-subtitle">{hero.body}</p>
         </div>
       </div>
 
@@ -97,7 +143,7 @@ function BulletinBoard() {
               <div key={announcement.id} className="announcement-card">
                 {announcement.photo && (
                   <div className="announcement-image">
-                    <img src={announcement.photo} alt={announcement.title} className="announcement-photo" />
+                    <img src={announcement.photo} alt="" className="announcement-photo" />
                   </div>
                 )}
                 <div className="announcement-details">
@@ -105,7 +151,9 @@ function BulletinBoard() {
                   <h4>{announcement.title}</h4>
                   <p>{announcement.body}</p>
                   <div className="announcement-footer">
-                    <span className="announcement-author">By {announcement.createdBy}</span>
+                    <span className="announcement-date">
+                      Posted {formatPostedDate(announcement.createdAt) || 'recently'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -128,7 +176,7 @@ function BulletinBoard() {
               <div key={deadline.id} className="deadline-item">
                 <div className="deadline-date">
                   <div className="month">{deadline.month}</div>
-                  <div className="day">{deadline.day}</div>
+                  <div className="day">{parseInt(deadline.day, 10) || deadline.day}</div>
                 </div>
                 <div className="deadline-details">
                   <div className="deadline-title">{deadline.title}</div>

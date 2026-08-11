@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { MdUploadFile, MdClose, MdCheckCircle, MdWarning, MdError } from 'react-icons/md';
+import { FaFileUpload } from 'react-icons/fa';
+import { MdClose, MdCheckCircle, MdWarning, MdError } from 'react-icons/md';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { validateContent } from '../utils/contentModeration';
@@ -130,6 +131,7 @@ function NewRequest({ onNavigate }) {
   useEffect(() => {
     if (!description.trim() || !subject) {
       setValidationResult(null);
+      setIsValidating(false); // keep the UI flag in sync so the Submit gate can't stay locked
       return;
     }
 
@@ -292,6 +294,20 @@ function NewRequest({ onNavigate }) {
     }
   };
 
+  // Frontend-only gating for the Submit button: it stays disabled until every
+  // required field is filled in AND the AI content check has passed. Attaching
+  // files stays optional, and the button re-enables automatically as the
+  // required inputs (and validation) become complete.
+  const isFormValid = Boolean(
+    selectedOffice &&
+    subject &&
+    description.trim() &&
+    !isValidating &&
+    validationResult &&
+    validationResult.isValid &&
+    validationResult.errors.length === 0
+  );
+
   if (loadingConfig) {
     return <LoadingSpinner message="Loading form..." fullScreen={true} />;
   }
@@ -425,7 +441,7 @@ function NewRequest({ onNavigate }) {
           />
           
           <div className="upload-area" onClick={() => fileInputRef.current?.click()}>
-            <MdUploadFile className="upload-icon" />
+            <FaFileUpload className="upload-icon" />
             <p className="upload-text">Click to upload or drag and drop</p>
             <p className="upload-limit">Attach documents (Max 5MB per file)</p>
           </div>
@@ -455,17 +471,11 @@ function NewRequest({ onNavigate }) {
         </div>
 
         <div className="form-actions">
-          <button 
-            className="cancel-btn" 
-            onClick={() => onNavigate('request')}
-            disabled={loading}
-          >
-            Cancel
-          </button>
-          <button 
-            className="submit-btn" 
+          <button
+            className="submit-btn-request"
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || !isFormValid}
+            title={!isFormValid ? 'Complete all required fields to submit' : undefined}
           >
             {loading && <span className="btn-spinner"></span>}
             {loading ? 'Submitting...' : 'Submit Request'}

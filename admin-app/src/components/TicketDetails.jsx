@@ -7,7 +7,7 @@ import Notifications from './Notifications';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/TicketDetails.css';
 
-const TicketDetails = ({ ticketData, department, onNavigate }) => {
+const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) => {
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [replyMessage, setReplyMessage] = useState('');
@@ -417,22 +417,60 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
     onNavigate('my-tickets');
   };
 
-  if (loading || !ticket) {
+  // Once a ticket is resolved or cancelled, management actions no longer apply —
+  // lock the Management Control card so nothing there can be changed.
+  const isTicketClosed = ticket?.status === 'Resolved' || ticket?.status === 'Cancelled';
+
+  // Without a selected ticket there is nothing to load — show a navigable
+  // fallback instead of blocking the whole app behind the full-screen spinner.
+  if (!ticketData) {
+    return (
+      <div className="ticket-details-container">
+        <div className="ticket-details-empty">
+          <p className="ticket-details-empty-title">No ticket selected</p>
+          <p className="ticket-details-empty-text">Go back to your ticket list to open a ticket.</p>
+          <button className="ticket-details-back-btn" onClick={() => onNavigate('my-tickets')}>
+            Back to My Tickets
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
     return <LoadingSpinner message="Loading ticket details..." fullScreen={true} />;
+  }
+
+  // Ticket data was requested but the document doesn't exist (or couldn't load)
+  if (!ticket) {
+    return (
+      <div className="ticket-details-container">
+        <div className="ticket-details-empty">
+          <p className="ticket-details-empty-title">Ticket not found</p>
+          <p className="ticket-details-empty-text">This ticket may have been removed, or you no longer have access to it.</p>
+          <button className="ticket-details-back-btn" onClick={() => onNavigate('my-tickets')}>
+            Back to My Tickets
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="ticket-details-container">
       <div className="breadcrumb">
         <span className="breadcrumb-item clickable" onClick={handleBackToTickets}>
-          All Ticket
+          Tickets
         </span>
         <span className="breadcrumb-separator">/</span>
         <span className="breadcrumb-item">Ticket Details</span>
       </div>
 
       <div className="page-header">
-        <h1 className="page-title">Ticket Details</h1>
+        <div>
+          <h1 className="page-title">Ticket Details</h1>
+          <p className="page-subtitle">Review the student's request, timeline, and reply to keep it moving</p>
+        </div>
         <div className="notification-bell" onClick={() => setShowNotifications(true)}>
           <FaBell className="bell-icon" />
           {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
@@ -594,7 +632,8 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
                   <button 
                     className="send-message-btn"
                     onClick={handleSendReply}
-                    disabled={sending}
+                    disabled={sending || (!replyMessage.trim() && replyFiles.length === 0)}
+                    title={!replyMessage.trim() && replyFiles.length === 0 ? 'Type a message or attach a file to enable sending' : undefined}
                   >
                     {sending ? 'Sending...' : 'Send Message'}
                   </button>
@@ -641,8 +680,13 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
             </div>
           </div>
 
-          <div className="management-card">
+          <div className={`management-card ${isTicketClosed ? 'management-card--locked' : ''}`}>
             <h3 className="management-title">Management Control</h3>
+            {isTicketClosed && (
+              <p className="management-lock-note">
+                This ticket is {ticket.status === 'Resolved' ? 'resolved' : 'cancelled'} — management actions are locked.
+              </p>
+            )}
             
             <div className="management-field">
               <p className="field-label">URGENCY LEVEL</p>
@@ -650,6 +694,7 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
                 className="field-select"
                 value={urgencyLevel}
                 onChange={(e) => handleUrgencyChange(e.target.value)}
+                disabled={isTicketClosed}
               >
                 <option value="Normal">Normal - Process within 2-3 days</option>
                 <option value="Medium">Medium - Process within 1-2 days</option>
@@ -663,13 +708,14 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
                 className="field-select"
                 value={reassignOffice}
                 onChange={(e) => setReassignOffice(e.target.value)}
+                disabled={isTicketClosed}
               >
                 <option value="Finance">Finance Office</option>
                 <option value="Registrar">Registrar's Office</option>
                 <option value="Library">Library</option>
                 <option value="Guidance">Guidance Office</option>
               </select>
-              {reassignOffice !== ticket.office && (
+              {!isTicketClosed && reassignOffice !== ticket.office && (
                 <button className="reassign-btn" onClick={handleReassign}>
                   Reassign Ticket
                 </button>
@@ -741,7 +787,7 @@ const TicketDetails = ({ ticketData, department, onNavigate }) => {
         </div>
       )}
       
-      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
+      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} onViewRequest={onViewRequest} />
     </div>
   );
 };

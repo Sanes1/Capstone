@@ -1,18 +1,23 @@
-import { useState, useEffect } from 'react';
-import { FaBell, FaSearch, FaTicketAlt, FaEllipsisH, FaCheckCircle, FaChevronRight } from 'react-icons/fa';
+import { useState, useEffect, useRef } from 'react';
+import { FaBell, FaSearch, FaTicketAlt, FaEllipsisH, FaCheckCircle, FaUserCircle, FaFilter, FaChevronDown, FaCheck, FaTimes } from 'react-icons/fa';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import Notifications from './Notifications';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/MyTickets.css';
 
-const MyTickets = ({ department, onNavigate }) => {
+const STATUS_OPTIONS = ['All Status', 'New Tickets', 'In Progress', 'Resolved', 'Rejected'];
+
+const MyTickets = ({ department, onNavigate, onViewRequest }) => {
   const [timeFilter, setTimeFilter] = useState('week');
   const [tickets, setTickets] = useState([]);
   const [filteredTickets, setFilteredTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const filterWrapRef = useRef(null);
+  const ticketsListRef = useRef(null);
   const [staffData, setStaffData] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -51,6 +56,30 @@ const MyTickets = ({ department, onNavigate }) => {
   useEffect(() => {
     filterTickets();
   }, [searchQuery, statusFilter, tickets]);
+
+  // Close the status filter dropdown when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!isFilterOpen) return undefined;
+
+    const handleClickOutside = (e) => {
+      if (filterWrapRef.current && !filterWrapRef.current.contains(e.target)) {
+        setIsFilterOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsFilterOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFilterOpen]);
 
   const loadMyTickets = async (staffName) => {
     try {
@@ -126,9 +155,24 @@ const MyTickets = ({ department, onNavigate }) => {
     setFilteredTickets(filtered);
   };
 
-  const handleResetFilters = () => {
-    setSearchQuery('');
-    setStatusFilter('All Status');
+  const handleSelectStatus = (status) => {
+    setStatusFilter(status);
+    setIsFilterOpen(false);
+  };
+
+  // Summary cards double as quick filters: clicking one applies its status
+  // filter to the table below, clears any stale search, and scrolls the
+  // filtered table into view. Clicking the already-active card resets to
+  // All Status.
+  const handleSummaryCardClick = (filter) => {
+    setStatusFilter((prev) => (prev === filter ? 'All Status' : filter));
+    // Clear any stale search only when applying a different filter —
+    // toggling the active card back to All Status keeps the search.
+    if (statusFilter !== filter) {
+      setSearchQuery('');
+    }
+    setIsFilterOpen(false);
+    ticketsListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const handleTicketClick = (ticket) => {
@@ -146,7 +190,10 @@ const MyTickets = ({ department, onNavigate }) => {
       </div>
 
       <div className="page-header">
-        <h1 className="page-title">My Tickets</h1>
+        <div>
+          <h1 className="page-title">My Tickets</h1>
+          <p className="page-subtitle">Tickets you've claimed and the ones you're handling</p>
+        </div>
         <div className="header-right">
           <div className="time-filter">
             <button 
@@ -170,35 +217,65 @@ const MyTickets = ({ department, onNavigate }) => {
       </div>
 
       <div className="ticket-summary-cards">
-        <div className="summary-card new">
-          <div className="summary-content">
-            <h3>New Tickets</h3>
-            <div className="summary-count">{stats.new}</div>
-          </div>
-          <div className="summary-icon-container">
-            <FaTicketAlt className="summary-icon" />
-          </div>
-        </div>
+        <button
+          type="button"
+          className={`summary-card new ${statusFilter === 'New Tickets' ? 'active' : ''}`}
+          onClick={() => handleSummaryCardClick('New Tickets')}
+          aria-pressed={statusFilter === 'New Tickets'}
+          aria-label="Show New Tickets in the ticket table"
+        >
+          <span className="summary-header">
+            <span className="summary-icon-container">
+              <FaTicketAlt className="summary-icon" />
+            </span>
+            <span className="summary-label">New Tickets</span>
+          </span>
+          <span className="summary-count">{stats.new}</span>
+          <span className="summary-footer">
+            <span className="summary-dot" aria-hidden="true" />
+            <span className="summary-subtext">Awaiting action</span>
+          </span>
+        </button>
 
-        <div className="summary-card progress">
-          <div className="summary-content">
-            <h3>In Process</h3>
-            <div className="summary-count">{stats.inProgress}</div>
-          </div>
-          <div className="summary-icon-container">
-            <FaEllipsisH className="summary-icon" />
-          </div>
-        </div>
+        <button
+          type="button"
+          className={`summary-card progress ${statusFilter === 'In Progress' ? 'active' : ''}`}
+          onClick={() => handleSummaryCardClick('In Progress')}
+          aria-pressed={statusFilter === 'In Progress'}
+          aria-label="Show In Process tickets in the ticket table"
+        >
+          <span className="summary-header">
+            <span className="summary-icon-container">
+              <FaEllipsisH className="summary-icon" />
+            </span>
+            <span className="summary-label">In Process</span>
+          </span>
+          <span className="summary-count">{stats.inProgress}</span>
+          <span className="summary-footer">
+            <span className="summary-dot" aria-hidden="true" />
+            <span className="summary-subtext">Being handled</span>
+          </span>
+        </button>
 
-        <div className="summary-card resolved">
-          <div className="summary-content">
-            <h3>Resolved</h3>
-            <div className="summary-count">{stats.resolved}</div>
-          </div>
-          <div className="summary-icon-container">
-            <FaCheckCircle className="summary-icon" />
-          </div>
-        </div>
+        <button
+          type="button"
+          className={`summary-card resolved ${statusFilter === 'Resolved' ? 'active' : ''}`}
+          onClick={() => handleSummaryCardClick('Resolved')}
+          aria-pressed={statusFilter === 'Resolved'}
+          aria-label="Show Resolved tickets in the ticket table"
+        >
+          <span className="summary-header">
+            <span className="summary-icon-container">
+              <FaCheckCircle className="summary-icon" />
+            </span>
+            <span className="summary-label">Resolved</span>
+          </span>
+          <span className="summary-count">{stats.resolved}</span>
+          <span className="summary-footer">
+            <span className="summary-dot" aria-hidden="true" />
+            <span className="summary-subtext">Completed</span>
+          </span>
+        </button>
       </div>
 
       <div className="filters-section">
@@ -211,47 +288,84 @@ const MyTickets = ({ department, onNavigate }) => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <select 
-          className="filter-dropdown"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option>All Status</option>
-          <option>New Tickets</option>
-          <option>In Progress</option>
-          <option>Resolved</option>
-          <option>Rejected</option>
-        </select>
-        <button className="reset-filter-btn" onClick={handleResetFilters}>Reset Filters</button>
+        <div className="status-filter-wrap" ref={filterWrapRef}>
+          <button
+            type="button"
+            className={`filter-trigger ${statusFilter !== 'All Status' ? 'active' : ''}`}
+            onClick={() => setIsFilterOpen(prev => !prev)}
+            aria-haspopup="listbox"
+            aria-expanded={isFilterOpen}
+            aria-label="Filter tickets by status"
+          >
+            <FaFilter className="filter-icon" aria-hidden="true" />
+            Status
+            {statusFilter !== 'All Status' && <span className="filter-active-dot" aria-hidden="true" />}
+            <FaChevronDown className={`filter-chevron ${isFilterOpen ? 'open' : ''}`} aria-hidden="true" />
+          </button>
+
+          {isFilterOpen && (
+            <div className="filter-dropdown-panel" role="listbox" aria-label="Filter by status">
+              <div className="filter-dropdown-title">Filter by status</div>
+              {STATUS_OPTIONS.map(status => (
+                <button
+                  key={status}
+                  type="button"
+                  role="option"
+                  aria-selected={statusFilter === status}
+                  className={`status-option ${statusFilter === status ? 'selected' : ''}`}
+                  onClick={() => handleSelectStatus(status)}
+                >
+                  <span className="status-option-check">
+                    {statusFilter === status && <FaCheck aria-hidden="true" />}
+                  </span>
+                  {status}
+                </button>
+              ))}
+              {statusFilter !== 'All Status' && (
+                <div className="filter-dropdown-actions">
+                  <button
+                    type="button"
+                    className="filter-clear-btn"
+                    onClick={() => handleSelectStatus('All Status')}
+                  >
+                    <FaTimes aria-hidden="true" /> Clear
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="tickets-list-section">
+      <div className="tickets-list-section" ref={ticketsListRef}>
         {loading ? (
           <LoadingSpinner message="Loading your tickets..." fullScreen={false} />
         ) : filteredTickets.length === 0 ? (
           <div className="empty-state">
             {tickets.length === 0 
               ? 'You have no claimed tickets yet.' 
-              : 'No tickets match your search.'}
+              : 'No tickets match your filters.'}
           </div>
         ) : (
           <>
             <table className="tickets-list-table">
               <thead>
                 <tr>
-                  <th className="checkbox-cell"></th>
-                  <th>STUDENT DETAILS</th>
                   <th>TICKET INFO</th>
-                  <th>ASSIGNED TO</th>
+                  <th>STUDENT DETAILS</th>
                   <th>STATUS</th>
-                  <th></th>
+                  <th>ASSIGNED TO</th>
+                  <th>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTickets.map((ticket, index) => (
-                  <tr key={ticket.firestoreId || index} onClick={() => handleTicketClick(ticket)} style={{ cursor: 'pointer' }}>
-                    <td className="checkbox-cell">
-                      <input type="checkbox" className="ticket-checkbox" onClick={(e) => e.stopPropagation()} />
+                  <tr key={ticket.firestoreId || index}>
+                    <td>
+                      <div className="ticket-info-text">
+                        {ticket.title}
+                        <span className="ticket-number">#{ticket.id}</span>
+                      </div>
                     </td>
                     <td>
                       <div className="student-cell">
@@ -260,21 +374,31 @@ const MyTickets = ({ department, onNavigate }) => {
                       </div>
                     </td>
                     <td>
-                      <div className="ticket-info-text">
-                        {ticket.title}
-                        <span className="ticket-number">#{ticket.id}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="assigned-name">{ticket.assignedTo}</span>
-                    </td>
-                    <td>
-                      <span className={`status-text ${ticket.status.toLowerCase().replace(' ', '')}`}>
-                        {ticket.status}
+                      <span className={`status-badge status-${ticket.status.toLowerCase().replace(' ', '')}`}>
+                        {ticket.status === 'Pending' && 'New Ticket'}
+                        {ticket.status === 'In Process' && 'In Progress'}
+                        {ticket.status === 'Resolved' && 'Resolved'}
+                        {ticket.status === 'Cancelled' && 'Cancelled'}
+                        {ticket.status === 'Rejected' && 'Rejected'}
                       </span>
                     </td>
                     <td>
-                      <FaChevronRight className="arrow-icon" />
+                      {ticket.assignedTo ? (
+                        <div className="assigned-to-cell">
+                          <FaUserCircle className="user-icon" />
+                          <span className="assigned-name">{ticket.assignedTo}</span>
+                        </div>
+                      ) : (
+                        <span className="unassigned-text">Unassigned</span>
+                      )}
+                    </td>
+                    <td>
+                      <button 
+                        className="view-ticket-btn"
+                        onClick={() => handleTicketClick(ticket)}
+                      >
+                        View Ticket
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -290,7 +414,7 @@ const MyTickets = ({ department, onNavigate }) => {
         )}
       </div>
 
-      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
+      <Notifications isOpen={showNotifications} onClose={() => setShowNotifications(false)} onViewRequest={onViewRequest} />
     </div>
   );
 };

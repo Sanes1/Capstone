@@ -190,7 +190,7 @@
     top: 0;
     left: 0;
     bottom: 0;
-    width: min(280px, 85vw);
+    width: min(var(--sidebar-width), 85vw);
     z-index: 998;
     transform: translateX(-100%);
     visibility: hidden;

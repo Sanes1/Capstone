@@ -64,12 +64,26 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  text-align: left;
+  font-family: inherit;
+  transition: transform var(--transition-base), box-shadow var(--transition-base),
+    border-color var(--transition-base);
 }
 
 .stat-card:hover {
   transform: translateY(-3px);
   box-shadow: var(--shadow-md);
+  border-color: var(--color-accent);
+}
+
+.stat-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.stat-card:active {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-card-label {

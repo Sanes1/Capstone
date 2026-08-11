@@ -330,6 +330,24 @@
   text-decoration: underline;
 }
 
+.cancel-btn-settings {
+  padding: 12px 40px;
+  background-color: white;
+  border: 2px solid #d0d0d0;
+  border-radius: 6px;
+  color: #666;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn-settings:hover {
+  background-color: #f5f5f5;
+  border-color: #bbb;
+  color: #333;
+}
+
 .update-btn {
   padding: 12px 40px;
   background-color: #8CB986;
@@ -483,6 +501,7 @@
   }
 
   .logout-btn-settings,
+  .cancel-btn-settings,
   .update-btn {
     width: 100%;
   }
