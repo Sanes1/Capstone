@@ -9,6 +9,49 @@ import LoadingSpinner from './LoadingSpinner';
 import Breadcrumb from './Breadcrumb';
 import '../styles/NewRequest.css';
 
+// Smart image compression to stay under Firestore 1 MB document limit
+const MAX_IMAGE_DIMENSION = 1280;
+const MAX_BASE64_LENGTH = 900 * 1024 * 1.37; // ~0.9 MiB raw -> base64 ceiling
+
+const compressImage = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onerror = () => reject(new Error('Could not read the image file.'));
+  reader.onload = () => {
+    const img = new Image();
+    img.onerror = () => reject(new Error('That file is not a valid image.'));
+    img.onload = () => {
+      const encode = (maxDim) => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const width = Math.max(1, Math.round(img.width * scale));
+        const height = Math.max(1, Math.round(img.height * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+        let quality = 0.82;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while (dataUrl.length > MAX_BASE64_LENGTH && quality > 0.35) {
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        return dataUrl;
+      };
+
+      // Shrink the image progressively until it fits the 1 MiB doc limit
+      let result = encode(MAX_IMAGE_DIMENSION);
+      for (const dim of [1024, 800, 600]) {
+        if (result.length <= MAX_BASE64_LENGTH) break;
+        result = encode(dim);
+      }
+      resolve(result);
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+
 function NewRequest({ onNavigate }) {
   const [selectedOffice, setSelectedOffice] = useState('');
   const [subject, setSubject] = useState('');
@@ -88,12 +131,13 @@ function NewRequest({ onNavigate }) {
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files || []);
     
-    // Filter files by size (max 5MB)
+    // Filter files by size (max 10MB for images before compression, 5MB for documents)
     const validFiles = [];
     const invalidFiles = [];
     
     files.forEach(file => {
-      if (file.size <= 5 * 1024 * 1024) { // 5MB in bytes
+      const maxSize = file.type.startsWith('image/') ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+      if (file.size <= maxSize) {
         validFiles.push(file);
       } else {
         invalidFiles.push(file.name);
@@ -101,7 +145,7 @@ function NewRequest({ onNavigate }) {
     });
 
     if (invalidFiles.length > 0) {
-      setError(`These files exceed 5MB: ${invalidFiles.join(', ')}`);
+      setError(`These files are too large: ${invalidFiles.join(', ')}. Images must be under 10MB, documents under 5MB.`);
       setTimeout(() => setError(''), 5000);
     }
 
@@ -167,26 +211,35 @@ function NewRequest({ onNavigate }) {
       const file = uploadedFiles[i];
 
       try {
-        // Convert file to base64
-        const base64 = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+        let fileData;
+        
+        // Compress images, keep other files as-is
+        if (file.type.startsWith('image/')) {
+          console.log(`🖼️ Compressing image ${i + 1}/${uploadedFiles.length}:`, file.name, `(${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+          fileData = await compressImage(file);
+          console.log(`✅ Compressed to ${(fileData.length / 1024).toFixed(0)} KB`);
+        } else {
+          // Convert non-image files to base64
+          fileData = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        }
 
         uploadedFileUrls.push({
           name: file.name,
-          data: base64, // Store base64 data directly
+          data: fileData,
           size: file.size,
           type: file.type,
           uploadedAt: new Date().toISOString()
         });
         
-        console.log(`✅ Converted file ${i + 1}/${uploadedFiles.length}:`, file.name);
+        console.log(`✅ Processed file ${i + 1}/${uploadedFiles.length}:`, file.name);
       } catch (uploadError) {
-        console.error(`❌ Error converting file ${file.name}:`, uploadError);
-        throw new Error(`Failed to process ${file.name}`);
+        console.error(`❌ Error processing file ${file.name}:`, uploadError);
+        throw new Error(`Failed to process ${file.name}: ${uploadError.message}`);
       }
     }
 
@@ -429,7 +482,7 @@ function NewRequest({ onNavigate }) {
         </div>
 
         <div className="form-section">
-          <label>Attach File <span className="optional">(Optional - Max 5MB per file)</span></label>
+          <label>Attach File <span className="optional">(Optional - Images up to 10MB, documents up to 5MB)</span></label>
           
           <input
             ref={fileInputRef}
@@ -443,7 +496,7 @@ function NewRequest({ onNavigate }) {
           <div className="upload-area" onClick={() => fileInputRef.current?.click()}>
             <FaFileUpload className="upload-icon" />
             <p className="upload-text">Click to upload or drag and drop</p>
-            <p className="upload-limit">Attach documents (Max 5MB per file)</p>
+            <p className="upload-limit">Images auto-compressed, documents up to 5MB</p>
           </div>
 
           {uploadedFiles.length > 0 && (
