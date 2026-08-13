@@ -40,7 +40,8 @@ function App() {
   const handleLogin = (department) => {
     setSelectedDepartment(department);
     setIsLoggedIn(true);
-    // Don't set these anymore - staffData is set by Login component
+    setActivePage('dashboard'); // Always go to dashboard on login
+    localStorage.setItem('adminActivePage', 'dashboard'); // Reset to dashboard
   };
 
   const handleLogout = () => {

@@ -101,8 +101,10 @@ function App() {
   const handleLogin = () => {
     setIsLoggedIn(true);
     setIsGuest(false);
+    setActivePage('dashboard'); // Always go to dashboard on login
     localStorage.setItem('studentLoggedIn', 'true');
     localStorage.setItem('studentIsGuest', 'false');
+    localStorage.setItem('studentActivePage', 'dashboard'); // Reset to dashboard
   };
 
   const handleGuestLogin = () => {

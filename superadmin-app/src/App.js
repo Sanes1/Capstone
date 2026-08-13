@@ -19,6 +19,8 @@ function App() {
 
   const handleLogin = () => {
     setIsLoggedIn(true);
+    setActivePage('dashboard'); // Always go to dashboard on login
+    localStorage.setItem('superadminActivePage', 'dashboard'); // Reset to dashboard
   };
 
   const handleLogout = () => {
