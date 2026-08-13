@@ -12,7 +12,7 @@ const DEFAULT_OFFICES = [
   { id: 'finance', name: 'Finance', rating: 4.8, responseTime: 90, helpfulness: 88, breakdown: [86, 11, 2, 1, 0] },
   { id: 'registrar', name: 'Registrar', rating: 4.8, responseTime: 90, helpfulness: 88, breakdown: [84, 13, 2, 1, 0] },
   { id: 'library', name: 'Library', rating: 4.0, responseTime: 78, helpfulness: 80, breakdown: [72, 17, 7, 3, 1] },
-  { id: 'discipline', name: 'Discipline', rating: 4.5, responseTime: 90, helpfulness: 88, breakdown: [83, 12, 4, 1, 0] }
+  { id: 'guidance', name: 'Guidance', rating: 4.5, responseTime: 90, helpfulness: 88, breakdown: [83, 12, 4, 1, 0] }
 ];
 
 function Feedback({ selectedOffice: initialOffice, onNavigate }) {

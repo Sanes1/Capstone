@@ -5,7 +5,7 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import '../styles/Login.css';
 
-const Login = ({ onLogin }) => {
+const Login = ({ onLogin, onForgotPassword }) => {
   const [selectedDepartment, setSelectedDepartment] = useState('finance');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -187,7 +187,7 @@ const Login = ({ onLogin }) => {
             <div className="form-group">
               <div className="password-label-row">
                 <label className="form-label" htmlFor="password">Password</label>
-                <a href="#" className="forgot-password">Forgot Password?</a>
+                <a href="#" className="forgot-password" onClick={(e) => { e.preventDefault(); onForgotPassword(); }}>Forgot Password?</a>
               </div>
               <div className="password-input-wrapper">
                 <input

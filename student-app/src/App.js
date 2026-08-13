@@ -25,7 +25,10 @@ function App() {
   });
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [activePage, setActivePage] = useState(() => {
-    return localStorage.getItem('studentActivePage') || 'dashboard';
+    const stored = localStorage.getItem('studentActivePage');
+    // Request Details requires a selected request object which isn't persisted
+    // Restoring it after refresh would trap the app on the loading screen
+    return stored && stored !== 'request-details' ? stored : 'dashboard';
   });
   const [selectedRequest, setSelectedRequest] = useState(null); // Store selected request
   // Status filter pre-applied when opening Request History from the dashboard cards
@@ -169,8 +172,8 @@ function App() {
         return <BulletinBoard />;
       case 'feedback':
         return <Feedback onNavigate={setActivePage} />;
-      case 'feedback-discipline':
-        return <Feedback selectedOffice="discipline" onNavigate={setActivePage} />;
+      case 'feedback-guidance':
+        return <Feedback selectedOffice="guidance" onNavigate={setActivePage} />;
       case 'feedback-library':
         return <Feedback selectedOffice="library" onNavigate={setActivePage} />;
       case 'feedback-registrar':

@@ -12,7 +12,7 @@ import {
 import '../styles/Sidebar.css';
 
 const FEEDBACK_OFFICES = [
-  { label: 'Discipline', page: 'feedback-discipline' },
+  { label: 'Guidance', page: 'feedback-guidance' },
   { label: 'Library', page: 'feedback-library' },
   { label: 'Registrar', page: 'feedback-registrar' },
   { label: 'Finance', page: 'feedback-finance' }

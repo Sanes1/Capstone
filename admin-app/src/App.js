@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Login from './components/Login';
+import ForgotPassword from './components/ForgotPassword';
 import AdminSidebar from './components/AdminSidebar';
 import AdminDashboard from './components/AdminDashboard';
 import MyTickets from './components/MyTickets';
@@ -28,6 +29,7 @@ function App() {
     }
     return '';
   });
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [activePage, setActivePage] = useState(() => {
     const stored = localStorage.getItem('adminActivePage');
     // Ticket Details needs the ticket object, which isn't persisted — restoring
@@ -69,7 +71,10 @@ function App() {
   }, [activePage]);
 
   if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />;
+    if (showForgotPassword) {
+      return <ForgotPassword onClose={() => setShowForgotPassword(false)} />;
+    }
+    return <Login onLogin={handleLogin} onForgotPassword={() => setShowForgotPassword(true)} />;
   }
 
   return (
