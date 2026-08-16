@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
-import Breadcrumb from './Breadcrumb';
+import AnnouncementCard from './AnnouncementCard';
 import '../styles/BulletinBoard.css';
 
 // Default hero shown until an office saves a featured announcement
@@ -10,13 +10,6 @@ const DEFAULT_HERO = {
   office: '',
   title: 'Welcome to the Bulletin Board',
   body: 'Stay updated with the latest announcements and important deadlines'
-};
-
-const formatPostedDate = (value) => {
-  if (!value) return '';
-  const date = value?.toDate ? value.toDate() : new Date(value);
-  if (isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 function BulletinBoard() {
@@ -112,8 +105,6 @@ function BulletinBoard() {
 
   return (
     <div className="bulletin-board-page">
-      <Breadcrumb items={[{ label: 'Bulletin Board', current: true }]} />
-
       <div className="page-header">
         <h1>Bulletin Board</h1>
       </div>
@@ -140,23 +131,7 @@ function BulletinBoard() {
             </div>
           ) : (
             announcements.map((announcement) => (
-              <div key={announcement.id} className="announcement-card">
-                {announcement.photo && (
-                  <div className="announcement-image">
-                    <img src={announcement.photo} alt="" className="announcement-photo" />
-                  </div>
-                )}
-                <div className="announcement-details">
-                  <div className="announcement-office">{announcement.department}</div>
-                  <h4>{announcement.title}</h4>
-                  <p>{announcement.body}</p>
-                  <div className="announcement-footer">
-                    <span className="announcement-date">
-                      Posted {formatPostedDate(announcement.createdAt) || 'recently'}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <AnnouncementCard key={announcement.id} announcement={announcement} />
             ))
           )}
         </div>

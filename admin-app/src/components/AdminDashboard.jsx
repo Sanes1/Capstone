@@ -92,10 +92,10 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         console.warn('⚠️ Student UID not found in ticket, notification not sent');
       }
 
-      alert(`Ticket ${ticket.id} has been assigned to you!`);
+      alert(`Request ${ticket.id} has been assigned to you!`);
     } catch (error) {
       console.error('❌ Error claiming ticket:', error);
-      alert('Failed to claim ticket: ' + error.message);
+      alert('Failed to claim request: ' + error.message);
     }
   };
 
@@ -134,7 +134,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
           className={`stat-card ${activeTab === 'all' ? 'active' : ''}`}
           onClick={() => handleStatCardClick('all')}
           aria-pressed={activeTab === 'all'}
-          aria-label="Show all tickets in the dashboard table"
+          aria-label="Show all requests in the dashboard table"
         >
           <span className="stat-header">
             <span className="stat-icon-container">
@@ -143,7 +143,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
             <span className="stat-label">Total</span>
           </span>
           <span className="stat-value">{stats.total}</span>
-          <span className="stat-subtext">All Tickets</span>
+          <span className="stat-subtext">All Requests</span>
         </button>
 
         <button
@@ -151,7 +151,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
           className={`stat-card ${activeTab === 'new' ? 'active' : ''}`}
           onClick={() => handleStatCardClick('new')}
           aria-pressed={activeTab === 'new'}
-          aria-label="Show new tickets awaiting assignment in the dashboard table"
+          aria-label="Show new requests awaiting assignment in the dashboard table"
         >
           <span className="stat-header">
             <span className="stat-icon-container">
@@ -168,7 +168,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
           className={`stat-card ${activeTab === 'progress' ? 'active' : ''}`}
           onClick={() => handleStatCardClick('progress')}
           aria-pressed={activeTab === 'progress'}
-          aria-label="Show in progress tickets in the dashboard table"
+          aria-label="Show in progress requests in the dashboard table"
         >
           <span className="stat-header">
             <span className="stat-icon-container">
@@ -185,7 +185,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
           className={`stat-card ${activeTab === 'resolved' ? 'active' : ''}`}
           onClick={() => handleStatCardClick('resolved')}
           aria-pressed={activeTab === 'resolved'}
-          aria-label="Show resolved tickets in the dashboard table"
+          aria-label="Show resolved requests in the dashboard table"
         >
           <span className="stat-header">
             <span className="stat-icon-container">
@@ -204,7 +204,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
             All
           </div>
           <div className={`tab ${activeTab === 'new' ? 'active' : ''}`} onClick={() => setActiveTab('new')}>
-            New Tickets
+            New Requests
           </div>
           <div className={`tab ${activeTab === 'progress' ? 'active' : ''}`} onClick={() => setActiveTab('progress')}>
             In Progress
@@ -215,15 +215,15 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
         </div>
 
         {loading ? (
-          <LoadingSpinner message="Loading tickets..." fullScreen={false} />
+          <LoadingSpinner message="Loading requests..." fullScreen={false} />
         ) : filteredTickets.length === 0 ? (
-          <div className="empty-state">No tickets found.</div>
+          <div className="empty-state">No requests found.</div>
         ) : (
           <>
             <table className="tickets-table">
               <thead>
                 <tr>
-                  <th>TICKET INFO</th>
+                  <th>REQUEST INFO</th>
                   <th>STUDENT DETAILS</th>
                   <th>STATUS</th>
                   <th>ASSIGNED TO</th>
@@ -247,7 +247,7 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                     </td>
                     <td>
                       <span className={`status-badge status-${ticket.status.toLowerCase().replace(' ', '')}`}>
-                        {ticket.status === 'Pending' && 'New Ticket'}
+                        {ticket.status === 'Pending' && 'New Request'}
                         {ticket.status === 'In Process' && 'In Progress'}
                         {ticket.status === 'Resolved' && 'Resolved'}
                         {ticket.status === 'Cancelled' && 'Cancelled'}
@@ -275,14 +275,14 @@ const AdminDashboard = ({ department, onNavigate, onViewRequest }) => {
                           className="action-btn"
                           onClick={() => onNavigate('ticket-details', ticket)}
                         >
-                          View Ticket
+                          View Request
                         </button>
                       ) : (
                         <button
                           className="action-btn claim"
                           onClick={() => handleClaimTicket(ticket)}
                         >
-                          Claim Ticket
+                          Claim Request
                         </button>
                       )}
                     </td>

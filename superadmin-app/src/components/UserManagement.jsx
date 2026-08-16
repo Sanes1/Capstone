@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';import {
+import React, { useState, useEffect, useRef } from 'react';
+import {
   FaEnvelope,
   FaKey,
   FaBan,
   FaPlus,
   FaUserPlus,
   FaCheck,
-  FaSearch
+  FaSearch,
+  FaFilter,
+  FaSortAlphaDown,
+  FaBuilding,
+  FaChevronDown,
+  FaTimes
 } from 'react-icons/fa';
 import { db, auth } from '../firebase';
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -47,8 +53,17 @@ const UserManagement = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedStaff, setSelectedStaff] = useState(null);
 
-  // Frontend-only search + pagination state
+  // Frontend-only search + filter + sort + pagination state
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [officeFilter, setOfficeFilter] = useState('All'); // staff tab only
+  const [sortOrder, setSortOrder] = useState('recent'); // 'recent' | 'az' | 'za'
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isOfficeOpen, setIsOfficeOpen] = useState(false);
+  const [isSortOpen, setIsSortOpen] = useState(false);
+  const filterWrapRef = useRef(null);
+  const officeWrapRef = useRef(null);
+  const sortWrapRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 8;
 
@@ -56,12 +71,68 @@ const UserManagement = () => {
 
   const filterList = (items) => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((item) =>
-      [item.name, item.firstName, item.lastName, item.email, item.username, item.id, item.office]
+    return items.filter((item) => {
+      // Status filter (All / Active / Suspended)
+      if (statusFilter === 'Active' && item.isActive !== true) return false;
+      if (statusFilter === 'Suspended' && item.isActive !== false) return false;
+      // Office filter (staff tab only)
+      if (officeFilter !== 'All' && item.office !== officeFilter) return false;
+      // Search — students match by name or student ID, staff by name or username
+      if (!q) return true;
+      const searchFields =
+        activeTab === 'students'
+          ? [item.name, item.firstName, item.lastName, item.id]
+          : [item.name, item.firstName, item.lastName, item.username];
+      return searchFields
         .filter(Boolean)
-        .some((field) => String(field).toLowerCase().includes(q))
+        .some((field) => String(field).toLowerCase().includes(q));
+    });
+  };
+
+  // Close the status / office / sort dropdowns when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!isFilterOpen && !isOfficeOpen && !isSortOpen) return undefined;
+
+    const handleClickOutside = (e) => {
+      if (filterWrapRef.current && !filterWrapRef.current.contains(e.target)) {
+        setIsFilterOpen(false);
+      }
+      if (officeWrapRef.current && !officeWrapRef.current.contains(e.target)) {
+        setIsOfficeOpen(false);
+      }
+      if (sortWrapRef.current && !sortWrapRef.current.contains(e.target)) {
+        setIsSortOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsFilterOpen(false);
+        setIsOfficeOpen(false);
+        setIsSortOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFilterOpen, isOfficeOpen, isSortOpen]);
+
+  const sortList = (items) => {
+    if (sortOrder === 'recent') {
+      // Newest first — the list already loads newest-first from Firestore
+      // (orderBy createdAt desc), so keep the original order.
+      return [...items];
+    }
+    const sorted = [...items].sort((a, b) =>
+      String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })
     );
+    return sortOrder === 'az' ? sorted : sorted.reverse();
   };
 
   const paginate = (items) => {
@@ -72,8 +143,8 @@ const UserManagement = () => {
     };
   };
 
-  const visibleStudents = paginate(filterList(students));
-  const visibleStaff = paginate(filterList(staffMembers));
+  const visibleStudents = paginate(sortList(filterList(students)));
+  const visibleStaff = paginate(sortList(filterList(staffMembers)));
 
   // Create Account buttons stay grayed out until every required field is
   // filled in (middle name and suffix are optional).
@@ -560,7 +631,7 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* Tabs + search */}
+      {/* Tabs */}
       <div className="user-tabs-row">
         <div className="user-tabs">
           <button
@@ -576,17 +647,170 @@ const UserManagement = () => {
             Staff Members
           </button>
         </div>
+      </div>
 
+      {/* Search + filter */}
+      <div className="user-filters-row">
         <div className="search-bar">
           <FaSearch className="search-icon" aria-hidden="true" />
           <input
             type="search"
             name="account-search"
-            placeholder={activeTab === 'students' ? 'Search students...' : 'Search staff...'}
+            placeholder={activeTab === 'students' ? 'Search by student name or ID...' : 'Search by staff name or username...'}
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); resetPagination(); }}
             aria-label="Search accounts"
           />
+        </div>
+
+        <div className="status-filter-wrap" ref={filterWrapRef}>
+          <button
+            type="button"
+            className={`filter-trigger ${statusFilter !== 'All' ? 'active' : ''}`}
+            onClick={() => setIsFilterOpen((prev) => !prev)}
+            aria-haspopup="listbox"
+            aria-expanded={isFilterOpen}
+            aria-label="Filter accounts by status"
+          >
+            <FaFilter className="filter-icon" aria-hidden="true" />
+            Status
+            {statusFilter !== 'All' && <span className="filter-active-dot" aria-hidden="true" />}
+            <FaChevronDown className={`filter-chevron ${isFilterOpen ? 'open' : ''}`} aria-hidden="true" />
+          </button>
+
+          {isFilterOpen && (
+            <div className="filter-dropdown-panel" role="listbox" aria-label="Filter by status">
+              <div className="filter-dropdown-title">Filter by status</div>
+              {['All', 'Active', 'Suspended'].map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  role="option"
+                  aria-selected={statusFilter === option}
+                  className={`status-option ${statusFilter === option ? 'selected' : ''}`}
+                  onClick={() => { setStatusFilter(option); setIsFilterOpen(false); resetPagination(); }}
+                >
+                  <span className="status-option-check">
+                    {statusFilter === option && <FaCheck aria-hidden="true" />}
+                  </span>
+                  {option}
+                </button>
+              ))}
+              {statusFilter !== 'All' && (
+                <div className="filter-dropdown-actions">
+                  <button
+                    type="button"
+                    className="filter-clear-btn"
+                    onClick={() => { setStatusFilter('All'); setIsFilterOpen(false); resetPagination(); }}
+                  >
+                    <FaTimes aria-hidden="true" /> Clear
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {activeTab === 'staff' && (
+          <div className="status-filter-wrap" ref={officeWrapRef}>
+            <button
+              type="button"
+              className={`filter-trigger ${officeFilter !== 'All' ? 'active' : ''}`}
+              onClick={() => setIsOfficeOpen((prev) => !prev)}
+              aria-haspopup="listbox"
+              aria-expanded={isOfficeOpen}
+              aria-label="Filter staff by office"
+            >
+              <FaBuilding className="filter-icon" aria-hidden="true" />
+              Office
+              {officeFilter !== 'All' && <span className="filter-active-dot" aria-hidden="true" />}
+              <FaChevronDown className={`filter-chevron ${isOfficeOpen ? 'open' : ''}`} aria-hidden="true" />
+            </button>
+
+            {isOfficeOpen && (
+              <div className="filter-dropdown-panel" role="listbox" aria-label="Filter by office">
+                <div className="filter-dropdown-title">Filter by office</div>
+                {['All', ...offices.map((o) => o.name)].map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="option"
+                    aria-selected={officeFilter === option}
+                    className={`status-option ${officeFilter === option ? 'selected' : ''}`}
+                    onClick={() => { setOfficeFilter(option); setIsOfficeOpen(false); resetPagination(); }}
+                  >
+                    <span className="status-option-check">
+                      {officeFilter === option && <FaCheck aria-hidden="true" />}
+                    </span>
+                    {option}
+                  </button>
+                ))}
+                {officeFilter !== 'All' && (
+                  <div className="filter-dropdown-actions">
+                    <button
+                      type="button"
+                      className="filter-clear-btn"
+                      onClick={() => { setOfficeFilter('All'); setIsOfficeOpen(false); resetPagination(); }}
+                    >
+                      <FaTimes aria-hidden="true" /> Clear
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="status-filter-wrap" ref={sortWrapRef}>
+          <button
+            type="button"
+            className={`filter-trigger ${sortOrder !== 'recent' ? 'active' : ''}`}
+            onClick={() => setIsSortOpen((prev) => !prev)}
+            aria-haspopup="listbox"
+            aria-expanded={isSortOpen}
+            aria-label="Sort accounts"
+          >
+            <FaSortAlphaDown className="filter-icon" aria-hidden="true" />
+            Sort
+            {sortOrder !== 'recent' && <span className="filter-active-dot" aria-hidden="true" />}
+            <FaChevronDown className={`filter-chevron ${isSortOpen ? 'open' : ''}`} aria-hidden="true" />
+          </button>
+
+          {isSortOpen && (
+            <div className="filter-dropdown-panel" role="listbox" aria-label="Sort accounts">
+              <div className="filter-dropdown-title">Sort by name</div>
+              {[
+                { value: 'recent', label: 'Recently Created' },
+                { value: 'az', label: 'Name (A to Z)' },
+                { value: 'za', label: 'Name (Z to A)' }
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="option"
+                  aria-selected={sortOrder === option.value}
+                  className={`status-option ${sortOrder === option.value ? 'selected' : ''}`}
+                  onClick={() => { setSortOrder(option.value); setIsSortOpen(false); resetPagination(); }}
+                >
+                  <span className="status-option-check">
+                    {sortOrder === option.value && <FaCheck aria-hidden="true" />}
+                  </span>
+                  {option.label}
+                </button>
+              ))}
+              {sortOrder !== 'recent' && (
+                <div className="filter-dropdown-actions">
+                  <button
+                    type="button"
+                    className="filter-clear-btn"
+                    onClick={() => { setSortOrder('recent'); setIsSortOpen(false); resetPagination(); }}
+                  >
+                    <FaTimes aria-hidden="true" /> Clear
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1080,21 +1304,21 @@ const UserManagement = () => {
               <div className="table-container">
                 <div className="students-table staff-table">
                   <div className="table-header">
+                    <div className="table-cell">Username</div>
                     <div className="table-cell">Name</div>
                     <div className="table-cell">Email</div>
-                    <div className="table-cell">Username</div>
                     <div className="table-cell">Office</div>
                     <div className="table-cell">Created</div>
                     <div className="table-cell">Actions</div>
                   </div>
                   {visibleStaff.pageItems.map((staff) => (
                     <div key={staff.firestoreId} className="table-row">
+                      <div className="table-cell">{staff.username}</div>
                       <div className="table-cell">
                         {staff.name}
                         {!staff.isActive && <span className="status status-suspended">Suspended</span>}
                       </div>
                       <div className="table-cell">{staff.email}</div>
-                      <div className="table-cell">{staff.username}</div>
                       <div className="table-cell">{staff.office}</div>
                       <div className="table-cell">{staff.createdAt}</div>
                       <div className="table-cell">

@@ -229,7 +229,7 @@ export const notifyStaffReassignment = async (toOffice, requestId, requestSubjec
         staffDoc.data().uid,
         'staff',
         'ticket_rerouted',
-        'Ticket Rerouted to Your Office',
+        'Request Rerouted to Your Office',
         `Request "${requestSubject}" was rerouted from ${fromOffice} by ${reassignedBy}`,
         { requestId, fromOffice, toOffice, reassignedBy }
       )

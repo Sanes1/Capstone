@@ -417,7 +417,7 @@ const Login = ({ onLogin, onGuestLogin, onForgotPassword }) => {
   };
 
   return (
-    <div className="login-container-student">
+    <div className={`login-container-student ${showQRScanner ? 'modal-open' : ''}`}>
       <div
         className="login-bg-photo"
         style={{ backgroundImage: "url('/school-cover.jpg')" }}

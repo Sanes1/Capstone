@@ -24,14 +24,13 @@
   /* inherits .btn-primary */
 }
 
-/* ---- Tabs + search row ---- */
+/* ---- Tabs row ---- */
 .user-tabs-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-4);
   flex-wrap: wrap;
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-4);
   border-bottom: 2px solid var(--color-divider);
 }
 
@@ -62,6 +61,114 @@
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
   font-weight: var(--font-weight-semibold);
+}
+
+/* ---- Search + filter row (below the tabs, like the admin My Requests page) ---- */
+.user-filters-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.user-filters-row .search-bar {
+  flex: 1;
+  width: auto;
+  max-width: none;
+}
+
+.status-filter-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Status dropdown is a short option list — narrower than the date-range
+   panel the shared styles were built for. */
+.status-filter-wrap .filter-dropdown-panel {
+  width: 200px;
+}
+
+.filter-chevron {
+  font-size: 12px;
+  color: var(--gray-500);
+  transition: transform var(--transition-fast);
+}
+
+.filter-chevron.open {
+  transform: rotate(180deg);
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: var(--color-text-body);
+  font-size: var(--font-size-base);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.status-option:hover {
+  background-color: var(--gray-100);
+}
+
+.status-option.selected {
+  background-color: var(--sage-50);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.status-option-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--gray-400);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--color-surface);
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.status-option.selected .status-option-check {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.filter-dropdown-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-2) 0;
+  border-top: 1px solid var(--gray-100);
+  margin-top: var(--space-2);
+}
+
+.filter-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filter-clear-btn:hover {
+  background-color: var(--gray-100);
+  color: var(--color-text);
 }
 
 /* ---- Accounts list card ---- */
@@ -611,8 +718,22 @@
     flex-direction: column;
   }
 
-  .search-bar input {
+  .user-filters-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .user-filters-row .search-bar {
+    width: 100%;
+    max-width: none;
+  }
+
+  .user-filters-row .search-bar input {
     max-width: 100%;
+  }
+
+  .status-filter-wrap {
+    align-self: flex-start;
   }
 
   .modal-content {

@@ -309,7 +309,7 @@ const Analytics = ({ department, onViewRequest }) => {
 
   const exportToCSV = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    let csv = 'Ticket ID,Subject,Student,Student ID,Status,Assigned To,Created At\n';
+    let csv = 'Request ID,Subject,Student,Student ID,Status,Assigned To,Created At\n';
     filteredTickets.forEach(t => {
       const created = getTicketDate(t.createdAt);
       csv += [
@@ -367,7 +367,7 @@ Understand your office's performance at a glance
         <div className="analytics-filter-summary">
           <FaCalendarAlt className="analytics-filter-summary-icon" aria-hidden="true" />
           <span>
-            Showing <strong>{filteredTickets.length}</strong> ticket{filteredTickets.length === 1 ? '' : 's'}
+            Showing <strong>{filteredTickets.length}</strong> request{filteredTickets.length === 1 ? '' : 's'}
             {appliedFilter.from && <> from <strong>{formatFilterDate(appliedFilter.from)}</strong></>}
             {appliedFilter.from && appliedFilter.to && <> to </>}
             {appliedFilter.to && <><strong>{formatFilterDate(appliedFilter.to)}</strong></>}
@@ -383,7 +383,7 @@ Understand your office's performance at a glance
           </div>
           <div className="stat-content">
             <p className="stat-label">OVERALL</p>
-            <p className="stat-sublabel">Total Tickets</p>
+            <p className="stat-sublabel">Total Requests</p>
             <h2 className="stat-value">{analytics.total}</h2>
           </div>
         </div>
@@ -412,11 +412,11 @@ Understand your office's performance at a glance
       </div>
 
       <div className="an-charts-grid">
-        {/* Ticket Volume by Month */}
+        {/* Request Volume by Month */}
         <div className="an-chart-card an-chart-card--volume">
           <div className="an-chart-header">
             <div>
-              <h3 className="an-chart-title">Ticket Volume by Month</h3>
+              <h3 className="an-chart-title">Request Volume by Month</h3>
               <p className="an-chart-subtitle">Requests submitted each month</p>
             </div>
           </div>
@@ -459,13 +459,13 @@ Understand your office's performance at a glance
                       key={index}
                       className="an-volume-group"
                       role="img"
-                      aria-label={`${data.month}: ${data.value} ${data.value === 1 ? 'ticket' : 'tickets'}`}
+                      aria-label={`${data.month}: ${data.value} ${data.value === 1 ? 'request' : 'requests'}`}
                     >
                       <div className="an-volume-track">
                         <div
                           className={`an-volume-bar${data.value > 0 ? '' : ' an-volume-bar--empty'}${isInRange ? ' an-volume-bar--in-range' : ''}`}
                           data-tip={data.value > 0
-                            ? `${data.month}: ${data.value} ticket${data.value === 1 ? '' : 's'}`
+                            ? `${data.month}: ${data.value} request${data.value === 1 ? '' : 's'}`
                             : `${data.month}: No requests yet`}
                           style={{
                             height: `${(data.value / topTick) * 100}%`,
@@ -487,16 +487,16 @@ Understand your office's performance at a glance
           <div className="an-chart-header">
             <div>
               <h3 className="an-chart-title">Status Breakdown</h3>
-              <p className="an-chart-subtitle">Tickets by current status</p>
+              <p className="an-chart-subtitle">Requests by current status</p>
             </div>
           </div>
 
           {donutTotal === 0 ? (
-            <div className="an-empty">No ticket data yet</div>
+            <div className="an-empty">No request data yet</div>
           ) : (
             <div className="an-donut-layout">
               <div className="an-donut-wrap">
-                <svg viewBox="0 0 200 200" className="an-donut" role="img" aria-label="Tickets by status">
+                <svg viewBox="0 0 200 200" className="an-donut" role="img" aria-label="Requests by status">
                   {donutSegments.map((segment, index) => (
                     <path
                       key={index}
@@ -506,7 +506,7 @@ Understand your office's performance at a glance
                       style={{ animationDelay: `${index * 0.08}s` }}
                     >
                       <title>
-                        {segment.label}: {segment.value} ticket{segment.value === 1 ? '' : 's'} (
+                        {segment.label}: {segment.value} request{segment.value === 1 ? '' : 's'} (
                         {donutTotal > 0 ? Math.round((segment.value / donutTotal) * 100) : 0}%)
                       </title>
                     </path>
@@ -514,7 +514,7 @@ Understand your office's performance at a glance
                 </svg>
                 <div className="an-donut-center">
                   <strong>{donutTotal}</strong>
-                  <span>tickets</span>
+                  <span>requests</span>
                 </div>
               </div>
 
@@ -537,17 +537,17 @@ Understand your office's performance at a glance
           )}
         </div>
 
-        {/* Frequent Ticket Requests */}
+        {/* Frequent Request Subjects */}
         <div className="an-chart-card an-chart-card--frequent">
           <div className="an-chart-header">
             <div>
-              <h3 className="an-chart-title">Frequent Ticket Requests</h3>
+              <h3 className="an-chart-title">Frequent Request Subjects</h3>
               <p className="an-chart-subtitle">Most requested subjects</p>
             </div>
           </div>
 
           {topSubjects.length === 0 ? (
-            <div className="an-empty">No ticket data yet</div>
+            <div className="an-empty">No request data yet</div>
           ) : (
             <div className="an-freq-list">
               {topSubjects.map((item, index) => (
@@ -582,7 +582,7 @@ Understand your office's performance at a glance
           <div className="an-chart-header">
             <div>
               <h3 className="an-chart-title">Staff Activity</h3>
-              <p className="an-chart-subtitle">Resolved tickets per staff member</p>
+              <p className="an-chart-subtitle">Resolved requests per staff member</p>
             </div>
           </div>
 
@@ -620,18 +620,18 @@ Understand your office's performance at a glance
         <div className="an-chart-header an-recent-header">
           <div>
             <h3 className="an-chart-title">Recent Requests</h3>
-            <p className="an-chart-subtitle">The latest tickets in {department}'s office</p>
+            <p className="an-chart-subtitle">The latest requests in {department}'s office</p>
           </div>
         </div>
 
         {recentTickets.length === 0 ? (
-          <div className="an-empty">No tickets yet</div>
+          <div className="an-empty">No requests yet</div>
         ) : (
           <div className="an-recent-table-wrap">
             <table className="an-recent-table">
               <thead>
                 <tr>
-                  <th>Ticket</th>
+                  <th>Request</th>
                   <th>Student</th>
                   <th>Status</th>
                   <th>Assigned To</th>

@@ -3,7 +3,7 @@
    ========================================================================== */
 
 .top-header {
-  background: var(--color-shell);
+  background: var(--color-surface);
   padding: 0 var(--content-padding);
   height: var(--header-height);
   display: flex;

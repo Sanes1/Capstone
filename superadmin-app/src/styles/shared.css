@@ -312,6 +312,8 @@
   position: relative;
   display: flex;
   align-items: center;
+  width: 320px;
+  max-width: 100%;
 }
 
 .search-bar .search-icon {
@@ -324,14 +326,23 @@
 
 .search-bar input {
   width: 100%;
-  max-width: 320px;
   padding: var(--space-3) var(--space-4) var(--space-3) calc(var(--space-3) + 26px);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background-color: var(--color-surface);
   font-size: var(--font-size-base);
   color: var(--color-text);
+  appearance: none;
+  -webkit-appearance: none;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+/* Hide the native clear button Chrome adds to type="search" inputs */
+.search-bar input::-webkit-search-cancel-button,
+.search-bar input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
 }
 
 .search-bar input:focus {

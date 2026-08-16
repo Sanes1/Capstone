@@ -38,6 +38,9 @@
   padding: 60px 24px;
   text-align: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .my-feedback-empty .empty-icon {
@@ -123,7 +126,7 @@
 }
 
 .rating-star {
-  color: #66bb6a;
+  color: #1a7a0e; /* green-700 — matches the Feedback page stars */
   font-size: 16px;
 }
 
@@ -146,7 +149,7 @@
 }
 
 .request-icon {
-  color: #66bb6a;
+  color: #1a7a0e; /* green-700 — matches the Feedback page stars */
   font-size: 16px;
 }
 
@@ -175,12 +178,12 @@
 }
 
 .star-filled-small {
-  color: #66bb6a;
+  color: #1a7a0e; /* green-700 — matches the Feedback page stars */
   font-size: 16px;
 }
 
 .star-empty-small {
-  color: #e0e0e0;
+  color: #b3b3b3; /* --color-star-empty — matches the Feedback page empty stars */
   font-size: 16px;
 }
 
@@ -224,7 +227,7 @@
   background-color: white;
   border-radius: 8px;
   margin-bottom: 10px;
-  border-left: 3px solid #66bb6a;
+  border-left: 3px solid #8cb986; /* sage-500 accent — matches the app's green family */
 }
 
 .staff-reply-item:last-child {

@@ -162,7 +162,6 @@ function MyRequest({ onViewDetails, onNavigate, initialStatusFilter = 'All Statu
       <Breadcrumb
         items={[
           { label: 'Request History', current: true },
-          { label: 'Request Details' },
           { label: 'New Request', onClick: () => onNavigate('new-request') }
         ]}
       />

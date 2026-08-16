@@ -370,7 +370,6 @@ function NewRequest({ onNavigate }) {
       <Breadcrumb
         items={[
           { label: 'Request History', onClick: () => onNavigate('request') },
-          { label: 'Request Details', onClick: () => onNavigate('request-details') },
           { label: 'New Request', current: true }
         ]}
       />

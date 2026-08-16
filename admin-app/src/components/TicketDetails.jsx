@@ -69,11 +69,11 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         });
       } else {
         console.error('❌ Ticket not found');
-        alert('Ticket not found');
+        alert('Request not found');
       }
     } catch (error) {
       console.error('❌ Error loading ticket:', error);
-      alert('Failed to load ticket details');
+      alert('Failed to load request details');
     } finally {
       setLoading(false);
     }
@@ -160,7 +160,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   };
 
   const handleReturnTicket = async () => {
-    const reason = prompt('Please provide a reason for returning this ticket:');
+    const reason = prompt('Please provide a reason for returning this request:');
     if (!reason) return;
 
     try {
@@ -172,16 +172,16 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         updatedAt: serverTimestamp()
       });
       
-      alert('Ticket returned successfully');
+      alert('Request returned successfully');
       onNavigate('my-tickets');
     } catch (error) {
       console.error('❌ Error returning ticket:', error);
-      alert('Failed to return ticket');
+      alert('Failed to return request');
     }
   };
 
   const handleResolveTicket = async () => {
-    if (!window.confirm('Are you sure you want to resolve this ticket?')) {
+    if (!window.confirm('Are you sure you want to resolve this request?')) {
       return;
     }
 
@@ -203,11 +203,11 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         'Resolved'
       );
       
-      alert('Ticket resolved successfully');
+      alert('Request resolved successfully');
       onNavigate('my-tickets');
     } catch (error) {
       console.error('❌ Error resolving ticket:', error);
-      alert('Failed to resolve ticket');
+      alert('Failed to resolve request');
     }
   };
 
@@ -237,7 +237,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   const handleReassign = async () => {
     if (reassignOffice === ticket.office) {
-      alert('Ticket is already assigned to this office');
+      alert('Request is already assigned to this office');
       return;
     }
 
@@ -247,7 +247,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   const confirmReassign = async () => {
     if (!reassignNote.trim()) {
-      alert('Please provide a reason for reassigning this ticket');
+      alert('Please provide a reason for reassigning this request');
       return;
     }
 
@@ -309,13 +309,13 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         // Add follow-ups for reassignment and auto-assignment
         updateData.followUps = arrayUnion(
           {
-            message: `Ticket reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\n\nReason: ${reassignNote.trim()}`,
+            message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\n\nReason: ${reassignNote.trim()}`,
             sentBy: 'system',
             sentByName: 'System',
             sentAt: new Date().toISOString()
           },
           {
-            message: `Ticket automatically assigned to ${previousHandler.handledBy} (previously handled this ticket in ${reassignOffice})`,
+            message: `Request automatically assigned to ${previousHandler.handledBy} (previously handled this request in ${reassignOffice})`,
             sentBy: 'system',
             sentByName: 'System',
             sentAt: new Date().toISOString()
@@ -332,7 +332,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
         
         // Add follow-up for reassignment only
         updateData.followUps = arrayUnion({
-          message: `Ticket reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\n\nReason: ${reassignNote.trim()}`,
+          message: `Request reassigned from ${ticket.office} to ${reassignOffice} by ${staffData.name}\n\nReason: ${reassignNote.trim()}`,
           sentBy: 'system',
           sentByName: 'System',
           sentAt: new Date().toISOString()
@@ -363,15 +363,15 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       setReassignNote(''); // Clear the note
       
       if (previousHandler && previousHandler.handledBy) {
-        alert(`Ticket reassigned successfully!\nNew Request ID: ${newRequestId}\nAuto-assigned to ${previousHandler.handledBy} in ${reassignOffice}.`);
+        alert(`Request reassigned successfully!\nNew Request ID: ${newRequestId}\nAuto-assigned to ${previousHandler.handledBy} in ${reassignOffice}.`);
       } else {
-        alert(`Ticket reassigned successfully!\nNew Request ID: ${newRequestId}\nThe ticket will appear in ${reassignOffice}'s dashboard for claiming.`);
+        alert(`Request reassigned successfully!\nNew Request ID: ${newRequestId}\nThe request will appear in ${reassignOffice}'s dashboard for claiming.`);
       }
       
       onNavigate('my-tickets');
     } catch (error) {
       console.error('❌ Error reassigning ticket:', error);
-      alert('Failed to reassign ticket: ' + error.message);
+      alert('Failed to reassign request: ' + error.message);
     }
   };
 
@@ -413,10 +413,6 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     return `${username.substring(0, 2)}.*****${username.substring(username.length - 2)}@${domain}`;
   };
 
-  const handleBackToTickets = () => {
-    onNavigate('my-tickets');
-  };
-
   // Once a ticket is resolved or cancelled, management actions no longer apply —
   // lock the Management Control card so nothing there can be changed.
   const isTicketClosed = ticket?.status === 'Resolved' || ticket?.status === 'Cancelled';
@@ -427,10 +423,10 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     return (
       <div className="ticket-details-container">
         <div className="ticket-details-empty">
-          <p className="ticket-details-empty-title">No ticket selected</p>
-          <p className="ticket-details-empty-text">Go back to your ticket list to open a ticket.</p>
+          <p className="ticket-details-empty-title">No request selected</p>
+          <p className="ticket-details-empty-text">Go back to your request list to open a request.</p>
           <button className="ticket-details-back-btn" onClick={() => onNavigate('my-tickets')}>
-            Back to My Tickets
+            Back to My Requests
           </button>
         </div>
       </div>
@@ -438,7 +434,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
   }
 
   if (loading) {
-    return <LoadingSpinner message="Loading ticket details..." fullScreen={true} />;
+    return <LoadingSpinner message="Loading request details..." fullScreen={true} />;
   }
 
   // Ticket data was requested but the document doesn't exist (or couldn't load)
@@ -446,10 +442,10 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
     return (
       <div className="ticket-details-container">
         <div className="ticket-details-empty">
-          <p className="ticket-details-empty-title">Ticket not found</p>
-          <p className="ticket-details-empty-text">This ticket may have been removed, or you no longer have access to it.</p>
+          <p className="ticket-details-empty-title">Request not found</p>
+          <p className="ticket-details-empty-text">This request may have been removed, or you no longer have access to it.</p>
           <button className="ticket-details-back-btn" onClick={() => onNavigate('my-tickets')}>
-            Back to My Tickets
+            Back to My Requests
           </button>
         </div>
       </div>
@@ -458,17 +454,9 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
 
   return (
     <div className="ticket-details-container">
-      <div className="breadcrumb">
-        <span className="breadcrumb-item clickable" onClick={handleBackToTickets}>
-          Tickets
-        </span>
-        <span className="breadcrumb-separator">/</span>
-        <span className="breadcrumb-item">Ticket Details</span>
-      </div>
-
       <div className="page-header">
         <div>
-          <h1 className="page-title">Ticket Details</h1>
+          <h1 className="page-title">Request Details</h1>
           <p className="page-subtitle">Review the student's request, timeline, and reply to keep it moving</p>
         </div>
         <div className="notification-bell" onClick={() => setShowNotifications(true)}>
@@ -493,11 +481,11 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 <>
                   <button className="return-btn" onClick={handleReturnTicket}>
                     <FaUndo />
-                    Return Ticket
+                    Return Request
                   </button>
                   <button className="resolve-btn" onClick={handleResolveTicket}>
                     <FaCheck />
-                    Resolve Ticket
+                    Resolve Request
                   </button>
                 </>
               )}
@@ -554,8 +542,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
                 // Filter out system messages about reassignment since we display them in the notice box
                 if (followUp.sentBy === 'system') {
                   return !(
-                    followUp.message.includes('Ticket reassigned from') ||
-                    followUp.message.includes('Ticket automatically assigned to')
+                    followUp.message.includes('reassigned from') ||
+                    followUp.message.includes('automatically assigned to')
                   );
                 }
                 return true;
@@ -684,7 +672,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
             <h3 className="management-title">Management Control</h3>
             {isTicketClosed && (
               <p className="management-lock-note">
-                This ticket is {ticket.status === 'Resolved' ? 'resolved' : 'cancelled'} — management actions are locked.
+                This request is {ticket.status === 'Resolved' ? 'resolved' : 'cancelled'} — management actions are locked.
               </p>
             )}
             
@@ -717,7 +705,7 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
               </select>
               {!isTicketClosed && reassignOffice !== ticket.office && (
                 <button className="reassign-btn" onClick={handleReassign}>
-                  Reassign Ticket
+                  Reassign Request
                 </button>
               )}
             </div>
@@ -752,8 +740,8 @@ const TicketDetails = ({ ticketData, department, onNavigate, onViewRequest }) =>
       {showReassignModal && (
         <div className="reassign-modal-overlay">
           <div className="reassign-modal">
-            <h3 className="reassign-modal-title">Reassign Ticket to {reassignOffice}</h3>
-            <p className="reassign-modal-subtitle">Please provide a reason for reassigning this ticket</p>
+            <h3 className="reassign-modal-title">Reassign Request to {reassignOffice}</h3>
+            <p className="reassign-modal-subtitle">Please provide a reason for reassigning this request</p>
             
             <textarea
               className="reassign-note-textarea"

@@ -99,56 +99,58 @@ const FAQs = () => {
 
   return (
     <div className="faqs-container">
-      <div className="faqs-header">
-        <FaQuestionCircle className="faqs-icon" aria-hidden="true" />
-        <h1>Frequently Asked Questions</h1>
-        <p className="faqs-subtitle">Find answers to common questions about the Student Request System</p>
-      </div>
+      <div className="faqs-inner">
+        <div className="faqs-header">
+          <FaQuestionCircle className="faqs-icon" aria-hidden="true" />
+          <h1>Frequently Asked Questions</h1>
+          <p className="faqs-subtitle">Find answers to common questions about the Student Request System</p>
+        </div>
 
-      <div className="faqs-sections">
-        {faqSections.map((section, sIndex) => (
-          <section key={sIndex} className="faq-section" aria-labelledby={`faq-section-${sIndex}`}>
-            <h2 id={`faq-section-${sIndex}`} className="faq-section-title">
-              {section.title}
-            </h2>
-            <div className="faq-section-list">
-              {section.items.map((faq, iIndex) => {
-                const index = sectionOffsets[sIndex] + iIndex;
-                return (
-                  <div
-                    key={index}
-                    className={`faq-item ${openIndex === index ? 'active' : ''}`}
-                  >
-                    <button
-                      type="button"
-                      className="faq-question"
-                      onClick={() => toggleFAQ(index)}
-                      aria-expanded={openIndex === index}
+        <div className="faqs-sections">
+          {faqSections.map((section, sIndex) => (
+            <section key={sIndex} className="faq-section" aria-labelledby={`faq-section-${sIndex}`}>
+              <h2 id={`faq-section-${sIndex}`} className="faq-section-title">
+                {section.title}
+              </h2>
+              <div className="faq-section-list">
+                {section.items.map((faq, iIndex) => {
+                  const index = sectionOffsets[sIndex] + iIndex;
+                  return (
+                    <div
+                      key={index}
+                      className={`faq-item ${openIndex === index ? 'active' : ''}`}
                     >
-                      <span className="question-text">{faq.question}</span>
-                      <span className="question-icon" aria-hidden="true">
-                        {openIndex === index ? <FaChevronUp /> : <FaChevronDown />}
-                      </span>
-                    </button>
+                      <button
+                        type="button"
+                        className="faq-question"
+                        onClick={() => toggleFAQ(index)}
+                        aria-expanded={openIndex === index}
+                      >
+                        <span className="question-text">{faq.question}</span>
+                        <span className="question-icon" aria-hidden="true">
+                          {openIndex === index ? <FaChevronUp /> : <FaChevronDown />}
+                        </span>
+                      </button>
 
-                    <div className={`faq-answer ${openIndex === index ? 'open' : ''}`}>
-                      <div className="answer-content">
-                        {faq.answer.split('\n\n').map((paragraph, pIndex) => (
-                          <p key={pIndex}>{paragraph}</p>
-                        ))}
+                      <div className={`faq-answer ${openIndex === index ? 'open' : ''}`}>
+                        <div className="answer-content">
+                          {faq.answer.split('\n\n').map((paragraph, pIndex) => (
+                            <p key={pIndex}>{paragraph}</p>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-      </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
 
-      <div className="faqs-footer">
-        <p>Still have questions?</p>
-        <p>Contact the school office or submit a feedback through the system.</p>
+        <div className="faqs-footer">
+          <p>Still have questions?</p>
+          <p>Contact the school office or submit a feedback through the system.</p>
+        </div>
       </div>
     </div>
   );

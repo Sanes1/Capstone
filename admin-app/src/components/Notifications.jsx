@@ -217,7 +217,7 @@ const Notifications = ({ isOpen, onClose, onViewRequest }) => {
                     handleNotificationClick(notif);
                   }
                 }}
-                title={notif.metadata?.requestId ? 'Open ticket' : undefined}
+                title={notif.metadata?.requestId ? 'Open request' : undefined}
               >
                 <div className="notification-content">
                   <div className="notification-title">{notif.title}</div>

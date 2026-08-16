@@ -68,7 +68,7 @@ const AdminSidebar = ({ activePage, onNavigate, department, onOpenProfile }) => 
           onClick={() => onNavigate('my-tickets')}
         >
           <FaTicketAlt className="sidebar-icon" />
-          <span className="sidebar-label">My Tickets</span>
+          <span className="sidebar-label">My Requests</span>
         </div>
         
         <div

@@ -3,7 +3,6 @@ import { MdStar, MdStarHalf, MdStarBorder } from 'react-icons/md';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import LoadingSpinner from './LoadingSpinner';
-import Breadcrumb from './Breadcrumb';
 import '../styles/Feedback.css';
 
 // Default office structure - will be populated with real data from Firebase
@@ -282,8 +281,6 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
   if (!selectedOffice) {
     return (
       <div className="feedback-page">
-        <Breadcrumb items={[{ label: 'Feedback', current: true }]} />
-        
         <div className="page-header">
           <h1>Share your feedback</h1>
         </div>
@@ -362,18 +359,6 @@ function Feedback({ selectedOffice: initialOffice, selectedRequest, onNavigate }
   
   return (
     <div className="feedback-page">
-      <Breadcrumb
-        items={[
-          ...(isRequestFeedback ? [
-            { label: 'Request History', onClick: () => onNavigate('request') },
-            { label: `Request #${selectedRequest.requestId}`, onClick: () => onNavigate('request-details', selectedRequest) }
-          ] : [
-            { label: 'Feedback', onClick: goBackToOverview }
-          ]),
-          { label: `${officeName} Feedback`, current: true }
-        ]}
-      />
-      
       <div className="page-header">
         <h1>{isRequestFeedback ? 'Share your feedback' : `${officeName} Feedback`}</h1>
         {isRequestFeedback && (

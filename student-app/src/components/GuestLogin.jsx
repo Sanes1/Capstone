@@ -24,22 +24,26 @@ const GuestLogin = ({ onLogin }) => {
     {
       id: 'finance',
       name: 'Finance',
-      description: 'Manages tuition payments, student balances, billing concerns, and other school-related financial transactions.'
+      description: 'Manages tuition payments, student balances, billing concerns, and other school-related financial transactions.',
+      subjects: ['Balance Verification', 'Payment Plan', 'Refund Request', 'Billing Inquiry']
     },
     {
       id: 'library',
       name: 'Library',
-      description: 'Manages book borrowing/returning, library accounts, and student concerns related to library services and resources.'
+      description: 'Manages book borrowing/returning, library accounts, and student concerns related to library services and resources.',
+      subjects: ['Book Request', 'Lost Book Report', 'Library Card Issue', 'Resource Access']
     },
     {
       id: 'registrar',
       name: 'Registrar',
-      description: 'Handles student records such as enrollment, grades, certificates, transcripts, and other official academic documents.'
+      description: 'Handles student records such as enrollment, grades, certificates, transcripts, and other official academic documents.',
+      subjects: ['Document Request', 'Grade Inquiry', 'Enrollment Issue', 'Transcript Request']
     },
     {
       id: 'guidance',
       name: 'Guidance',
-      description: 'Handles student behavior concerns, incidents, and disciplinary cases to maintain order and safety in school.'
+      description: 'Handles student behavior concerns, incidents, and disciplinary cases to maintain order and safety in school.',
+      subjects: ['Counseling Request', 'Disciplinary Appeal', 'Behavior Report', 'Support Services']
     }
   ];
 
@@ -58,6 +62,10 @@ const GuestLogin = ({ onLogin }) => {
       alert('Please fill in all required fields');
     }
   };
+
+  // Buttons stay grayed out until every required input for that section is filled
+  const canBrowse = requestId.trim() !== '' && officeCode.trim() !== '' && authFile !== null;
+  const canSubmit = !!selectedOffice && subject.trim() !== '' && description.trim() !== '';
 
   return (
     <div className="guest-login-container">
@@ -81,46 +89,30 @@ const GuestLogin = ({ onLogin }) => {
         {/* Browse Request Status Section */}
         <div className="guest-section">
           <h2 className="section-title-guest">Browse Request Status</h2>
-          
-          <div className="browse-form">
-            <div className="browse-left">
-              <div className="form-group-guest">
-                <label className="form-label-guest">Enter Request ID</label>
-                <input
-                  type="text"
-                  className="form-input-guest"
-                  value={requestId}
-                  onChange={(e) => setRequestId(e.target.value)}
-                  placeholder=""
-                />
-              </div>
 
-              <div className="form-group-guest">
-                <label className="form-label-guest">Enter Office Code</label>
-                <input
-                  type="text"
-                  className="form-input-guest"
-                  value={officeCode}
-                  onChange={(e) => setOfficeCode(e.target.value)}
-                  placeholder=""
-                />
-              </div>
+          <div className="field-grid">
+            <div className="form-group-guest">
+              <label className="form-label-guest" htmlFor="guestRequestId">Enter Request ID</label>
+              <input
+                id="guestRequestId"
+                type="text"
+                className="form-input-guest"
+                value={requestId}
+                onChange={(e) => setRequestId(e.target.value)}
+                placeholder="#LIB-100-010-001"
+              />
             </div>
 
-            <div className="browse-right">
-              <label className="form-label-guest">Attach Files(Max 5mb)</label>
-              <div className="upload-box-auth">
-                <FaFileUpload className="upload-icon-auth" />
-                <p className="upload-text-auth">
-                  Upload Authorization Proof (ex. Authorization Letter, valid ID...)
-                </p>
-                <input
-                  type="file"
-                  className="file-input-hidden"
-                  onChange={(e) => setAuthFile(e.target.files[0])}
-                  accept=".pdf,.doc,.docx,.jpg,.png"
-                />
-              </div>
+            <div className="form-group-guest">
+              <label className="form-label-guest" htmlFor="guestOfficeCode">Enter Office Code</label>
+              <input
+                id="guestOfficeCode"
+                type="text"
+                className="form-input-guest"
+                value={officeCode}
+                onChange={(e) => setOfficeCode(e.target.value)}
+                placeholder="LIB-001"
+              />
             </div>
           </div>
 
@@ -128,7 +120,7 @@ const GuestLogin = ({ onLogin }) => {
             <button className="cancel-btn-guest" onClick={() => window.location.reload()}>
               Cancel
             </button>
-            <button className="confirm-btn-guest" onClick={handleBrowseConfirm}>
+            <button className="confirm-btn-guest" onClick={handleBrowseConfirm} disabled={!canBrowse}>
               Confirm
             </button>
           </div>
@@ -145,7 +137,10 @@ const GuestLogin = ({ onLogin }) => {
                 <div
                   key={office.id}
                   className={`office-card-guest ${selectedOffice === office.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedOffice(office.id)}
+                  onClick={() => {
+                    setSelectedOffice(office.id);
+                    setSubject(''); // Reset subject when office changes
+                  }}
                 >
                   <div className="office-radio">
                     {selectedOffice === office.id && <div className="radio-dot"></div>}
@@ -161,13 +156,21 @@ const GuestLogin = ({ onLogin }) => {
 
           <div className="form-group-guest">
             <label className="form-label-guest">Subject</label>
-            <input
-              type="text"
-              className="form-input-guest"
+            <select
+              className="form-select-guest"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="Briefly describe your issues"
-            />
+              disabled={!selectedOffice}
+            >
+              <option value="">
+                {selectedOffice ? 'Select a subject' : 'Please select an office first'}
+              </option>
+              {selectedOffice && offices.find(o => o.id === selectedOffice)?.subjects.map((subj, index) => (
+                <option key={index} value={subj}>
+                  {subj}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="form-group-guest">
@@ -182,7 +185,24 @@ const GuestLogin = ({ onLogin }) => {
           </div>
 
           <div className="form-group-guest">
-            <label className="form-label-guest">Attach File(Optional)</label>
+            <label className="form-label-guest">Attach Files (Max 5mb)</label>
+            <div className="upload-box-auth">
+              <span className="required-badge">Required</span>
+              <FaFileUpload className="upload-icon-auth" />
+              <p className="upload-text-auth">
+                Upload Authorization Proof (ex. Authorization Letter, valid ID...)
+              </p>
+              <input
+                type="file"
+                className="file-input-hidden"
+                onChange={(e) => setAuthFile(e.target.files[0])}
+                accept=".pdf,.doc,.docx,.jpg,.png"
+              />
+            </div>
+          </div>
+
+          <div className="form-group-guest">
+            <label className="form-label-guest">Attach File <span className="optional-guest">(Optional)</span></label>
             <div className="upload-box-dashed">
               <FaFileUpload className="upload-icon-large" />
               <p className="upload-text-main">Click to upload or drag and drop</p>
@@ -200,7 +220,7 @@ const GuestLogin = ({ onLogin }) => {
             <button className="cancel-btn-guest" onClick={() => window.location.reload()}>
               Cancel
             </button>
-            <button className="submit-btn-guest" onClick={handleSubmitRequest}>
+            <button className="submit-btn-guest" onClick={handleSubmitRequest} disabled={!canSubmit}>
               Submit Request
             </button>
           </div>

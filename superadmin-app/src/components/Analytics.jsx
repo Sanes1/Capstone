@@ -416,7 +416,7 @@ const Analytics = () => {
     csvContent += '\n';
 
     // Ticket Volume Trends
-    csvContent += `TICKET VOLUME TRENDS - ${SEMESTER_CONFIG[selectedSemester].label}\n`;
+    csvContent += `REQUEST VOLUME TRENDS - ${SEMESTER_CONFIG[selectedSemester].label}\n`;
     csvContent += 'Month,Requests\n';
     ticketData.forEach(data => {
       csvContent += `${data.month},${data.count}\n`;
@@ -425,7 +425,7 @@ const Analytics = () => {
 
     // Department Efficiency
     csvContent += 'DEPARTMENT EFFICIENCY\n';
-    csvContent += 'Department,Tickets,Average Resolution Time,Satisfaction Rating\n';
+    csvContent += 'Department,Requests,Average Resolution Time,Satisfaction Rating\n';
     departmentData.forEach(dept => {
       csvContent += `"${dept.department}",${dept.tickets},"${dept.resolution}","${dept.satisfaction}"\n`;
     });
@@ -546,7 +546,7 @@ const Analytics = () => {
       <div className="analytics-content">
         <div className="chart-card">
           <div className="chart-card-header">
-            <h2 className="chart-card-title">Ticket Volume Trends</h2>
+            <h2 className="chart-card-title">Request Volume Trends</h2>
             <div className="sem-filter" role="group" aria-label="Filter by semester">
               {Object.entries(SEMESTER_CONFIG).map(([id, config]) => (
                 <button
@@ -675,7 +675,7 @@ const Analytics = () => {
             <thead>
               <tr>
                 <th>DEPARTMENT</th>
-                <th>TICKETS</th>
+                <th>REQUESTS</th>
                 <th>RESOLUTION</th>
                 <th>SATISFACTION</th>
               </tr>

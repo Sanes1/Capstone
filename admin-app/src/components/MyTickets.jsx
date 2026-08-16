@@ -6,7 +6,7 @@ import Notifications from './Notifications';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/MyTickets.css';
 
-const STATUS_OPTIONS = ['All Status', 'New Tickets', 'In Progress', 'Resolved', 'Rejected'];
+const STATUS_OPTIONS = ['All Status', 'New Requests', 'In Progress', 'Resolved', 'Rejected'];
 
 const MyTickets = ({ department, onNavigate, onViewRequest }) => {
   const [timeFilter, setTimeFilter] = useState('week');
@@ -135,7 +135,7 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
     // Filter by status
     if (statusFilter !== 'All Status') {
       filtered = filtered.filter(t => {
-        if (statusFilter === 'New Tickets') return t.status === 'Pending';
+        if (statusFilter === 'New Requests') return t.status === 'Pending';
         if (statusFilter === 'In Progress') return t.status === 'In Process';
         if (statusFilter === 'Resolved') return t.status === 'Resolved';
         if (statusFilter === 'Rejected') return t.status === 'Rejected';
@@ -181,18 +181,10 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
 
   return (
     <div className="my-tickets-container">
-      <div className="breadcrumb">
-        <span className="breadcrumb-item">Tickets</span>
-        <span className="breadcrumb-separator">/</span>
-        <span className="breadcrumb-item clickable" onClick={handleTicketClick}>
-          Ticket Details
-        </span>
-      </div>
-
       <div className="page-header">
         <div>
-          <h1 className="page-title">My Tickets</h1>
-          <p className="page-subtitle">Tickets you've claimed and the ones you're handling</p>
+          <h1 className="page-title">My Requests</h1>
+          <p className="page-subtitle">Requests you've claimed and the ones you're handling</p>
         </div>
         <div className="header-right">
           <div className="time-filter">
@@ -219,16 +211,16 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
       <div className="ticket-summary-cards">
         <button
           type="button"
-          className={`summary-card new ${statusFilter === 'New Tickets' ? 'active' : ''}`}
-          onClick={() => handleSummaryCardClick('New Tickets')}
-          aria-pressed={statusFilter === 'New Tickets'}
-          aria-label="Show New Tickets in the ticket table"
+          className={`summary-card new ${statusFilter === 'New Requests' ? 'active' : ''}`}
+          onClick={() => handleSummaryCardClick('New Requests')}
+          aria-pressed={statusFilter === 'New Requests'}
+          aria-label="Show New Requests in the request table"
         >
           <span className="summary-header">
             <span className="summary-icon-container">
               <FaTicketAlt className="summary-icon" />
             </span>
-            <span className="summary-label">New Tickets</span>
+            <span className="summary-label">New Requests</span>
           </span>
           <span className="summary-count">{stats.new}</span>
           <span className="summary-footer">
@@ -242,7 +234,7 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
           className={`summary-card progress ${statusFilter === 'In Progress' ? 'active' : ''}`}
           onClick={() => handleSummaryCardClick('In Progress')}
           aria-pressed={statusFilter === 'In Progress'}
-          aria-label="Show In Process tickets in the ticket table"
+          aria-label="Show In Process requests in the request table"
         >
           <span className="summary-header">
             <span className="summary-icon-container">
@@ -262,7 +254,7 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
           className={`summary-card resolved ${statusFilter === 'Resolved' ? 'active' : ''}`}
           onClick={() => handleSummaryCardClick('Resolved')}
           aria-pressed={statusFilter === 'Resolved'}
-          aria-label="Show Resolved tickets in the ticket table"
+          aria-label="Show Resolved requests in the request table"
         >
           <span className="summary-header">
             <span className="summary-icon-container">
@@ -283,7 +275,7 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
           <FaSearch className="search-icon" />
           <input 
             type="text" 
-            placeholder="Search by Ticket Info"
+            placeholder="Search by Request Info"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -295,7 +287,7 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
             onClick={() => setIsFilterOpen(prev => !prev)}
             aria-haspopup="listbox"
             aria-expanded={isFilterOpen}
-            aria-label="Filter tickets by status"
+            aria-label="Filter requests by status"
           >
             <FaFilter className="filter-icon" aria-hidden="true" />
             Status
@@ -339,19 +331,19 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
 
       <div className="tickets-list-section" ref={ticketsListRef}>
         {loading ? (
-          <LoadingSpinner message="Loading your tickets..." fullScreen={false} />
+          <LoadingSpinner message="Loading your requests..." fullScreen={false} />
         ) : filteredTickets.length === 0 ? (
           <div className="empty-state">
             {tickets.length === 0 
-              ? 'You have no claimed tickets yet.' 
-              : 'No tickets match your filters.'}
+              ? 'You have no claimed requests yet.' 
+              : 'No requests match your filters.'}
           </div>
         ) : (
           <>
             <table className="tickets-list-table">
               <thead>
                 <tr>
-                  <th>TICKET INFO</th>
+                  <th>REQUEST INFO</th>
                   <th>STUDENT DETAILS</th>
                   <th>STATUS</th>
                   <th>ASSIGNED TO</th>
@@ -375,7 +367,7 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
                     </td>
                     <td>
                       <span className={`status-badge status-${ticket.status.toLowerCase().replace(' ', '')}`}>
-                        {ticket.status === 'Pending' && 'New Ticket'}
+                        {ticket.status === 'Pending' && 'New Request'}
                         {ticket.status === 'In Process' && 'In Progress'}
                         {ticket.status === 'Resolved' && 'Resolved'}
                         {ticket.status === 'Cancelled' && 'Cancelled'}
@@ -397,7 +389,7 @@ const MyTickets = ({ department, onNavigate, onViewRequest }) => {
                         className="view-ticket-btn"
                         onClick={() => handleTicketClick(ticket)}
                       >
-                        View Ticket
+                        View Request
                       </button>
                     </td>
                   </tr>

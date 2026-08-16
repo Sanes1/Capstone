@@ -4,14 +4,20 @@
    (#ACE0A4) rounded cards grouped tightly under each heading.
    ========================================================================== */
 
+/* The scroll container spans the full main-content area so the scrollbar sits
+   on the right edge of the screen; the inner column is what gets centered. */
 .faqs-container {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.faqs-inner {
   max-width: 900px;
   margin: 0 auto;
   padding: var(--content-padding);
   font-family: var(--font-family);
-  height: 100%;
-  overflow-y: auto;
-  box-sizing: border-box;
 }
 
 .faqs-header {
@@ -247,7 +253,7 @@
    ========================================================================== */
 
 @media (max-width: 768px) {
-  .faqs-container {
+  .faqs-inner {
     padding: var(--space-6) var(--space-4);
   }
 

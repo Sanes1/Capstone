@@ -34,30 +34,16 @@
 
 .login-split-view {
   display: flex;
-  /* Keep the card at the Figma's 3:2 proportion on every screen: the
-     width is capped by the viewport width AND by what still leaves room
-     for the full height plus the page padding, so the card never forces
-     unwanted vertical scrolling (height = width / 1.5 fits the viewport). */
+  /* Width is capped by the viewport; height follows the content (no fixed
+     aspect ratio) so the whole form — down to the secure badge — is always
+     visible. On short screens the page scrolls instead of clipping. */
   width: min(1040px, 92vw, calc((100vh - 2 * var(--login-page-pad)) * 1.5));
+  height: auto;
   min-height: 560px;
   background-color: #ffffff;
   border-radius: 20px;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
   overflow: hidden;
-}
-
-/* Browsers without aspect-ratio support keep a sensible capped height */
-@supports not (aspect-ratio: 3 / 2) {
-  .login-split-view {
-    height: min(690px, calc(100vh - 2 * var(--login-page-pad)));
-  }
-}
-
-@supports (aspect-ratio: 3 / 2) {
-  .login-split-view {
-    height: auto;
-    aspect-ratio: 3 / 2;
-  }
 }
 
 .login-left-section {
@@ -82,7 +68,7 @@
 
 .login-right-section {
   flex: 1;
-  padding: clamp(48px, 10vh, 100px) clamp(28px, 6vw, 66px) clamp(24px, 4vh, 36px);
+  padding: clamp(28px, 5vh, 56px) clamp(24px, 5vw, 56px) clamp(20px, 3vh, 32px);
   background-color: #ffffff;
 }
 
@@ -104,7 +90,7 @@
 .login-subtitle {
   font-size: 14px;
   color: #6b7280;
-  margin: 0 0 28px 0;
+  margin: 0 0 22px 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.4;
 }
@@ -376,7 +362,7 @@
    form including the badge stays visible inside the card without clipping */
 @media (max-height: 750px) and (min-width: 961px) {
   .login-right-section {
-    padding: 40px 48px 20px;
+    padding: 28px 44px 20px;
   }
 
   .login-subtitle {
@@ -448,6 +434,11 @@
 
 
 /* QR Scanner Modal */
+/* Lock the page behind the popup so no page-level scrollbar shows beside it */
+.login-container-student.modal-open {
+  overflow: hidden;
+}
+
 .qr-scanner-modal {
   position: fixed;
   top: 0;
@@ -465,24 +456,45 @@
 .qr-scanner-content {
   background: white;
   border-radius: 16px;
-  padding: 30px;
+  padding: 16px;
   max-width: 600px;
   width: 90%;
-  max-height: 90vh;
+  max-height: min(820px, 94vh); /* taller portrait card; width stays 600px */
   overflow-y: auto;
+  overscroll-behavior: contain; /* never scroll-chains to the page behind */
   position: relative;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  /* Scrollable but with no visible bar: at browser zoom the bar's rounded
+     thumb caps would poke out over the card's rounded corners, and it would
+     float mid-screen on wide windows. Content still scrolls via wheel/touch. */
+  scrollbar-width: none; /* Firefox */
+}
+
+.qr-scanner-content::-webkit-scrollbar {
+  display: none; /* Chrome / Safari / Edge */
+}
+
+/* Let the camera area absorb any leftover space so the card fits without
+   scrolling; only the reader (down to its min-height floor) shrinks. */
+.qr-scanner-header,
+.scanning-status,
+.qr-scanner-instructions,
+.qr-upload-section,
+.qr-scanner-footer {
+  flex-shrink: 0;
 }
 
 .qr-scanner-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .qr-scanner-header h2 {
-  font-size: 24px;
+  font-size: 22px;
   color: #105E06;
   font-weight: 700;
   margin: 0;
@@ -507,11 +519,11 @@
 
 /* Scanning Status Indicator */
 .scanning-status {
-  margin-bottom: 20px;
-  padding: 15px;
+  margin-bottom: 10px;
+  padding: 10px;
   border-radius: 10px;
   text-align: center;
-  min-height: 60px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -645,21 +657,27 @@
 }
 
 .qr-scanner-instructions {
-  font-size: 14px;
+  font-size: 13px;
   color: #666;
-  margin-bottom: 20px;
-  line-height: 1.6;
+  margin-bottom: 10px;
+  line-height: 1.5;
   text-align: center;
 }
 
+/* Height scales with the viewport so the whole modal fits on short screens
+   instead of forcing a scrollbar (video letterboxes inside via object-fit).
+   flex-grow lets the camera fill the taller card; overflow: hidden clips the
+   animated scan line so it can't add phantom scroll space below the card. */
 .qr-reader-container {
   width: 100%;
   border-radius: 12px;
-  overflow: visible;
+  overflow: hidden;
   border: 3px solid #105E06;
   position: relative;
   background-color: #000;
-  min-height: 300px;
+  height: clamp(200px, 40vh, 460px);
+  min-height: 150px;
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -690,14 +708,14 @@
     opacity: 1;
   }
   100% {
-    transform: translateY(300px);
+    transform: translateY(320px);
     opacity: 0;
   }
 }
 
 .qr-scanner-footer {
-  margin-top: 20px;
-  padding-top: 20px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--gray-300);
   text-align: center;
 }
@@ -718,7 +736,8 @@
 
 #qr-reader video {
   width: 100% !important;
-  height: auto !important;
+  height: 100% !important;
+  object-fit: contain !important; /* letterbox instead of cropping the frame */
   border-radius: 8px !important;
   display: block !important;
   filter: none !important; /* Remove any filters */
@@ -751,14 +770,14 @@
 
 /* QR Code Upload Section */
 .qr-upload-section {
-  margin-top: 20px;
-  padding-top: 20px;
+  margin-top: 10px;
+  padding-top: 10px;
 }
 
 .divider-qr {
   display: flex;
   align-items: center;
-  margin: 20px 0;
+  margin: 10px 0;
   color: #999;
   font-size: 13px;
 }
@@ -781,7 +800,7 @@
   justify-content: center;
   gap: 10px;
   width: 100%;
-  padding: 14px 24px;
+  padding: 12px 24px;
   background: linear-gradient(135deg, #66bb6a 0%, #4caf50 100%);
   color: white;
   border: none;
