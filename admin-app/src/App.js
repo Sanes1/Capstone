@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Login from './components/Login';
 import ForgotPassword from './components/ForgotPassword';
+import ChangePasswordModal from './components/ChangePasswordModal';
 import AdminSidebar from './components/AdminSidebar';
 import AdminDashboard from './components/AdminDashboard';
 import MyTickets from './components/MyTickets';
@@ -38,6 +39,20 @@ function App() {
   });
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [staffData, setStaffData] = useState(null);
+
+  // Check if staff must change password on login
+  useEffect(() => {
+    if (isLoggedIn) {
+      const storedData = localStorage.getItem('staffData');
+      if (storedData) {
+        const data = JSON.parse(storedData);
+        setStaffData(data);
+        setMustChangePassword(data.mustChangePassword === true);
+      }
+    }
+  }, [isLoggedIn]);
 
   const handleLogin = (department) => {
     setSelectedDepartment(department);
@@ -65,6 +80,15 @@ function App() {
     handleNavigate('ticket-details', ticket);
   };
 
+  const handlePasswordChanged = () => {
+    setMustChangePassword(false);
+    // Reload staff data
+    const storedData = localStorage.getItem('staffData');
+    if (storedData) {
+      setStaffData(JSON.parse(storedData));
+    }
+  };
+
   // Save active page to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('adminActivePage', activePage);
@@ -75,6 +99,11 @@ function App() {
       return <ForgotPassword onClose={() => setShowForgotPassword(false)} />;
     }
     return <Login onLogin={handleLogin} onForgotPassword={() => setShowForgotPassword(true)} />;
+  }
+
+  // Show password change modal if required
+  if (mustChangePassword && staffData) {
+    return <ChangePasswordModal staffData={staffData} onPasswordChanged={handlePasswordChanged} />;
   }
 
   return (

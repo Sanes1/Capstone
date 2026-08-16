@@ -10,8 +10,10 @@ import MyRequest from './components/MyRequest';
 import RequestDetails from './components/RequestDetails';
 import NewRequest from './components/NewRequest';
 import Feedback from './components/Feedback';
+import MyFeedback from './components/MyFeedback';
 import BulletinBoard from './components/BulletinBoard';
 import FAQs from './components/FAQs';
+import IdleTimeout from './components/IdleTimeout';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
 import './App.css';
@@ -31,6 +33,7 @@ function App() {
     return stored && stored !== 'request-details' ? stored : 'dashboard';
   });
   const [selectedRequest, setSelectedRequest] = useState(null); // Store selected request
+  const [feedbackRequest, setFeedbackRequest] = useState(null); // Store request for feedback
   // Status filter pre-applied when opening Request History from the dashboard cards
   const [requestStatusFilter, setRequestStatusFilter] = useState('All Status');
   const [mustChangePassword, setMustChangePassword] = useState(false);
@@ -122,6 +125,8 @@ function App() {
     setIsGuest(false);
     localStorage.removeItem('studentLoggedIn');
     localStorage.removeItem('studentIsGuest');
+    localStorage.removeItem('studentData');
+    setActivePage('dashboard'); // Reset to dashboard on logout
   };
 
   const handlePasswordChanged = () => {
@@ -140,8 +145,11 @@ function App() {
 
   // Plain navigation to Request History (sidebar, breadcrumbs, "View all")
   // always shows all requests — no status filter.
-  const handleNavigate = (page) => {
+  const handleNavigate = (page, data = null) => {
     if (page === 'request') setRequestStatusFilter('All Status');
+    if (page === 'feedback-for-request' && data) {
+      setFeedbackRequest(data);
+    }
     setActivePage(page);
   };
 
@@ -168,10 +176,14 @@ function App() {
         return <RequestDetails requestData={selectedRequest} onNavigate={handleNavigate} />;
       case 'new-request':
         return <NewRequest onNavigate={handleNavigate} />;
+      case 'my-feedback':
+        return <MyFeedback onNavigate={handleNavigate} />;
       case 'bulletin':
         return <BulletinBoard />;
       case 'feedback':
         return <Feedback onNavigate={setActivePage} />;
+      case 'feedback-for-request':
+        return <Feedback selectedRequest={feedbackRequest} onNavigate={handleNavigate} />;
       case 'feedback-guidance':
         return <Feedback selectedOffice="guidance" onNavigate={setActivePage} />;
       case 'feedback-library':
@@ -223,6 +235,8 @@ function App() {
           {renderPage()}
         </main>
       </div>
+      {/* Idle timeout component - only active for logged-in students (not guests) */}
+      <IdleTimeout onLogout={handleLogout} isGuest={isGuest} />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
 import '../styles/Sidebar.css';
 
 const FEEDBACK_OFFICES = [
+  { label: 'My Feedback', page: 'my-feedback', isSpecial: true },
   { label: 'Guidance', page: 'feedback-guidance' },
   { label: 'Library', page: 'feedback-library' },
   { label: 'Registrar', page: 'feedback-registrar' },
@@ -134,7 +135,7 @@ function Sidebar({ activePage, onNavigate, hasUnreadBulletin = false, isOpen = f
                   <button
                     type="button"
                     key={office.page}
-                    className={`submenu-item ${activePage === office.page ? 'submenu-active' : ''}`}
+                    className={`submenu-item ${office.isSpecial ? 'submenu-special' : ''} ${activePage === office.page ? 'submenu-active' : ''}`}
                     onClick={() => handleNavigate(office.page)}
                     aria-current={activePage === office.page ? 'page' : undefined}
                   >

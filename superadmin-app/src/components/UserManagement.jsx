@@ -412,7 +412,8 @@ const UserManagement = () => {
         officeId: staffOffice,
         role: 'staff',
         createdAt: serverTimestamp(),
-        isActive: true
+        isActive: true,
+        mustChangePassword: true // Force password change on first login
       });
 
       // Send credentials via email

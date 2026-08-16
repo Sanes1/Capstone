@@ -167,6 +167,27 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Special submenu item (My Feedback) - more prominent with spacing */
+.submenu-item.submenu-special {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--sage-200);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-body);
+}
+
+.submenu-item.submenu-special:hover {
+  background-color: var(--sage-100);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.submenu-item.submenu-special.submenu-active {
+  background-color: var(--sage-100);
+  font-weight: var(--font-weight-semibold);
+}
+
 /* ---- Office info (Figma: compact sage panel ~216px@1440 with ~16px radius) ----
    Pinned to the bottom of the sidebar (margin-top: auto) and never stretched
    taller than its content (flex: 0 0 auto).

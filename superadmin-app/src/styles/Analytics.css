@@ -471,6 +471,15 @@
   margin-bottom: var(--space-6);
 }
 
+.satisfaction-total {
+  font-size: var(--font-size-xs);
+  color: var(--green-800);
+  font-weight: var(--font-weight-medium);
+  margin-top: -12px;
+  margin-bottom: var(--space-5);
+  font-style: italic;
+}
+
 .stars-breakdown {
   width: 100%;
 }

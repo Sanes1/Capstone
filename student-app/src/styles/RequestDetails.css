@@ -218,6 +218,16 @@
   transform: translateY(0);
 }
 
+/* Feedback already provided variant - slightly different styling */
+.feedback-banner.feedback-provided {
+  background: linear-gradient(135deg, #8CB986 0%, #669E5F 100%);
+}
+
+.feedback-banner.feedback-provided .feedback-banner-icon {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
 /* Cancel button (ticket details only) — soft red / outlined destructive
    style using the danger tokens: red-tinted fill, red text + border, and
    the tint deepens on hover. Scoped under .request-actions so the shared

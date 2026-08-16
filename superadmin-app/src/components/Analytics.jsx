@@ -66,7 +66,7 @@ const Analytics = () => {
   const [activeUsers, setActiveUsers] = useState(0);
   const [ticketData, setTicketData] = useState([]);
   const [departmentData, setDepartmentData] = useState([]);
-  const [satisfactionData, setSatisfactionData] = useState({ fiveStars: 0, fourStars: 0, percentage: 0 });
+  const [satisfactionData, setSatisfactionData] = useState({ fiveStars: 0, fourStars: 0, percentage: 0, total: 0 });
   const [satisfactionOffice, setSatisfactionOffice] = useState('all');
   const [officeFilterOpen, setOfficeFilterOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState(EMPTY_FILTER);
@@ -225,17 +225,36 @@ const Analytics = () => {
     // Satisfaction ratings (filtered by date AND selected office)
     const filteredFeedbacks = filterRequestsByDate(feedbacks, filter);
     const officeFeedbacks = filterFeedbacksByOffice(filteredFeedbacks, officeId);
-    const fiveStarsCount = officeFeedbacks.filter(f => f.rating === 5).length;
-    const fourStarsCount = officeFeedbacks.filter(f => f.rating === 4).length;
+    
+    // Count ratings properly using overallRating (which is the calculated average)
+    const fiveStarsCount = officeFeedbacks.filter(f => {
+      const rating = f.overallRating || f.rating || 0;
+      return Math.round(rating) === 5;
+    }).length;
+    
+    const fourStarsCount = officeFeedbacks.filter(f => {
+      const rating = f.overallRating || f.rating || 0;
+      return Math.round(rating) === 4;
+    }).length;
+    
     const totalFeedback = officeFeedbacks.length;
-    const satisfactionPercentage = totalFeedback > 0
-      ? Math.round((fiveStarsCount / totalFeedback) * 100)
-      : 0;
+    
+    // Calculate overall satisfaction percentage (average rating out of 5)
+    let satisfactionPercentage = 0;
+    if (totalFeedback > 0) {
+      const totalRating = officeFeedbacks.reduce((sum, f) => {
+        const rating = f.overallRating || f.rating || 0;
+        return sum + rating;
+      }, 0);
+      const avgRating = totalRating / totalFeedback;
+      satisfactionPercentage = Math.round((avgRating / 5) * 100);
+    }
 
     setSatisfactionData({
       fiveStars: fiveStarsCount,
       fourStars: fourStarsCount,
-      percentage: satisfactionPercentage
+      percentage: satisfactionPercentage,
+      total: totalFeedback
     });
   };
 
@@ -331,11 +350,25 @@ const Analytics = () => {
         avgResolution = formatDuration(totalTime / resolvedRequests.length);
       }
 
+      // Calculate satisfaction from feedbacks
+      const deptId = dept.toLowerCase();
+      const deptFeedbacks = feedbacksRef.current.filter(f => {
+        const officeId = String(f.officeId || '').toLowerCase();
+        const officeName = String(f.office || f.officeName || '').toLowerCase();
+        return officeId === deptId || officeName.includes(dept.toLowerCase());
+      });
+      
+      let satisfactionRating = 'N/A';
+      if (deptFeedbacks.length > 0) {
+        const avgRating = deptFeedbacks.reduce((sum, f) => sum + (f.overallRating || f.rating || 0), 0) / deptFeedbacks.length;
+        satisfactionRating = `${avgRating.toFixed(1)} ★`;
+      }
+
       deptStats[dept] = {
         department: dept === 'Guidance' ? 'Guidance Office' : dept === 'Registrar' ? 'Registrar Office' : dept === 'Finance' ? 'Finance Office' : dept,
         tickets: deptRequests.length,
         resolution: avgResolution,
-        satisfaction: 'N/A' // Placeholder, could be calculated from feedback
+        satisfaction: satisfactionRating
       };
     });
 
@@ -343,22 +376,74 @@ const Analytics = () => {
   };
 
   const exportToCSV = () => {
-    // Prepare CSV data
-    let csvContent = 'Department,Tickets,Resolution Time,Satisfaction\n';
-    departmentData.forEach(dept => {
-      csvContent += `${dept.department},${dept.tickets},${dept.resolution},${dept.satisfaction}\n`;
+    const currentDate = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
 
-    // Create download link
+    // Build comprehensive CSV with all analytics data
+    let csvContent = '';
+
+    // Header
+    csvContent += 'ACADEMIA DE SAN JOSE - ANALYTICS REPORT\n';
+    csvContent += `Generated: ${currentDate}\n`;
+    
+    if (isFilterActive) {
+      csvContent += `Date Range: ${appliedFilter.from ? formatFilterDate(appliedFilter.from) : 'All'} to ${appliedFilter.to ? formatFilterDate(appliedFilter.to) : 'All'}\n`;
+    }
+    csvContent += '\n';
+
+    // Summary Statistics
+    csvContent += 'SUMMARY STATISTICS\n';
+    csvContent += 'Metric,Value\n';
+    csvContent += `Total Requests,${totalRequests}\n`;
+    csvContent += `Average Resolution Time,${avgResolution}\n`;
+    csvContent += `Cancelled Rate,${cancelledRate}\n`;
+    csvContent += `Active Users,${activeUsers}\n`;
+    csvContent += '\n';
+
+    // Student Satisfaction
+    csvContent += 'STUDENT SATISFACTION\n';
+    csvContent += `Office Filter: ${selectedOfficeName}\n`;
+    csvContent += 'Metric,Value\n';
+    csvContent += `Overall Satisfaction,${satisfactionData.percentage}%\n`;
+    csvContent += `Total Feedback,${satisfactionData.total}\n`;
+    csvContent += `5 Stars,${satisfactionData.fiveStars}\n`;
+    csvContent += `4 Stars,${satisfactionData.fourStars}\n`;
+    csvContent += '\n';
+
+    // Ticket Volume Trends
+    csvContent += `TICKET VOLUME TRENDS - ${SEMESTER_CONFIG[selectedSemester].label}\n`;
+    csvContent += 'Month,Requests\n';
+    ticketData.forEach(data => {
+      csvContent += `${data.month},${data.count}\n`;
+    });
+    csvContent += '\n';
+
+    // Department Efficiency
+    csvContent += 'DEPARTMENT EFFICIENCY\n';
+    csvContent += 'Department,Tickets,Average Resolution Time,Satisfaction Rating\n';
+    departmentData.forEach(dept => {
+      csvContent += `"${dept.department}",${dept.tickets},"${dept.resolution}","${dept.satisfaction}"\n`;
+    });
+
+    // Create and download the file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
+    const filename = `analytics_report_${new Date().toISOString().split('T')[0]}.csv`;
+    
     link.setAttribute('href', url);
-    link.setAttribute('download', `analytics_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', filename);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    console.log(`📊 Analytics report exported: ${filename}`);
   };
 
   if (loading) {
@@ -554,7 +639,10 @@ const Analytics = () => {
           
           <div className="satisfaction-content">
             <div className="satisfaction-percentage">{satisfactionData.percentage}%</div>
-            <div className="satisfaction-label">5 Stars</div>
+            <div className="satisfaction-label">Overall Satisfaction</div>
+            {satisfactionData.total > 0 && (
+              <div className="satisfaction-total">{satisfactionData.total} total feedback{satisfactionData.total !== 1 ? 's' : ''}</div>
+            )}
             
             <div className="stars-breakdown">
               <div className="star-row">

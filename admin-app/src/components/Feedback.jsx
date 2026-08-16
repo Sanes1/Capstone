@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FaBell, FaStar, FaUserCircle, FaCalendarAlt, FaTimes } from 'react-icons/fa';
 import { BsChatDots } from 'react-icons/bs';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import Notifications from './Notifications';
 import DateRangeFilterDropdown from './DateRangeFilterDropdown';
@@ -12,7 +12,7 @@ const EMPTY_FILTER = { from: '', to: '' };
 // Demo feedback (static). Real feedback from the feedback collection can be
 // dropped in later — it carries rating, comment, and createdAt fields, which
 // the helpers below already understand.
-const feedbackData = [
+const DEMO_FEEDBACK = [
   {
     name: 'RICKY LIAM',
     date: '03-11-2026',
@@ -123,6 +123,91 @@ const Feedback = ({ department, onViewRequest }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [dateFilter, setDateFilter] = useState(EMPTY_FILTER);
   const [appliedFilter, setAppliedFilter] = useState(EMPTY_FILTER);
+  const [feedbackData, setFeedbackData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch feedback from Firebase for this department
+  useEffect(() => {
+    if (!department) return;
+
+    setLoading(true);
+    
+    // Map department to officeId
+    const officeIdMap = {
+      'finance': 'finance',
+      'library': 'library',
+      'registrar': 'registrar',
+      'guidance': 'guidance'
+    };
+    
+    const officeId = officeIdMap[department.toLowerCase()];
+    
+    if (!officeId) {
+      console.warn('Unknown department:', department);
+      setFeedbackData(DEMO_FEEDBACK);
+      setLoading(false);
+      return;
+    }
+
+    // Query feedback for this office
+    const feedbackQuery = query(
+      collection(db, 'feedback'),
+      where('officeId', '==', officeId)
+    );
+
+    console.log(`🔍 Admin querying feedback with officeId: "${officeId}" for department: "${department}"`);
+
+    const unsubscribe = onSnapshot(feedbackQuery, (querySnapshot) => {
+      console.log(`📊 Firebase returned ${querySnapshot.docs.length} feedback documents`);
+      
+      // Log the first document to see its structure
+      if (querySnapshot.docs.length > 0) {
+        const firstDoc = querySnapshot.docs[0].data();
+        console.log('📄 First feedback document:', {
+          officeId: firstDoc.officeId,
+          officeName: firstDoc.officeName,
+          studentName: firstDoc.studentName,
+          rating: firstDoc.overallRating,
+          repliesCount: firstDoc.replies?.length || 0,
+          hasReplies: !!(firstDoc.replies && firstDoc.replies.length > 0)
+        });
+      }
+      
+      const feedback = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.studentName || 'Anonymous',
+          date: data.createdAt?.toDate().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) || 'N/A',
+          rating: data.overallRating || 0,
+          comment: data.comments || 'No comment provided',
+          responseTime: data.responseTime || 0,
+          helpfulness: data.helpfulness || 0,
+          createdAt: data.createdAt,
+          studentEmail: data.studentEmail,
+          followUp: data.followUp || false,
+          replies: data.replies || [] // Include replies array
+        };
+      });
+
+      // Sort by date (newest first)
+      feedback.sort((a, b) => {
+        const dateA = a.createdAt?.toDate() || new Date(0);
+        const dateB = b.createdAt?.toDate() || new Date(0);
+        return dateB - dateA;
+      });
+
+      setFeedbackData(feedback.length > 0 ? feedback : DEMO_FEEDBACK);
+      setLoading(false);
+      console.log(`✅ Loaded ${feedback.length} feedback items for ${department}`);
+    }, (error) => {
+      console.error('❌ Error loading feedback:', error);
+      setFeedbackData(DEMO_FEEDBACK);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [department]);
 
   useEffect(() => {
     // Listen for unread notifications
@@ -203,12 +288,39 @@ const Feedback = ({ department, onViewRequest }) => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [expandedCard]);
 
-  const handleSendReply = (index) => {
+  const handleSendReply = async (index) => {
     // The button is disabled without a message, but keep this guard as a
     // safety net so an empty reply can never be sent.
     if (!replyText.trim()) return;
-    console.log('Sending reply to feedback', index, replyText);
-    closeReplyModal();
+    
+    try {
+      const feedbackItem = filteredFeedback[index];
+      const staffData = JSON.parse(localStorage.getItem('staffData'));
+      
+      const reply = {
+        message: replyText.trim(),
+        sentBy: 'staff',
+        sentByName: staffData.name || 'Staff',
+        sentByOffice: department,
+        sentAt: new Date().toISOString(),
+        timestamp: new Date().toISOString()
+      };
+
+      // Update the feedback document with the reply
+      const feedbackRef = doc(db, 'feedback', feedbackItem.id);
+      await updateDoc(feedbackRef, {
+        replies: arrayUnion(reply),
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ Reply sent successfully');
+      alert('Reply sent successfully!');
+      closeReplyModal();
+      
+    } catch (error) {
+      console.error('❌ Error sending reply:', error);
+      alert('Failed to send reply: ' + error.message);
+    }
   };
 
   const expandedFeedback = expandedCard !== null ? filteredFeedback[expandedCard] : null;
@@ -287,7 +399,11 @@ const Feedback = ({ department, onViewRequest }) => {
             </div>
           </div>
 
-          {filteredFeedback.length === 0 ? (
+          {loading ? (
+            <div className="feedback-loading">
+              <p>Loading feedback...</p>
+            </div>
+          ) : filteredFeedback.length === 0 ? (
             <div className="feedback-empty-state">
               {isFilterActive
                 ? 'No feedback found for the selected date range.'
@@ -296,7 +412,7 @@ const Feedback = ({ department, onViewRequest }) => {
           ) : (
             <div className="feedback-cards-grid">
               {filteredFeedback.map((feedback, index) => (
-                <div key={index} className="feedback-card">
+                <div key={feedback.id || index} className="feedback-card">
                   <div className="feedback-card-header">
                     <div className="user-info-feedback">
                       <FaUserCircle className="user-avatar-feedback" />
@@ -309,13 +425,32 @@ const Feedback = ({ department, onViewRequest }) => {
                       {[1, 2, 3, 4, 5].map((star) => (
                         <FaStar
                           key={star}
-                          className={star <= feedback.rating ? 'star-filled' : 'star-empty'}
+                          className={star <= Math.round(feedback.rating) ? 'star-filled' : 'star-empty'}
                         />
                       ))}
                     </div>
                   </div>
 
                   <p className="feedback-comment">{feedback.comment}</p>
+
+                  {/* Show existing replies */}
+                  {feedback.replies && feedback.replies.length > 0 && (
+                    <div className="feedback-replies-section">
+                      <h5 className="replies-title">Replies ({feedback.replies.length})</h5>
+                      {feedback.replies.map((reply, replyIndex) => (
+                        <div key={replyIndex} className="reply-item">
+                          <div className="reply-header">
+                            <span className="reply-author">{reply.sentByName}</span>
+                            <span className="reply-office">({reply.sentByOffice})</span>
+                            <span className="reply-date">
+                              {new Date(reply.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                          </div>
+                          <p className="reply-message">{reply.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   <button className="reply-button" onClick={() => openReplyForm(index)}>
                     <BsChatDots />
@@ -355,6 +490,25 @@ const Feedback = ({ department, onViewRequest }) => {
             </div>
 
             <p className="feedback-comment">{expandedFeedback.comment}</p>
+
+            {/* Show existing replies in modal */}
+            {expandedFeedback.replies && expandedFeedback.replies.length > 0 && (
+              <div className="feedback-replies-section">
+                <h5 className="replies-title">Previous Replies ({expandedFeedback.replies.length})</h5>
+                {expandedFeedback.replies.map((reply, replyIndex) => (
+                  <div key={replyIndex} className="reply-item">
+                    <div className="reply-header">
+                      <span className="reply-author">{reply.sentByName}</span>
+                      <span className="reply-office">({reply.sentByOffice})</span>
+                      <span className="reply-date">
+                        {new Date(reply.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <p className="reply-message">{reply.message}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="expanded-ratings">
               <div className="rating-row">

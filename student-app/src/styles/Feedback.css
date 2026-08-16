@@ -31,6 +31,13 @@
   line-height: 1.2;
 }
 
+.feedback-subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-2);
+  font-weight: var(--font-weight-normal);
+}
+
 /* ---- Office selection grid (Figma: 2x2, generous gaps) ---- */
 
 .office-grid {
@@ -64,6 +71,14 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
   margin-bottom: var(--space-5);
+}
+
+.feedback-count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: -12px;
+  margin-bottom: var(--space-4);
+  font-style: italic;
 }
 
 .rating-display {

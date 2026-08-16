@@ -177,19 +177,9 @@ function RequestDetails({ requestData, onNavigate }) {
     link.click();
   };
 
-  // Map a request office to the matching feedback page route (Feedback.jsx).
-  // Offices without a dedicated feedback page fall back to the overview.
-  const getFeedbackRoute = (office) => {
-    const routes = {
-      'Finance': 'feedback-finance',
-      'Library': 'feedback-library',
-      'Registrar': 'feedback-registrar'
-    };
-    return routes[office] || 'feedback';
-  };
-
   const handleProvideFeedback = () => {
-    onNavigate(getFeedbackRoute(request.office));
+    // Navigate to feedback with request context
+    onNavigate('feedback-for-request', request);
   };
 
   const getStatusBadgeClass = (status) => {
@@ -438,7 +428,7 @@ function RequestDetails({ requestData, onNavigate }) {
           </div>
 
           {/* Green feedback banner — only shown for resolved requests (Figma) */}
-          {request.status?.toLowerCase() === 'resolved' && (
+          {request.status?.toLowerCase() === 'resolved' && !request.feedbackProvided && (
             <div className="feedback-banner">
               <div className="feedback-banner-icon" aria-hidden="true">
                 <MdStar />
@@ -453,6 +443,21 @@ function RequestDetails({ requestData, onNavigate }) {
               <button className="feedback-banner-btn" onClick={handleProvideFeedback}>
                 Provide Feedback
               </button>
+            </div>
+          )}
+
+          {/* Thank you message when feedback already provided */}
+          {request.status?.toLowerCase() === 'resolved' && request.feedbackProvided && (
+            <div className="feedback-banner feedback-provided">
+              <div className="feedback-banner-icon" aria-hidden="true">
+                <MdCheckCircle />
+              </div>
+              <div className="feedback-banner-copy">
+                <h3>Thank You for Your Feedback!</h3>
+                <p>
+                  We appreciate you taking the time to share your experience with us.
+                </p>
+              </div>
             </div>
           )}
 
