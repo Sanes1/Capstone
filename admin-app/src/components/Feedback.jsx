@@ -230,7 +230,7 @@ const Feedback = ({ department, onViewRequest }) => {
 
   const filteredFeedback = useMemo(
     () => filterFeedbackByDate(feedbackData, appliedFilter),
-    [appliedFilter]
+    [feedbackData, appliedFilter]
   );
 
   const satisfactionStats = useMemo(
